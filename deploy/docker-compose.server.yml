@@ -1,6 +1,7 @@
 services:
   app:
-    image: hykilpikonna/aquadx:latest
+    image: ghcr.io/dongyinw/aquadx_fix:latest
+    pull_policy: always
     container_name: aquadx
     ports:
       - "80:80"
@@ -15,4 +16,3 @@ services:
     volumes:
       - ../config:/app/config
       - ../data:/app/data
-      - ../build/libs/AquaDX-1.0.0.jar:/app/AquaDX-1.0.0.jar:ro
