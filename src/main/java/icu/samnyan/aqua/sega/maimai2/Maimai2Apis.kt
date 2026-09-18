@@ -19,10 +19,11 @@ fun Maimai2ServletController.initApis() {
     val magicalPassStoreKey = "aquadx.magical_pass"
     val magicalPassTicketStoreKey = "aquadx.magical_pass_ticket"
     val magicalPassDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")
-    val magicalPassPackIds = setOf(7001, 7002, 7003)
+    val magicalPassTypeByPackId = mapOf(7001 to 2, 7002 to 3, 7003 to 3)
     fun canonicalizePass(pass: Map<String, Any?>): Map<String, Any?> {
         val passPackId = (pass["passPackId"] as? Number)?.toInt()
-        return if (passPackId in magicalPassPackIds) pass + ("passTypeId" to 2) else pass
+        val passTypeId = magicalPassTypeByPackId[passPackId]
+        return if (passTypeId != null) pass + ("passTypeId" to passTypeId) else pass
     }
 
     "GetUserExtend" { mapOf(
@@ -290,7 +291,7 @@ fun Maimai2ServletController.initApis() {
             fun number(key: String, fallback: Int) = (pass[key] as? Number)?.toInt() ?: fallback
             val passPackId = number("passPackId", 7001)
             mapOf(
-                "passTypeId" to if (passPackId in magicalPassPackIds) 2 else number("passTypeId", 2),
+                "passTypeId" to (magicalPassTypeByPackId[passPackId] ?: number("passTypeId", 2)),
                 "passPackId" to passPackId,
                 "passCharaId" to number("passCharaId", 700107),
                 "mapId" to number("mapId", 0),
