@@ -19,6 +19,11 @@ fun Maimai2ServletController.initApis() {
     val magicalPassStoreKey = "aquadx.magical_pass"
     val magicalPassTicketStoreKey = "aquadx.magical_pass_ticket"
     val magicalPassDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")
+    val magicalPassPackIds = setOf(7001, 7002, 7003)
+    fun canonicalizePass(pass: Map<String, Any?>): Map<String, Any?> {
+        val passPackId = (pass["passPackId"] as? Number)?.toInt()
+        return if (passPackId in magicalPassPackIds) pass + ("passTypeId" to 2) else pass
+    }
 
     "GetUserExtend" { mapOf(
         "userId" to uid,
@@ -254,6 +259,7 @@ fun Maimai2ServletController.initApis() {
         val passList = user?.let {
             db.userGeneralData.findByUserAndPropertyKey(it, magicalPassStoreKey)
                 ?.propertyValue?.jsonArray()
+                ?.map(::canonicalizePass)
         } ?: emptyList()
         mapOf("length" to passList.size, "userId" to uid, "userPassList" to passList)
     }
@@ -282,9 +288,10 @@ fun Maimai2ServletController.initApis() {
         val endDate = end.format(magicalPassDateFormatter)
         val userPassList = requestedPasses.map { pass ->
             fun number(key: String, fallback: Int) = (pass[key] as? Number)?.toInt() ?: fallback
+            val passPackId = number("passPackId", 7001)
             mapOf(
-                "passTypeId" to number("passTypeId", 2),
-                "passPackId" to number("passPackId", 7001),
+                "passTypeId" to if (passPackId in magicalPassPackIds) 2 else number("passTypeId", 2),
+                "passPackId" to passPackId,
                 "passCharaId" to number("passCharaId", 700107),
                 "mapId" to number("mapId", 0),
                 "startDate" to startDate,
