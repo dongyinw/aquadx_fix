@@ -6,13 +6,19 @@ import ext.*
 import icu.samnyan.aqua.sega.general.model.CardStatus
 import icu.samnyan.aqua.sega.maimai2.model.UserRivalMusic
 import icu.samnyan.aqua.sega.maimai2.model.UserRivalMusicDetail
+import icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserGeneralData
+import icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserItem
 import icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserKaleidx
 import icu.samnyan.aqua.sega.maimai2.model.userdata.UserRegions
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlin.random.Random
 
 fun Maimai2ServletController.initApis() {
     val log = logger()
+    val magicalPassStoreKey = "aquadx.magical_pass"
+    val magicalPassTicketStoreKey = "aquadx.magical_pass_ticket"
+    val magicalPassDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")
 
     "GetUserExtend" { mapOf(
         "userId" to uid,
@@ -55,7 +61,45 @@ fun Maimai2ServletController.initApis() {
 
     // Maimai only request for event type 1
     "GetGameEvent" static { mapOf("type" to 1, "gameEventList" to db.gameEvent.findAll()) }
-    "GetGameCharge" static { db.gameCharge.findAll().let { mapOf("length" to it.size, "gameChargeList" to it) } }
+    "GetGameCharge" static {
+        db.gameCharge.findAll().let {
+            mapOf(
+                "length" to it.size,
+                "gameChargeList" to it,
+                "gamePassChargeList" to db.gameData.mai2PassCharges
+            )
+        }
+    }
+
+    "GetGameSellingPassPack" static {
+        val gameSellingPassPackList = listOf(
+            mapOf(
+                "id" to 1,
+                "passPackId" to 7001,
+                "startDate" to "2026-09-16 07:00:00.0",
+                "endDate" to "2099-01-01 00:00:00.0",
+                "noticeStartDate" to "2026-09-16 07:00:00.0",
+                "noticeEndDate" to "2099-01-01 00:00:00.0"
+            ),
+            mapOf(
+                "id" to 2,
+                "passPackId" to 7002,
+                "startDate" to "2026-09-16 07:00:00.0",
+                "endDate" to "2099-01-01 00:00:00.0",
+                "noticeStartDate" to "2026-09-16 07:00:00.0",
+                "noticeEndDate" to "2099-01-01 00:00:00.0"
+            ),
+            mapOf(
+                "id" to 3,
+                "passPackId" to 7003,
+                "startDate" to "2026-09-16 07:00:00.0",
+                "endDate" to "2099-01-01 00:00:00.0",
+                "noticeStartDate" to "2026-09-16 07:00:00.0",
+                "noticeEndDate" to "2099-01-01 00:00:00.0"
+            )
+        )
+        mapOf("length" to gameSellingPassPackList.size, "gameSellingPassPackList" to gameSellingPassPackList)
+    }
 
     "GetUserOption" { mapOf(
         "userId" to uid,
@@ -205,6 +249,93 @@ fun Maimai2ServletController.initApis() {
         db.userIntimate.findByUser(u)
     }
 
+    "GetUserPass" {
+        val user = db.userData.findByCardExtId(uid)
+        val passList = user?.let {
+            db.userGeneralData.findByUserAndPropertyKey(it, magicalPassStoreKey)
+                ?.propertyValue?.jsonArray()
+        } ?: emptyList()
+        mapOf("length" to passList.size, "userId" to uid, "userPassList" to passList)
+    }
+
+    "GetUserTicketLimitDate" {
+        val user = db.userData.findByCardExtId(uid)
+        val ticketLimitDateList = user?.let {
+            db.userGeneralData.findByUserAndPropertyKey(it, magicalPassTicketStoreKey)
+                ?.propertyValue?.jsonArray()
+        } ?: emptyList()
+        mapOf("length" to ticketLimitDateList.size, "userTicketLimitDateList" to ticketLimitDateList)
+    }
+
+    "UserPassModeEnter" static { mapOf("returnCode" to 1) }
+
+    "UpsertUserPassMode" {
+        val requestedPasses = ((data["userPassList"] as? List<*>)
+            ?.mapNotNull { it as? Map<*, *> }
+            ?: emptyList()).ifEmpty {
+            listOf(mapOf("passTypeId" to 2, "passPackId" to 7001, "passCharaId" to 700107, "mapId" to 0))
+        }
+
+        val start = jstNow()
+        val end = start.plusDays(14)
+        val startDate = start.format(magicalPassDateFormatter)
+        val endDate = end.format(magicalPassDateFormatter)
+        val userPassList = requestedPasses.map { pass ->
+            fun number(key: String, fallback: Int) = (pass[key] as? Number)?.toInt() ?: fallback
+            mapOf(
+                "passTypeId" to number("passTypeId", 2),
+                "passPackId" to number("passPackId", 7001),
+                "passCharaId" to number("passCharaId", 700107),
+                "mapId" to number("mapId", 0),
+                "startDate" to startDate,
+                "endDate" to endDate
+            )
+        }
+
+        val ticketLimitDateList = listOf(
+            mapOf(
+                "itemId" to 40001,
+                "limitDate" to end.plusDays(1).format(magicalPassDateFormatter),
+                "lastUsedDate" to ""
+            )
+        )
+
+        db.userData.findByCardExtId(uid)?.let { user ->
+            val passData = db.userGeneralData.findByUserAndPropertyKey(user, magicalPassStoreKey)
+                ?: Mai2UserGeneralData().apply {
+                    this.user = user
+                    propertyKey = magicalPassStoreKey
+                }
+            passData.propertyValue = userPassList.toJson()
+            db.userGeneralData.save(passData)
+
+            val ticket = db.userItem.findByUserAndItemKindAndItemId(user, 12, 40001)
+                ?: Mai2UserItem().apply {
+                    this.user = user
+                    itemKind = 12
+                    itemId = 40001
+                }
+            ticket.stock = maxOf(ticket.stock, 5)
+            ticket.isValid = true
+            db.userItem.save(ticket)
+
+            val ticketData = db.userGeneralData.findByUserAndPropertyKey(user, magicalPassTicketStoreKey)
+                ?: Mai2UserGeneralData().apply {
+                    this.user = user
+                    propertyKey = magicalPassTicketStoreKey
+                }
+            ticketData.propertyValue = ticketLimitDateList.toJson()
+            db.userGeneralData.save(ticketData)
+        }
+
+        mapOf(
+            "returnCode" to 1,
+            "userPassList" to userPassList,
+            "userItemList" to listOf(mapOf("itemKind" to 12, "itemId" to 40001, "stock" to 5, "isValid" to true)),
+            "userTicketLimitDateList" to ticketLimitDateList
+        )
+    }
+
     // Empty List Handlers
     "GetUserGhost".unpaged { empty }
     "GetUserFriendBonus" { mapOf("userId" to uid, "returnCode" to 0, "getMiles" to 0) }
@@ -215,7 +346,47 @@ fun Maimai2ServletController.initApis() {
     "GetUserFriendCheck" static { mapOf("returnCode" to 0) }
     "UserFriendRegist" static { mapOf("returnCode1" to 0, "returnCode2" to 0) }
     "GetGameNgMusicId" static { mapOf("length" to 0, "musicIdList" to empty, "ngMusicDataList" to empty) }
-    "GetGameNationalData" static { mapOf("nextIndex" to 0, "nationalDataList" to empty) }
+    "GetGameNationalData" {
+        val requestedLevels = (data["levelList"] as? List<*>)
+            ?.mapNotNull { (it as? Number)?.toInt() }
+            ?.toSet()
+            ?.takeIf { it.isNotEmpty() }
+            ?: setOf(2, 3, 4)
+
+        // National rates are derived from the current best score of every user.
+        // The bundled data supplies the song/difficulty catalog, while these
+        // values are recalculated for every request so new plays appear immediately.
+        val liveByKey = db.userMusicDetail.findAll()
+            .asSequence()
+            .filter { it.playCount > 0 }
+            .groupBy { it.musicId to it.level }
+
+        fun rate(count: Int, total: Int) =
+            if (total == 0) 0 else (count.toLong() * 1_000_000L / total).toInt()
+
+        val nationalDataList = db.gameData.mai2NationalData.mapNotNull { entry ->
+            val details = entry.nationalDataDetailList
+                .filter { it.level in requestedLevels }
+                .map { template ->
+                    val rows = liveByKey[entry.musicId.toInt() to template.level].orEmpty()
+                    val total = rows.size
+                    mapOf(
+                        "level" to template.level,
+                        "clearRateAp" to rate(rows.count { it.comboStatus >= 3 }, total),
+                        "clearRateS" to rate(rows.count { it.achievement >= 970000 }, total),
+                        "clearRateSs" to rate(rows.count { it.achievement >= 990000 }, total),
+                        "clearRateSss" to rate(rows.count { it.achievement >= 1000000 }, total),
+                        "clearRateSssPlus" to rate(rows.count { it.achievement >= 1005000 }, total)
+                    )
+                }
+            if (details.isEmpty()) null else mapOf(
+                "musicId" to entry.musicId,
+                "nationalDataDetailList" to details
+            )
+        }
+
+        mapOf("nextIndex" to 0, "nationalDataList" to nationalDataList)
+    }
     "GetGameTournamentInfo" static { mapOf("length" to 0, "gameTournamentInfoList" to empty) }
 
     // <phaseId: start offset days>

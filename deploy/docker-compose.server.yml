@@ -1,0 +1,18 @@
+services:
+  app:
+    image: hykilpikonna/aquadx:latest
+    container_name: aquadx
+    ports:
+      - "80:80"
+      - "8443:8443"
+      - "22345:22345"
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:?set SPRING_DATASOURCE_URL in .env}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:?set SPRING_DATASOURCE_USERNAME in .env}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?set SPRING_DATASOURCE_PASSWORD in .env}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.mariadb.jdbc.Driver
+    volumes:
+      - ../config:/app/config
+      - ../data:/app/data
+      - ../build/libs/AquaDX-1.0.0.jar:/app/AquaDX-1.0.0.jar:ro
