@@ -1,4 +1,4 @@
-# AquaNet
+# MikuNet
 
 This is the codebase for the new frontend of AquaDX. 
 This project is also heavily WIP, so more details will be added later on.

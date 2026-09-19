@@ -2,7 +2,7 @@
 
 <script lang="ts">
   import { fade, slide } from "svelte/transition"
-  import type { Card, CardSummary, CardSummaryGame, ConfirmProps, AquaNetUser } from "../../libs/generalTypes"
+  import type { Card, CardSummary, CardSummaryGame, ConfirmProps, MikuNetUser } from "../../libs/generalTypes"
   import { CARD, USER } from "../../libs/sdk"
   import moment from "moment"
   import Icon from "@iconify/svelte"
@@ -17,7 +17,7 @@
   let showConfirm: ConfirmProps | null = null
 
   let error: string = ""
-  let me: AquaNetUser | null = null
+  let me: MikuNetUser | null = null
   let accountCardSummary: CardSummary | null = null
 
   // Fetch data for current user

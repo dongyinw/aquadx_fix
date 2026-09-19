@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { CHARTJS_OPT, coverNotFound, pfpNotFound, registerChart, renderCal, title, tooltip, pfp } from "../libs/ui";
   import type {
     GenericGamePlaylog,
     GenericGameSummary,
     MusicMeta,
     TrendEntry,
-    AquaNetUser,
+    MikuNetUser,
 
     AllMusic
 
@@ -33,7 +34,7 @@
   export let game: GameName = "" as GameName;
   let calElement: HTMLElement
   let error: string;
-  let me: AquaNetUser
+  let me: MikuNetUser
   const rounding = useLocalStorage("rounding", true);
 
   interface MusicAndPlay extends MusicMeta, GenericGamePlaylog {}
@@ -49,6 +50,39 @@
   let showDetailRank = false
   let isLoading = false
   let showMoreRecent = false
+  let selectedScore: MusicAndPlay | null = null
+  let detailLoading = false
+  let detailError = ""
+
+  const judgmentRows = [
+    { label: "Tap", prefix: "tap" },
+    { label: "Hold", prefix: "hold" },
+    { label: "Slide", prefix: "slide" },
+    { label: "Touch", prefix: "touch" },
+    { label: "Break", prefix: "break" },
+  ]
+
+  const hasJudgments = (score: GenericGamePlaylog) => score.tapCriticalPerfect !== undefined
+  const judgmentValue = (score: GenericGamePlaylog, prefix: string, grade: string) =>
+    Number((score as Record<string, unknown>)[`${prefix}${grade}`] ?? 0)
+
+  function openScore(score: MusicAndPlay) {
+    selectedScore = score
+    detailError = ""
+
+    if (!score.id || hasJudgments(score)) return
+
+    detailLoading = true
+    GAME.playlog(game, score.id).then(detail => {
+      selectedScore = { ...score, ...detail } as MusicAndPlay
+    }).catch(e => detailError = e.message).finally(() => detailLoading = false)
+  }
+
+  function closeScore() {
+    selectedScore = null
+    detailLoading = false
+    detailError = ""
+  }
 
 
   function init() {
@@ -116,8 +150,15 @@
     }).catch((e) => { error = e.message; console.error(e) } );
   }
 
-  if (Object.keys(GAME_TITLE).includes(game) || !game) init()
-  else error = t("UserHome.InvalidGame", {game})
+  onMount(() => {
+    // Route props can arrive after the component script is initialized.
+    const parts = window.location.pathname.split("/").filter(Boolean)
+    username = username || decodeURIComponent(parts[1] ?? "")
+    game = game || (parts[2] as GameName ?? "")
+
+    if (Object.keys(GAME_TITLE).includes(game) || !game) init()
+    else error = t("UserHome.InvalidGame", {game})
+  })
 
   const setRival = (isAdd: boolean) => {
     isLoading = true
@@ -362,7 +403,9 @@
       <h2>{t('UserHome.RecentScores')}</h2>
       <div class="scores">
         {#each (showMoreRecent ? d.recent : d.recent.slice(0, 15)) as r, i}
-          <div class:alt={i % 2 === 0}>
+          <div class:alt={i % 2 === 0} class="score-entry" role="button" tabindex="0"
+               on:click={() => openScore(r)}
+               on:keydown={e => (e.key === "Enter" || e.key === " ") && openScore(r)}>
             <img src={`${DATA_HOST}/d/${game}/music/00${r.musicId.toString().padStart(6, '0').substring(2)}.png`} alt="" on:error={coverNotFound} />
             <div class="info">
               <div>{r.name ?? t("UserHome.UnknownSong")}</div>
@@ -419,6 +462,52 @@
   {/if}
 
   <StatusOverlays {error} loading={!d || isLoading} />
+
+{#if selectedScore}
+  <div class="score-detail-overlay" role="presentation" on:click={(e) => e.currentTarget === e.target && closeScore()}>
+    <div class="score-detail" role="dialog" aria-modal="true" aria-label="成绩详情">
+      <div class="detail-header">
+        <div>
+          <span>成绩详情</span>
+          <h2>{selectedScore.name ?? t("UserHome.UnknownSong")}</h2>
+        </div>
+        <button class="icon" type="button" on:click={closeScore} aria-label="关闭"><Icon icon="line-md:close" /></button>
+      </div>
+
+      <div class="detail-summary">
+        <img src={`${DATA_HOST}/d/${game}/music/00${selectedScore.musicId.toString().padStart(6, '0').substring(2)}.png`} alt="" on:error={coverNotFound} />
+        <div>
+          <strong>{moment(selectedScore.userPlayDate ?? selectedScore.playDate).format("YYYY-MM-DD HH:mm")}</strong>
+          <span>{GAME_TITLE[game]} · {selectedScore.notes?.[selectedScore.level === 10 ? 0 : selectedScore.level]?.lv?.toFixed(1) ?? selectedScore.worldsEndTag ?? '-'}</span>
+          <span>{selectedScore.isAllPerfect || selectedScore.isAllJustice ? "ALL PERFECT" : selectedScore.isFullCombo ? "FULL COMBO" : "PLAY RESULT"}</span>
+        </div>
+      </div>
+
+      <div class="detail-stats">
+        <div><span>达成率</span><strong>{(selectedScore.achievement / 10000).toFixed(4)}%</strong><small>{("" + getMult(selectedScore.achievement, game)[2]).replace("p", "+")}</small></div>
+        <div><span>DX 分</span><strong>{(selectedScore.deluxscore ?? selectedScore.totalDxScore ?? 0).toLocaleString()}</strong></div>
+        <div><span>最大连击</span><strong>{selectedScore.maxCombo.toLocaleString()}<small> / {selectedScore.totalCombo.toLocaleString()}</small></strong></div>
+        <div><span>Rating 变化</span><strong class:positive={selectedScore.afterRating > selectedScore.beforeRating}>{selectedScore.afterRating > selectedScore.beforeRating ? "+" : ""}{selectedScore.afterRating - selectedScore.beforeRating}</strong></div>
+      </div>
+
+      {#if detailLoading}
+        <div class="detail-message"><Icon icon="line-md:loading-twotone-loop" />正在读取逐项判定…</div>
+      {:else if detailError}
+        <div class="detail-message error">详情读取失败：{detailError}</div>
+      {:else if hasJudgments(selectedScore)}
+        <div class="judgment-table">
+          <div class="judgment-row header"><span>判定</span><span>Critical</span><span>Perfect</span><span>Great</span><span>Good</span><span>Miss</span></div>
+          {#each judgmentRows as row}
+            <div class="judgment-row"><strong>{row.label}</strong><span class="critical">{judgmentValue(selectedScore, row.prefix, "CriticalPerfect")}</span><span>{judgmentValue(selectedScore, row.prefix, "Perfect")}</span><span>{judgmentValue(selectedScore, row.prefix, "Great")}</span><span>{judgmentValue(selectedScore, row.prefix, "Good")}</span><span class="miss">{judgmentValue(selectedScore, row.prefix, "Miss")}</span></div>
+          {/each}
+        </div>
+        <div class="timing"><span>FAST {selectedScore.fastCount ?? 0}</span><span>LATE {selectedScore.lateCount ?? 0}</span><span>{selectedScore.isFreedomMode ? "FREEDOM" : selectedScore.isNewFree ? "NEW FREE" : "STANDARD"}</span></div>
+      {:else}
+        <div class="detail-message">该成绩没有返回逐项判定数据</div>
+      {/if}
+    </div>
+  </div>
+{/if}
 </main>
 
 <style lang="sass">
@@ -760,6 +849,166 @@
         &:before
           content: "+"
         color: vars.$c-good
+
+  .score-entry
+    cursor: pointer
+    transition: vars.$transition
+
+    &:hover, &:focus-visible
+      background-color: rgba(vars.$c-main, 0.1) !important
+      outline: none
+
+  .score-detail-overlay
+    position: fixed
+    inset: 0
+    z-index: 1000
+    display: flex
+    align-items: center
+    justify-content: center
+    padding: 1rem
+    background: rgba(0, 0, 0, 0.72)
+    backdrop-filter: blur(5px)
+
+  .score-detail
+    width: min(680px, 100%)
+    max-height: calc(100vh - 2rem)
+    overflow-y: auto
+    padding: 1.5rem
+    box-sizing: border-box
+    border-radius: vars.$border-radius
+    background: vars.$c-bg
+    box-shadow: 0 12px 45px vars.$c-shadow
+
+  .detail-header
+    display: flex
+    align-items: flex-start
+    justify-content: space-between
+    gap: 1rem
+
+    > div > span
+      color: vars.$c-main
+      font-size: 0.8rem
+      letter-spacing: 0.08em
+
+    h2
+      margin: 0.2rem 0 0
+      font-size: 1.4rem
+
+  .detail-summary
+    display: flex
+    align-items: center
+    gap: 1rem
+    margin: 1.25rem 0
+    padding-bottom: 1.25rem
+    border-bottom: 1px solid vars.$ov-light
+
+    img
+      width: 80px
+      height: 80px
+      border-radius: vars.$border-radius
+      object-fit: cover
+
+    div
+      display: flex
+      flex-direction: column
+      gap: 0.25rem
+
+      span
+        color: vars.$c-main
+        font-size: 0.8rem
+
+      span:first-of-type
+        color: vars.$c-sub
+
+  .detail-stats
+    display: grid
+    grid-template-columns: repeat(4, 1fr)
+    gap: 0.6rem
+    margin-bottom: 1.25rem
+
+    > div
+      padding: 0.65rem
+      border-radius: vars.$border-radius
+      background: vars.$ov-light
+
+      span, small
+        display: block
+        color: vars.$c-sub
+        font-size: 0.72rem
+
+      strong
+        display: block
+        margin-top: 0.25rem
+        color: vars.$c-main
+        font-size: 1.05rem
+
+      small
+        margin-top: 0.1rem
+
+    .positive
+      color: vars.$c-good
+
+  .judgment-table
+    overflow: hidden
+    border: 1px solid vars.$c-main
+    border-radius: vars.$border-radius
+
+  .judgment-row
+    display: grid
+    grid-template-columns: 1.2fr repeat(5, 1fr)
+    border-top: 1px solid rgba(vars.$c-main, 0.35)
+    text-align: center
+
+    &:first-child
+      border-top: 0
+
+    > *
+      padding: 0.55rem 0.2rem
+
+    strong
+      text-align: left
+      padding-left: 0.7rem
+
+    .critical
+      color: vars.$c-warning
+
+    .miss
+      color: vars.$c-error
+
+  .judgment-row.header
+    color: vars.$c-main
+    background: vars.$ov-light
+    font-size: 0.75rem
+
+  .timing
+    display: flex
+    gap: 1rem
+    margin-top: 0.8rem
+    color: vars.$c-sub
+    font-size: 0.8rem
+
+  .detail-message
+    padding: 1rem
+    border-radius: vars.$border-radius
+    color: vars.$c-sub
+    background: vars.$ov-light
+    text-align: center
+
+    &.error
+      color: vars.$c-error
+
+  @media (max-width: vars.$w-mobile)
+    .score-detail
+      padding: 1rem
+
+    .detail-stats
+      grid-template-columns: repeat(2, 1fr)
+
+    .judgment-row
+      font-size: 0.72rem
+
+      > *
+        padding: 0.45rem 0.1rem
 
 
 </style>
