@@ -102,6 +102,14 @@ fun Maimai2ServletController.initApis() {
                 "endDate" to "2099-01-01 00:00:00.0",
                 "noticeStartDate" to "2026-09-16 07:00:00.0",
                 "noticeEndDate" to "2099-01-01 00:00:00.0"
+            ),
+            mapOf(
+                "id" to 4,
+                "passPackId" to 2000001,
+                "startDate" to "2026-09-19 07:00:00.0",
+                "endDate" to "2099-01-01 00:00:00.0",
+                "noticeStartDate" to "2026-09-19 07:00:00.0",
+                "noticeEndDate" to "2099-01-01 00:00:00.0"
             )
         )
         mapOf("length" to gameSellingPassPackList.size, "gameSellingPassPackList" to gameSellingPassPackList)
