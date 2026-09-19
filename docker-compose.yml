@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    image: hykilpikonna/aquadx:latest
+    image: ghcr.io/dongyinw/aquadx_fix:latest
     ports:
       - "80:80"
       - "8443:8443"
