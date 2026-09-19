@@ -16,10 +16,10 @@ import CalHeatmap from 'cal-heatmap'
 // @ts-expect-error Cal-heatmap does not have proper types
 import CalTooltip from 'cal-heatmap/plugins/Tooltip'
 import { AQUA_HOST, DEFAULT_PFP } from "./config"
-import type { AquaNetUser } from "./generalTypes"
+import type { MikuNetUser } from "./generalTypes"
 
 export function title(t: string) {
-  document.title = `AquaNet - ${t}`
+  document.title = `MikuNet - ${t}`
 }
 
 export function registerChart() {
@@ -208,7 +208,7 @@ export function tooltip(element: HTMLElement, params: { text: string, dom: HTMLE
   }
 }
 
-export function pfp(node: HTMLImageElement, me?: AquaNetUser) {
+export function pfp(node: HTMLImageElement, me?: MikuNetUser) {
   node.src = me?.profilePicture ? `${AQUA_HOST}/uploads/net/portrait/${me.profilePicture}` : DEFAULT_PFP
   node.onerror = e => pfpNotFound(e as Event)
 }
@@ -261,4 +261,3 @@ export async function selectJsonFile(): Promise<any> {
     document.body.removeChild(input);
   });
 }
-

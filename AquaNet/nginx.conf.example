@@ -4,10 +4,10 @@ server {
   ssl_certificate /etc/nginx/certs/aqua.example.com.crt;
   ssl_certificate_key /etc/nginx/certs/aqua.example.com.key;
 
-  # Absolute path to store the compiled AquaNet,
+  # Absolute path to store the compiled MikuNet,
   # there should be index.html in the directory.
   location / {
-    root /var/www/html/AquaNet/;
+    root /var/www/html/MikuNet/;
     try_files $uri $uri/ @router;
     index index.html;
   }

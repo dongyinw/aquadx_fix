@@ -14,7 +14,7 @@ export interface Card {
   isGhost: boolean
 }
 
-export interface AquaNetUser {
+export interface MikuNetUser {
   username: string
   email: string
   displayName: string
@@ -60,17 +60,50 @@ export interface ConfirmProps {
 }
 
 export interface GenericGamePlaylog {
+  id?: number
   musicId: number
   level: number
   playDate: string
+  userPlayDate?: string
   achievement: number
   maxCombo: number
   totalCombo: number
+  deluxscore?: number
+  totalDxScore?: number
   afterRating: number
   beforeRating: number
   isFullCombo?: boolean
   isAllPerfect?: boolean
   isAllJustice?: boolean
+  tapCriticalPerfect?: number
+  tapPerfect?: number
+  tapGreat?: number
+  tapGood?: number
+  tapMiss?: number
+  holdCriticalPerfect?: number
+  holdPerfect?: number
+  holdGreat?: number
+  holdGood?: number
+  holdMiss?: number
+  slideCriticalPerfect?: number
+  slidePerfect?: number
+  slideGreat?: number
+  slideGood?: number
+  slideMiss?: number
+  touchCriticalPerfect?: number
+  touchPerfect?: number
+  touchGreat?: number
+  touchGood?: number
+  touchMiss?: number
+  breakCriticalPerfect?: number
+  breakPerfect?: number
+  breakGreat?: number
+  breakGood?: number
+  breakMiss?: number
+  fastCount?: number
+  lateCount?: number
+  isFreedomMode?: boolean
+  isNewFree?: boolean
 }
 
 export interface GenericRanking {
@@ -92,7 +125,7 @@ export interface RankCount {
 export interface GenericGameSummary {
   name: string
   iconId: number
-  aquaUser?: AquaNetUser
+  aquaUser?: MikuNetUser
   serverRank: string
   accuracy: number
   rating: number

@@ -5,12 +5,12 @@
   import useLocalStorage from "../../libs/hooks/useLocalStorage.svelte";
   import RegionSelector from "./RegionSelector.svelte";
   import { USER } from "../../libs/sdk";
-  import type { AquaNetUser } from "../../libs/generalTypes";
+  import type { MikuNetUser } from "../../libs/generalTypes";
   import StatusOverlays from "../StatusOverlays.svelte";
 
   const rounding = useLocalStorage("rounding", true);
 
-  let me: AquaNetUser;
+  let me: MikuNetUser;
   let submitting = "";
   let error = "";
   let loading = true;

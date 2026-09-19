@@ -1,6 +1,6 @@
 <script lang="ts">
   import { USER } from "../libs/sdk.js";
-  import type { AquaNetUser } from "../libs/generalTypes";
+  import type { MikuNetUser } from "../libs/generalTypes";
   import StatusOverlays from "../components/StatusOverlays.svelte";
   import ActionCard from "../components/ActionCard.svelte";
   import { t } from "../libs/i18n";
@@ -10,7 +10,7 @@
 
   USER.ensureLoggedIn();
 
-  let me: AquaNetUser;
+  let me: MikuNetUser;
   let error = "";
 
   USER.me().then((m) => me = m).catch(e => error = e.message)
@@ -25,20 +25,20 @@
   {#if me}
     <div class="action-cards">
       <div class="quick-action-cards">
-        <ActionCard isSmall={true} color="201, 135, 174" icon="fluent:games-16-filled" href={`/u/${me.username}`}>
+        <ActionCard isSmall={true} color="57, 197, 187" icon="fluent:games-16-filled" href={`/u/${me.username}`}>
           <h3>{t('home.user-profile')}</h3>
         </ActionCard>
-        <ActionCard isSmall={true} color="136, 99, 150" icon="fluent:text-bullet-list-square-16-filled" href={`/ranking`}>
+        <ActionCard isSmall={true} color="8, 127, 130" icon="fluent:text-bullet-list-square-16-filled" href={`/ranking`}>
           <h3>{t('home.rankings')}</h3>
         </ActionCard>
-        <ActionCard isSmall={true} color="133, 199, 201" icon="fluent:settings-16-filled" href={`/settings`}>
+        <ActionCard isSmall={true} color="129, 230, 217" icon="fluent:settings-16-filled" href={`/settings`}>
           <h3>{t('home.settings')}</h3>
         </ActionCard>
       </div>
 
       <div class="separator"></div>
 
-      <ActionCard color="255, 192, 203" icon="solar:card-bold-duotone" href="/cards">
+      <ActionCard color="255, 102, 153" icon="solar:card-bold-duotone" href="/cards">
         {#if me && me.cards.length > 1}
           <h3>{t('home.manage-cards')}</h3>
           <span>{t('home.manage-cards-description')}</span>
@@ -55,10 +55,6 @@
         <span>{t('home.setup-description')}</span>
       </ActionCard>
 
-      <ActionCard color="82, 93, 233" icon="fluent:chat-12-filled" href="/support">
-        <h3>{t('home.join-community')}</h3>
-        <span>{t('home.join-community-description')}</span>
-      </ActionCard>
     </div>
   {/if}
 </main>
