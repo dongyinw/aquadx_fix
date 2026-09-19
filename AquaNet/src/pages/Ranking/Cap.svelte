@@ -1,5 +1,5 @@
 <script lang="ts">
-    /* Most of this has been backported from AquaNet2.
+    /* Most of this has been backported from MikuNet2.
 	import { browser } from "$app/environment"
 	import { page } from "$app/state"
 	import type { RankedUser } from "$lib/api/game"

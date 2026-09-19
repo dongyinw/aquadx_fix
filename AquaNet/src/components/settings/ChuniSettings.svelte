@@ -2,7 +2,7 @@
 
 <script lang="ts">
   import {
-    type AquaNetUser,
+    type MikuNetUser,
     type GameUserOption,
     type UserBox,
     type UserItem,
@@ -26,7 +26,7 @@
   import InputField from "../ui/InputField.svelte";
   import UserOptionSlider from "./UserOptionSlider.svelte";
 
-  let user: AquaNetUser
+  let user: MikuNetUser
   let [loading, error, submitting, preview] = [true, "", "", ""]
   let changed: string[] = [];
 

@@ -5,7 +5,7 @@
   import Home from "./pages/Home.svelte";
   import Ranking from "./pages/Ranking.svelte";
   import { CARD, USER } from "./libs/sdk";
-  import type { AquaNetUser } from "./libs/generalTypes";
+  import type { MikuNetUser } from "./libs/generalTypes";
   import Settings from "./pages/User/Settings.svelte";
   import MaiPhoto from "./pages/MaiPhoto.svelte";
   import { pfp, tooltip } from "./libs/ui"
@@ -14,7 +14,6 @@
   import { t } from "./libs/i18n";
   import Transfer from "./pages/Transfer/Transfer.svelte";
   import { link } from "d3";
-  import Communities from "./pages/Home/Communities.svelte";
   import LinkCard from "./pages/Home/LinkCard.svelte";
   import SetupInstructions from "./pages/Home/SetupInstructions.svelte";
   import PageNotFound from "./pages/PageNotFound.svelte";
@@ -24,7 +23,7 @@
 ┣━┫┏━┓┓ ┏┏━┓┃ ┃ ┣┫
 ┛ ┗┗━┫┗━┻┗━┻┻━┛━┛┗━
      ┗       v${APP_VERSION}`, `
-     background: linear-gradient(-45deg, rgba(18,194,233,1) 0%, rgba(196,113,237,1) 50%, rgba(246,79,89,1) 100%);
+     background: linear-gradient(-45deg, rgba(57,197,187,1) 0%, rgba(129,230,217,1) 50%, rgba(255,102,153,1) 100%);
      font-size: 2em;
      font-family: Monospace;
      unicode-bidi: isolate;
@@ -32,7 +31,7 @@
      -webkit-text-fill-color: transparent;`)
 
   export let url = "";
-  let me: AquaNetUser
+  let me: MikuNetUser
   let playedMai = false
 
   let recentGame: string = DEFAULT_GAME;
@@ -57,8 +56,8 @@
 <nav>
   {#if path !== "/"}
     <a class="logo" href={USER.isLoggedIn() ? "/home" : "/"}>
-      <img src="/assets/icons/android-chrome-192x192.png" alt="AquaDX"/>
-      <span>AquaNet</span>
+      <img src="/assets/icons/android-chrome-192x192.png" alt="MikuNet"/>
+      <span>MikuNet</span>
     </a>
   {/if}
   {#if $ANNOUNCEMENT}
@@ -83,10 +82,9 @@
 
 <Router {url}>
   <Route path="/" component={Welcome} />
-  <Route path="/verify" component={Welcome} /> <!-- For email verification only, backwards compatibility with AquaNet2 in the future -->
+  <Route path="/verify" component={Welcome} /> <!-- For email verification only, backwards compatibility with MikuNet2 in the future -->
   <Route path="/reset-password" component={Welcome} />
   <Route path="/home" component={Home} />
-  <Route path="/support" component={Communities} />
   <Route path="/cards" component={LinkCard} />
   <Route path="/setup" component={SetupInstructions} />
   <Route path="/ranking" component={Ranking} />

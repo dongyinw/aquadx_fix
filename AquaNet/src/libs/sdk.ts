@@ -3,26 +3,17 @@ import type {
   AllMusic,
   Card,
   CardSummary,
+  GenericGamePlaylog,
   GenericGameSummary,
   GenericRanking,
   TrendEntry,
-  AquaNetUser, GameOption,
+  MikuNetUser, GameOption,
   UserBox,
   UserItem,
   Dict,
   GameUserOption
 } from './generalTypes'
 import type { GameName } from './scoring'
-
-export type ExportGameName = GameName | 'diva'
-
-export interface PhotoPage {
-  photos: string[]
-  page: number
-  pageSize: number
-  total: number
-  totalPages: number
-}
 
 interface ExtReqInit extends RequestInit {
   params?: { [index: string]: string }
@@ -36,8 +27,7 @@ interface ExtReqInit extends RequestInit {
  * @param callback Callback for modification
  */
 export function reconstructUrl(input: URL | RequestInfo, callback: (url: URL) => URL | void): RequestInfo | URL {
-  const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
-  let u = new URL((input instanceof Request) ? input.url : input, base)
+  let u = new URL((input instanceof Request) ? input.url : input)
   const result = callback(u)
   if (result) u = result
   if (input instanceof Request) {
@@ -193,7 +183,7 @@ export const USER = {
   changePassword,
   confirmEmail: (token: string) =>
     post('/api/v2/user/confirm-email', { token }),
-  me: (): Promise<AquaNetUser> => {
+  me: (): Promise<MikuNetUser> => {
     ensureLoggedIn()
     return post('/api/v2/user/me', {})
   },
@@ -214,8 +204,6 @@ export const USER = {
   ensureLoggedIn,
   changeRegion: (regionId: number) =>
     post('/api/v2/user/change-region', { regionId }),
-  deleteAccount: () =>
-    post('/api/v2/user/delete-account'),
 }
 
 export const USERBOX = {
@@ -241,17 +229,17 @@ export const CARD = {
 export const GAME = {
   trend: (username: string, game: GameName): Promise<TrendEntry[]> =>
     post(`/api/v2/game/${game}/trend`, { username }),
-  photos: (page: number = 1, size: number = 12): Promise<PhotoPage> =>
-    post(`/api/v2/game/mai2/my-photo`, { page, size }),
-  allPhotos: (): Promise<string[]> =>
+  photos: (): Promise<string[]> =>
     post(`/api/v2/game/mai2/my-photo`, { }),
   userSummary: (username: string, game: GameName): Promise<GenericGameSummary> =>
     post(`/api/v2/game/${game}/user-summary`, { username }),
+  playlog: (game: GameName, id: number): Promise<GenericGamePlaylog> =>
+    post(`/api/v2/game/${game}/playlog`, { id }),
   ranking: (game: GameName, page?: number): Promise<GenericRanking[]> =>
     post(`/api/v2/game/${game}/ranking`, typeof page === "number" ? { page } : {}),
   changeName: (game: GameName, newName: string): Promise<{ newName: string }> =>
     post(`/api/v2/game/${game}/change-name`, { newName }),
-  export: (game: ExportGameName): Promise<Record<string, any>> =>
+  export: (game: GameName): Promise<Record<string, any>> =>
     post(`/api/v2/game/${game}/export`),
   import: (game: GameName, data: any): Promise<Record<string, any>> =>
     post(`/api/v2/game/${game}/import`, {}, { json: data }),

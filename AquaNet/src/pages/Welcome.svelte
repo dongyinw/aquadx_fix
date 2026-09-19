@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { Turnstile } from "svelte-turnstile";
   import { slide } from 'svelte/transition';
-  import { TURNSTILE_SITE_KEY } from "../libs/config";
   import Icon from "@iconify/svelte";
   import { USER } from "../libs/sdk";
   import { t } from "../libs/i18n"
@@ -23,8 +21,6 @@
   let email = ""
   let password = ""
   let username = ""
-  let turnstile = ""
-  let turnstileReset: () => void | undefined;
 
   let error = ""
   let verifyMsg = ""
@@ -64,12 +60,6 @@
       return submitting = false
     }
 
-    if (TURNSTILE_SITE_KEY && turnstile === "") {
-      // Sleep for 100ms to allow Turnstile to finish
-      error = t("welcome.waiting-turnstile")
-      return setTimeout(submit, 100)
-    }
-
     // Signup
     if (isSignup) {
       if (username === "") {
@@ -78,7 +68,7 @@
       }
 
       // Send request to server
-      await USER.register({ username, email, password, turnstile })
+      await USER.register({ username, email, password, turnstile: "" })
         .then(() => {
           // Show verify email message
           state = 'verify'
@@ -87,12 +77,11 @@
         .catch(e => {
           error = e.message
           submitting = false
-          turnstileReset()
         })
     }
     else {
       // Send request to server
-      await USER.login({ email, password, turnstile })
+      await USER.login({ email, password, turnstile: "" })
         .then(() => window.location.href = "/home")
         .catch(e => {
           if (e.message === 'Email not verified - STATE_0') {
@@ -110,7 +99,6 @@
           else {
             error = e.message
             submitting = false // unnecessary? see line 113, same for both reset functions
-            turnstileReset()
           }
         })
     }
@@ -126,14 +114,8 @@
       return submitting = false
     }
 
-    if (TURNSTILE_SITE_KEY && turnstile === "") {
-      // Sleep for 100ms to allow Turnstile to finish
-      error = t("welcome.waiting-turnstile")
-      return setTimeout(resetPassword, 100)
-    }
-
     // Send request to server
-    await USER.resetPassword({ email, turnstile })
+    await USER.resetPassword({ email, turnstile: "" })
       .then(() => {
           // Show email sent message, reusing email verify page
           state = 'verify'
@@ -151,7 +133,6 @@
           else {
             error = e.message
             submitting = false
-            turnstileReset()
           }
         })
 
@@ -175,7 +156,6 @@
       .catch(e => {
         error = e.message
         submitting = false
-        turnstileReset()
       })
 
     submitting = false
@@ -185,7 +165,7 @@
 
 <main id="home" class="no-margin">
   <div>
-    <h1 id="title">AquaNet</h1>
+    <h1 id="title">MikuNet</h1>
     <div id="welcome">
     {#if hasAc}
       <span>{t('welcome.login_link')}:</span><br>
@@ -203,17 +183,15 @@
         {#if error}
           <span class="error">{error}</span>
         {/if}
-        {#if error != t("welcome.waiting-turnstile")}
-          <div on:click={() => state = 'home'} on:keypress={() => state = 'home'}
-              role="button" tabindex="0" class="clickable">
-            <Icon icon="line-md:chevron-small-left" />
-            <span>{t('back')}</span>
-          </div>
-        {/if}
+        <div on:click={() => state = 'home'} on:keypress={() => state = 'home'}
+            role="button" tabindex="0" class="clickable">
+          <Icon icon="line-md:chevron-small-left" />
+          <span>{t('back')}</span>
+        </div>
         {#if isSignup}
           <input type="text" placeholder={t('username')} bind:value={username}>
         {/if}
-        <input type="email" placeholder={t('email')} bind:value={email}>
+        <input type={isSignup ? "email" : "text"} placeholder={isSignup ? t('email') : "用户名或邮箱"} bind:value={email}>
         <input type="password" placeholder={t('password')} bind:value={password}>
         <button on:click={submit}>
           {#if submitting}
@@ -225,26 +203,17 @@
         {#if state === "login" && !submitting}
           <button on:click={() => state = 'submitreset'}>{t('welcome.btn-reset-password')}</button>
         {/if}
-        {#if TURNSTILE_SITE_KEY}
-        <Turnstile siteKey={TURNSTILE_SITE_KEY} bind:reset={turnstileReset}
-                   on:turnstile-callback={e => console.log(turnstile = e.detail.token)}
-                   on:turnstile-error={_ => console.log(error = t("welcome.turnstile-error"))}
-                   on:turnstile-expired={_ => window.location.reload()}
-                   on:turnstile-timeout={_ => console.log(error = t('welcome.turnstile-timeout'))} />
-        {/if}
       </div>
     {:else if state === "submitreset"}
       <div class="login-form" transition:slide>
         {#if error}
             <span class="error">{error}</span>
           {/if}
-          {#if error != t("welcome.waiting-turnstile")}
-            <div on:click={() => state = 'login'} on:keypress={() => state = 'login'}
-                role="button" tabindex="0" class="clickable">
-              <Icon icon="line-md:chevron-small-left" />
-              <span>{t('back')}</span>
-            </div>
-          {/if}
+          <div on:click={() => state = 'login'} on:keypress={() => state = 'login'}
+              role="button" tabindex="0" class="clickable">
+            <Icon icon="line-md:chevron-small-left" />
+            <span>{t('back')}</span>
+          </div>
           <input type="email" placeholder={t('email')} bind:value={email}>
           <button on:click={resetPassword}>
             {#if submitting}
@@ -253,13 +222,6 @@
               {t('welcome.btn-submit-reset-password')}
             {/if}
           </button>
-          {#if TURNSTILE_SITE_KEY}
-          <Turnstile siteKey={TURNSTILE_SITE_KEY} bind:reset={turnstileReset}
-                    on:turnstile-callback={e => console.log(turnstile = e.detail.token)}
-                    on:turnstile-error={_ => console.log(error = t("welcome.turnstile-error"))}
-                    on:turnstile-expired={_ => window.location.reload()}
-                    on:turnstile-timeout={_ => console.log(error = t('welcome.turnstile-timeout'))} />
-          {/if}
       </div>
     {:else if state === "verify"}
       <div class="login-form" transition:slide>
@@ -313,7 +275,7 @@
     height: 100%
     padding-left: 100px
     overflow: hidden
-    background-color: black
+    background-color: vars.$c-bg
 
     box-sizing: border-box
 
@@ -364,7 +326,7 @@
         top: 90px
         height: 1130px
         width: 1500px
-        $color: rgb(158, 110, 230)
+        $color: rgb(57, 197, 187)
         background: radial-gradient(50% 50% at 50% 50%, rgba($color, 0.28) 0%, rgba(0,0,0,0) 100%)
 
       .l2
@@ -372,7 +334,7 @@
         top: 560px
         height: 1200px
         width: 1500px
-        $color: rgb(92, 195, 250)
+        $color: rgb(129, 230, 217)
         background: radial-gradient(50% 50% at 50% 50%, rgba($color, 0.28) 0%, rgba(0,0,0,0) 100%)
 
       .l3
@@ -381,7 +343,7 @@
         top: -630px
         width: 1500px
         height: 1000px
-        $color: rgb(230, 110, 156)
+        $color: rgb(255, 102, 153)
         background: radial-gradient(50% 50% at 50% 50%, rgba($color, 0.28) 0%, rgba(0,0,0,0) 100%)
 
     @media (max-width: 500px)

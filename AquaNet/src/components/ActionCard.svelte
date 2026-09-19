@@ -3,7 +3,7 @@
 <script lang="ts">
   import Icon from "@iconify/svelte";
 
-  export let color: string = '179, 198, 255'
+  export let color: string = '57, 197, 187'
   export let icon: string
   export let href: string | undefined = undefined
   export let isSmall: boolean = false

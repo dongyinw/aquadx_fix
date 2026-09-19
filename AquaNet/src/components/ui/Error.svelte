@@ -1,7 +1,6 @@
 <script lang="ts">
   import { fade } from "svelte/transition";
   import { t } from "../../libs/i18n";
-  import { DISCORD_INVITE } from "../../libs/config";
 
   export let error: string;
 </script>
@@ -10,7 +9,6 @@
   <div>
     <h2 class="error">{t('status.error')}</h2>
     <span class="detail">{error}</span>
-    <a class="hint" href="/support">{t("status.error.hint")}</a>
     <div class="actions">
       <button on:click={() => location.reload()} class="error">
         {t('action.refresh')}

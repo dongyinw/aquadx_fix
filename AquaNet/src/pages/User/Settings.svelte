@@ -2,7 +2,7 @@
 
 <script lang="ts">
   import { slide, fade } from "svelte/transition";
-  import type { AquaNetUser } from "../../libs/generalTypes";
+  import type { MikuNetUser } from "../../libs/generalTypes";
   import { CARD, USER } from "../../libs/sdk";
   import StatusOverlays from "../../components/StatusOverlays.svelte";
   import { t, ts } from "../../libs/i18n";
@@ -18,7 +18,7 @@
 
   USER.ensureLoggedIn()
 
-  let me: AquaNetUser;
+  let me: MikuNetUser;
   let error: string;
   export let page: string = "profile";
 

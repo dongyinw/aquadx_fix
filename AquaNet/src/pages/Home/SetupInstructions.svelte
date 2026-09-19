@@ -3,14 +3,14 @@
 <script lang="ts">
   import { fade, slide } from "svelte/transition";
   import { USER } from "../../libs/sdk";
-  import type { AquaNetUser } from "../../libs/generalTypes";
+  import type { MikuNetUser } from "../../libs/generalTypes";
   import { codeToHtml } from 'shiki'
-  import { AQUA_CONNECTION, DISCORD_INVITE, FADE_IN, FADE_OUT } from "../../libs/config";
+  import { AQUA_CONNECTION, FADE_IN, FADE_OUT } from "../../libs/config";
   import { t } from "../../libs/i18n";
   import DashboardTabs from "../../components/DashboardTabs.svelte";
   import { patchUserSegatools } from "../../libs/setup";
 
-  let user: AquaNetUser
+  let user: MikuNetUser
   let keychips: string[] = [];
   let selectedKeychip: string = "";
   let keychipCode: string;
@@ -213,9 +213,6 @@ ${keychipLines}`.trim(), {
           {@html t('setup.troubleshooting.items.three')}
         </li>
       </ul>
-      <p>
-        {@html t('setup.support-info')}
-      </p>
     {/if}
   </div>
 </main>

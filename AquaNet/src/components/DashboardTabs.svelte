@@ -4,8 +4,7 @@
     const tabs: Record<string, string> = {
         [t('home.nav.portal')]: `/home`,
         [t('home.nav.link-card')]: `/cards`,
-        [t('home.nav.game-setup')]: `/setup`,
-        [t('home.nav.support')]: `/support`
+        [t('home.nav.game-setup')]: `/setup`
     }
 </script>
 
