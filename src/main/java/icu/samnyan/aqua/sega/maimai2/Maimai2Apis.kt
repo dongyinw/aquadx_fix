@@ -297,11 +297,15 @@ fun Maimai2ServletController.initApis() {
         val endDate = end.format(magicalPassDateFormatter)
         val userPassList = requestedPasses.map { pass ->
             fun number(key: String, fallback: Int) = (pass[key] as? Number)?.toInt() ?: fallback
-            val passPackId = number("passPackId", 7001)
+            val requestedPassTypeId = number("passTypeId", 2)
+            val requestedPassPackId = number("passPackId", 7001)
+            // Older clients can send the DX type with the default pack id.
+            val passPackId = if (requestedPassTypeId == 3 && requestedPassPackId == 7001) 7002 else requestedPassPackId
+            val passCharaId = if (requestedPassTypeId == 3 && requestedPassPackId == 7001) 700201 else number("passCharaId", 700107)
             mapOf(
-                "passTypeId" to (magicalPassTypeByPackId[passPackId] ?: number("passTypeId", 2)),
+                "passTypeId" to (magicalPassTypeByPackId[passPackId] ?: requestedPassTypeId),
                 "passPackId" to passPackId,
-                "passCharaId" to number("passCharaId", 700107),
+                "passCharaId" to passCharaId,
                 "mapId" to number("mapId", 0),
                 "startDate" to startDate,
                 "endDate" to endDate
