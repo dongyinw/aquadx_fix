@@ -43,6 +43,8 @@ class UpsertUserAllHandler(
             card = userData?.card ?: cardService.getCardByExtId(userId) ?: (404 - "User not found")
             isNetMember = 1
 
+            userData?.let { current -> keepCurrentCollectionIfUploadReset(this, current) }
+
             // Validate username
             if (!userName.isValidUsername())
             {
@@ -175,6 +177,18 @@ class UpsertUserAllHandler(
         u.card?.let { cardService.updateCardTimestamp(it, "mai2") }
 
         return SUCCESS
+    }
+
+    private fun keepCurrentCollectionIfUploadReset(uploaded: Mai2UserDetail, current: Mai2UserDetail) {
+        fun keepIfReset(uploadedValue: Int, savedValue: Int, resetValues: Set<Int>): Int {
+            return if (savedValue !in resetValues && uploadedValue in resetValues) savedValue else uploadedValue
+        }
+
+        uploaded.iconId = keepIfReset(uploaded.iconId, current.iconId, setOf(0, 10))
+        uploaded.plateId = keepIfReset(uploaded.plateId, current.plateId, setOf(0, 1))
+        uploaded.titleId = keepIfReset(uploaded.titleId, current.titleId, setOf(0, 1))
+        uploaded.partnerId = keepIfReset(uploaded.partnerId, current.partnerId, setOf(0, 1, 38))
+        uploaded.frameId = keepIfReset(uploaded.frameId, current.frameId, setOf(0, 1))
     }
 
     fun saveRating(itemList: List<Mai2UserRate>, u: Mai2UserDetail, key: String) {
