@@ -1,6 +1,7 @@
 package icu.samnyan.aqua.sega.maimai2.handler
 
 import ext.invoke
+import icu.samnyan.aqua.net.games.mai2.Maimai2
 import icu.samnyan.aqua.sega.general.BaseHandler
 import icu.samnyan.aqua.sega.maimai2.model.Mai2Repos
 import icu.samnyan.aqua.sega.maimai2.model.UserRating
@@ -15,7 +16,8 @@ import org.springframework.stereotype.Component
 @Component("Maimai2GetUserRatingHandler")
 class GetUserRatingHandler(
     val mapper: BasicMapper,
-    val repos: Mai2Repos
+    val repos: Mai2Repos,
+    val maimai2: Maimai2
 ) : BaseHandler {
     override fun handle(request: Map<String, Any>): Any {
         val userId = (request["userId"] as Number?)!!.toLong()
@@ -33,7 +35,11 @@ class GetUserRatingHandler(
 
         // New charts (DX) = 15
         ur.newRatingList = repos.userGeneralData.findByUser_Card_ExtIdAndPropertyKey(userId, "recent_rating_new")
-            ?.let { loadRateData(it.propertyValue) } ?: empty
+            ?.let { data ->
+                loadRateData(data.propertyValue) { rate ->
+                    maimai2.isCurrentNewRatingVersion(rate.romVersion)
+                }
+            } ?: empty
 
         ur.nextRatingList = repos.userGeneralData.findByUser_Card_ExtIdAndPropertyKey(userId, "recent_rating_next")
             ?.let { loadRateData(it.propertyValue) } ?: empty
@@ -49,8 +55,11 @@ class GetUserRatingHandler(
         )
     }
 
-    fun loadRateData(value: String) = value.split(",").filter { it.isNotBlank() }.map {
+    fun loadRateData(
+        value: String,
+        filter: (Mai2UserRate) -> Boolean = { true }
+    ) = value.split(",").filter { it.isNotBlank() }.map {
         val (musicId, level, beforeRating, afterRating) = it.split(":")
         Mai2UserRate(musicId.toInt(), level.toInt(), beforeRating.toInt(), afterRating.toInt())
-    }
+    }.filter(filter)
 }

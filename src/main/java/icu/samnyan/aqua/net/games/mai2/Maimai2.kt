@@ -34,6 +34,19 @@ class Maimai2(
     override val userMusicRepo: Mai2UserMusicDetailRepo,
     val repos: Mai2Repos,
 ) : GameApiController<Mai2UserDetail>("mai2", Mai2UserDetail::class) {
+    private val currentNewRatingVersionGroup by lazy {
+        musicMapping.values.mapNotNull { meta ->
+            meta.ver.removePrefix("Ver").split(".").takeIf { it.size >= 2 }?.let {
+                (it[0].toInt() + 1) * 100 + it[1].toInt()
+            }
+        }.maxOrNull() ?: 0
+    }
+
+    fun isCurrentNewRatingVersion(romVersion: Int): Boolean {
+        val currentGroup = maxOf(currentNewRatingVersionGroup, 270)
+        return currentGroup == 0 || romVersion / 100 == currentGroup
+    }
+
     override suspend fun trend(@RP username: Str): List<TrendOut> = us.cardByName(username) { card ->
         findTrend(playlogRepo.findByUserCardExtId(card.extId)
             .map { TrendLog(it.playDate, it.afterRating) })

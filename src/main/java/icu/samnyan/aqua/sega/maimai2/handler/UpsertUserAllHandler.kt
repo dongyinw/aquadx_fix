@@ -4,6 +4,7 @@ import tools.jackson.core.JacksonException
 import ext.mapApply
 import ext.minus
 import ext.unique
+import icu.samnyan.aqua.net.games.mai2.Maimai2
 import icu.samnyan.aqua.sega.general.BaseHandler
 import icu.samnyan.aqua.sega.general.model.CardStatus
 import icu.samnyan.aqua.sega.general.service.CardService
@@ -24,7 +25,8 @@ import org.springframework.stereotype.Component
 class UpsertUserAllHandler(
     val mapper: BasicMapper,
     val cardService: CardService,
-    val repos: Mai2Repos
+    val repos: Mai2Repos,
+    val maimai2: Maimai2
 ) : BaseHandler {
     fun String.isValidUsername() = isNotBlank() && length <= 8
 
@@ -110,7 +112,11 @@ class UpsertUserAllHandler(
             })
 
             saveRating(r.ratingList, u, "recent_rating")
-            saveRating(r.newRatingList, u, "recent_rating_new")
+            saveRating(
+                r.newRatingList.filter { maimai2.isCurrentNewRatingVersion(it.romVersion) },
+                u,
+                "recent_rating_new"
+            )
             saveRating(r.nextRatingList, u, "recent_rating_next")
             saveRating(r.nextNewRatingList, u, "recent_rating_next_new")
         }
