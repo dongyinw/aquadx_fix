@@ -20,7 +20,7 @@ class AquaGameOptions(
     @SettingField("mai2") @Column(name = "mai2_unlock_partners")
     var mai2UnlockPartners: Boolean = false,
     @SettingField("mai2") @Column(name = "mai2_unlock_collectables")
-    var mai2UnlockCollectables: Boolean = false,
+    var mai2UnlockCollectables: Boolean = true,
     @SettingField("mai2") @Column(name = "mai2_unlock_tickets")
     var mai2UnlockTickets: Boolean = false,
 
