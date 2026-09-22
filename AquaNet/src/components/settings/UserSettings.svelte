@@ -93,8 +93,7 @@
     }
   };
   function logOut() {
-    localStorage.removeItem("token");
-    location.href = "/";
+    USER.logout();
   }
 
   const passwordAction = (node: HTMLInputElement, whether: boolean) => {

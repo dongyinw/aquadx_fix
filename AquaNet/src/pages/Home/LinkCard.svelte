@@ -290,103 +290,48 @@
   }
 </script>
 
-<main class="content">
+<main class="content cards-page">
+  <header class="page-heading">
+    <div><span class="eyebrow">IDENTITY / CARDS</span><h1>卡片管理</h1><p>管理已绑定的实体卡，并把新的 Access Code 或序列号安全加入账号。</p></div>
+    <div class="count-chip"><Icon icon="solar:card-bold-duotone" />{me?.cards?.filter(card => !card.isGhost).length ?? 0} 张实体卡</div>
+  </header>
   <DashboardTabs />
   <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="link-card" on:drop={dropFile} on:dragover={(e) => e.preventDefault()}>
-
-    {#if me && me.cards && me.cards.find(card => !card.isGhost)}
-      <h2>{t('home.linkcard.cards')}</h2>
-      <p>{t('home.linkcard.description')}:</p>
-
-      <div class="existing-cards" transition:slide>
-        {#each me.cards as card (card.luid)}
-          <!-- Hide account cards, they only cause confusion to a large majority of users -->
-          {#if !card.isGhost}
-            <div class:ghost={card.isGhost} class={`existing card ${cardType(card.luid) == "FeliCa SN" ? "sn" : "ac"}`} transition:fade|global>
-              <span class="type">{card.isGhost ? t('home.linkcard.account-card') : cardType(card.luid)}</span>
-              <span class="register">{t('home.linkcard.registered')}: {moment(card.registerTime).format("YYYY MMM DD")}</span>
-              <span class="last">{t('home.linkcard.lastused')}: {moment(card.accessTime).format("YYYY MMM DD")}</span>
-              <div></div>
-              <!-- Sorry, it's kind of ugly to do it like this, but it improves copiablity -->
-              <span class="id">{@html formatLUID(card.luid, card.isGhost)
-                .split(" ").map(v => `<i>${v}</i>`).join("")
-                .split(":").map((v, i, a) => `<i>${v}${i < a.length - 1 ? ":" : ""}</i>`).join("")}</span>
-              {#if !card.isGhost}
-                <button class="icon error" on:click={() => unlink(card)}><Icon icon="tabler:trash-x-filled"/></button>
-              {/if}
-            </div>
-          {/if}
-        {/each}
-      </div>
-      <blockquote class="info">
-        {t('home.linkcard.card-security-warning')}
-      </blockquote>
-    {/if}
-
-    <h2>{t('home.link-card')}</h2>
-    <p>{t('home.linkcard.enter-info')}</p>
-    {#if !inputSN}
-      <div out:slide={{ duration: 250 }}>
-    <p>{t('home.linkcard.access-code')}</p>
-    <label>
-      <!-- DO NOT change the order of bind:value and on:input. Their order determines the order of reactivity -->
-      <input bind:this={elemInputAC}
-            placeholder="Access Code (e.g. 0008 1234 5678 8765 4321)"
-            on:keydown={(e) => {
-              e.key === "Enter" && link('AC')
-              // Ensure key is numeric
-              if (isInput(e) && !/[\d ]/.test(e.key)) e.preventDefault()
-            }}
-            bind:value={inputAC}
-            on:input={inputACChange}
-            class:error={inputAC && (!inputACRegex.test(inputAC) || errorAC)}
-            class:warning={inputAC && warningAC}>
-      {#if inputAC.length > 0}
-        <button transition:slide={{axis: 'x'}} on:click={() => link('AC')}>{t('home.linkcard.link')}</button>
+  <div class="cards-layout" on:drop={dropFile} on:dragover={(e) => e.preventDefault()}>
+    <section class="glass-panel linked-panel">
+      <div class="panel-heading"><div><span class="eyebrow">LINKED</span><h2>已绑定卡片</h2></div><span class="panel-note">悬停卡号可查看完整信息</span></div>
+      {#if me && me.cards && me.cards.find(card => !card.isGhost)}
+        <div class="existing-cards" transition:slide>
+          {#each me.cards as card (card.luid)}
+            {#if !card.isGhost}
+              <article class={`card-tile ${cardType(card.luid) == "FeliCa SN" ? "sn" : "ac"}`} transition:fade|global>
+                <div class="card-tile-top"><span class="card-kind"><Icon icon={cardType(card.luid) == "FeliCa SN" ? "solar:cpu-bolt-bold-duotone" : "solar:card-bold-duotone"} />{cardType(card.luid)}</span><button class="icon error" title="解除绑定" aria-label="解除绑定" on:click={() => unlink(card)}><Icon icon="tabler:trash-x-filled"/></button></div>
+                <strong class="card-id">{@html formatLUID(card.luid, card.isGhost).split(" ").map(v => `<i>${v}</i>`).join("").split(":").map((v, i, a) => `<i>${v}${i < a.length - 1 ? ":" : ""}</i>`).join("")}</strong>
+                <div class="card-meta"><span>{t('home.linkcard.registered')}<b>{moment(card.registerTime).format("YYYY-MM-DD")}</b></span><span>{t('home.linkcard.lastused')}<b>{moment(card.accessTime).format("YYYY-MM-DD")}</b></span></div>
+              </article>
+            {/if}
+          {/each}
+        </div>
       {:else}
-        <button on:click={() => generateRandom()}>Generate</button>
+        <div class="empty-panel"><Icon icon="solar:card-search-bold-duotone" /><strong>还没有绑定实体卡</strong><span>在右侧输入卡号开始绑定。</span></div>
       {/if}
-    </label>
-    
-    {#if errorAC}
-      <p class="error" style={warningAC ? "margin-bottom: 0" : ""} transition:slide>{errorAC}</p>
-    {/if}
-    {#if warningAC}
-      <!-- Transition temporarily adds `overflow: hidden` which leads to BFC issue, breaking margin collapse -->
-      <div style="overflow: hidden" transition:slide>
-        {#each warningAC.trim().split("\n") as paragraph}
-          <p class="warning">{paragraph}</p>
-        {/each}
-      </div>
-    {/if}
-      </div>
-      {/if}
+      <blockquote class="info"><Icon icon="solar:shield-check-bold-duotone" />{t('home.linkcard.card-security-warning')}</blockquote>
+    </section>
 
-    {#if !inputAC}
-      <div out:slide={{ duration: 250 }}>
-      <p>{@html t('home.linkcard.enter-sn')}
-    </p>
-    <label>
-      <input bind:this={inputElemSN}
-            placeholder="Serial Number (e.g. 01:2E:1A:2B:3C:4D:5E:6F)"
-            on:keydown={(e) => {
-              e.key === "Enter" && link('SN')
-              // Ensure key is hex or colon
-              if (isInput(e) && !/[0-9A-Fa-f:]/.test(e.key)) e.preventDefault()
-            }}
-            bind:value={inputSN}
-            on:input={inputSNChange}
-            class:error={inputSN && (!inputSNRegex.test(inputSN) || errorSN)}>
-      {#if inputSN.length > 0}
-        <button transition:slide={{axis: 'x'}} on:click={() => link('SN')}>{t('home.linkcard.link')}</button>
-      {/if}
-    </label>
-    {#if errorSN}
-      <p class="error" transition:slide>{errorSN}</p>
-    {/if}
+    <section class="glass-panel link-panel">
+      <div class="panel-heading"><div><span class="eyebrow">ADD CARD</span><h2>绑定新卡片</h2></div><span class="drop-hint"><Icon icon="solar:download-minimalistic-bold-duotone" />可拖入卡片文件</span></div>
+      <p class="panel-description">{t('home.linkcard.enter-info')}</p>
+      <div class="link-methods">
+        {#if !inputSN}
+          <div class="link-method" out:slide={{ duration: 250 }}><div class="method-title"><span class="method-number">01</span><div><strong>{t('home.linkcard.access-code')}</strong><small>20 位 Access Code</small></div></div><label><!-- DO NOT change the order of bind:value and on:input. --><input bind:this={elemInputAC} placeholder="0008 1234 5678 8765 4321" on:keydown={(e) => { e.key === "Enter" && link('AC'); if (isInput(e) && !/[\d ]/.test(e.key)) e.preventDefault() }} bind:value={inputAC} on:input={inputACChange} class:error={inputAC && (!inputACRegex.test(inputAC) || errorAC)} class:warning={inputAC && warningAC}>{#if inputAC.length > 0}<button class="primary-action" transition:slide={{axis: 'x'}} on:click={() => link('AC')}><Icon icon="solar:link-bold" />{t('home.linkcard.link')}</button>{:else}<button class="secondary-action" on:click={() => generateRandom()}><Icon icon="solar:dice-bold" />生成示例</button>{/if}</label>{#if errorAC}<p class="error" transition:slide>{errorAC}</p>{/if}{#if warningAC}<div class="warning-copy" transition:slide>{#each warningAC.trim().split("\n") as paragraph}<p class="warning">{paragraph}</p>{/each}</div>{/if}</div>
+        {/if}
+        {#if !inputAC}
+          <div class="link-method" out:slide={{ duration: 250 }}><div class="method-title"><span class="method-number">02</span><div><strong>{@html t('home.linkcard.enter-sn')}</strong><small>FeliCa 序列号</small></div></div><label><input bind:this={inputElemSN} placeholder="01:2E:1A:2B:3C:4D:5E:6F" on:keydown={(e) => { e.key === "Enter" && link('SN'); if (isInput(e) && !/[0-9A-Fa-f:]/.test(e.key)) e.preventDefault() }} bind:value={inputSN} on:input={inputSNChange} class:error={inputSN && (!inputSNRegex.test(inputSN) || errorSN)}>{#if inputSN.length > 0}<button class="primary-action" transition:slide={{axis: 'x'}} on:click={() => link('SN')}><Icon icon="solar:link-bold" />{t('home.linkcard.link')}</button>{/if}</label>{#if errorSN}<p class="error" transition:slide>{errorSN}</p>{/if}</div>
+        {/if}
       </div>
-      {/if}
+      <div class="drop-zone"><Icon icon="solar:cloud-upload-bold-duotone" /><span>支持拖入 `aime.txt` 或 `felica.txt` 自动填充</span></div>
+    </section>
+  </div>
 
     {#if conflictOld && conflictNew && me}
       <div class="overlay" transition:fade>
@@ -416,80 +361,281 @@
       </div>
     {/if}
 
-  </div>
 </main>
 <StatusOverlays bind:confirm={showConfirm} bind:error={error} loading={!me} />
 
 <style lang="sass">
   @use "../../vars"
 
-  .link-card
-    input
-      width: 100%
+  .page-heading, .panel-heading, .card-tile-top, .method-title
+    display: flex
+    align-items: center
+    justify-content: space-between
+    gap: 14px
+
+  .page-heading
+    h1
+      margin: 6px 0 4px
+
+    p
+      margin: 0
+      color: vars.$c-sub
+      font-size: 0.88rem
+
+  .eyebrow
+    color: vars.$c-main
+    font-size: 0.7rem
+    font-weight: 800
+    letter-spacing: 0.14em
+
+  .count-chip, .drop-hint
+    display: inline-flex
+    align-items: center
+    gap: 7px
+    padding: 8px 11px
+    border: 1px solid rgba(7, 143, 136, 0.18)
+    border-radius: 999px
+    color: vars.$c-main
+    background: rgba(7, 143, 136, 0.08)
+    font-size: 0.76rem
+
+  .cards-layout
+    display: grid
+    grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr)
+    gap: 16px
+
+  .glass-panel
+    min-width: 0
+    padding: 22px
+    border: 1px solid rgba(255, 255, 255, 0.86)
+    border-radius: 18px
+    background: rgba(255, 255, 255, 0.64)
+    box-shadow: 0 18px 46px rgba(43, 72, 76, 0.08)
+    backdrop-filter: blur(18px)
+
+  .panel-heading
+    align-items: flex-start
+    margin-bottom: 18px
+
+    h2
+      margin: 5px 0 0
+      font-size: 1.3rem
+
+  .panel-note, .panel-description
+    color: vars.$c-sub
+    font-size: 0.78rem
+
+  .panel-description
+    margin: 0 0 18px
+
+  .existing-cards
+    display: grid
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr))
+    gap: 11px
+
+  .card-tile
+    display: grid
+    gap: 14px
+    min-height: 132px
+    padding: 15px
+    border: 1px solid rgba(7, 143, 136, 0.12)
+    border-radius: 15px
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(217, 244, 241, 0.62))
+    transition: vars.$transition
+
+    &:hover
+      border-color: rgba(7, 143, 136, 0.42)
+      transform: translateY(-2px)
+
+    &.sn
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(255, 238, 229, 0.72))
+
+  .card-kind
+    display: inline-flex
+    align-items: center
+    gap: 6px
+    color: vars.$c-main
+    font-size: 0.76rem
+    font-weight: 700
+
+  .card-id
+    overflow: hidden
+    color: vars.$c-text
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace
+    font-size: 0.93rem
+    letter-spacing: 0.03em
+    text-overflow: ellipsis
+    white-space: nowrap
+
+    :global(i)
+      display: inline-block
+      margin-right: 0.25em
+      font-style: normal
+      transition: 250ms filter
+
+    :global(i:nth-child(n+4))
+      filter: blur(7px)
+
+    &:hover :global(i)
+      filter: none
+
+  .card-meta
+    display: flex
+    flex-wrap: wrap
+    gap: 12px
+    color: vars.$c-sub
+    font-size: 0.7rem
+
+    span
+      display: grid
+      gap: 2px
+
+    b
+      color: vars.$c-text
+      font-weight: 600
+
+  .icon
+    display: inline-flex
+    align-items: center
+    justify-content: center
+    width: 34px
+    height: 34px
+    padding: 0
+    border-radius: 10px
+
+  .empty-panel
+    display: grid
+    place-items: center
+    gap: 6px
+    min-height: 190px
+    color: vars.$c-sub
+    text-align: center
+
+    :global(svg)
+      color: vars.$c-main
+      font-size: 2.3rem
+
+    strong
+      color: vars.$c-text
+
+  blockquote.info
+    display: flex
+    align-items: flex-start
+    gap: 8px
+    margin-bottom: 0
+
+  .link-methods
+    display: grid
+    gap: 12px
+
+  .link-method
+    display: grid
+    gap: 13px
+    padding: 15px
+    border: 1px solid rgba(96, 114, 118, 0.13)
+    border-radius: 14px
+    background: rgba(255, 255, 255, 0.48)
 
     label
       display: flex
+      align-items: center
+      gap: 8px
 
-      button
-        margin-left: 1rem
+      input
+        min-width: 0
 
-    .existing-cards, .conflict-cards
+    .error, .warning
+      margin: 0
+      font-size: 0.76rem
+
+  .method-title
+    justify-content: flex-start
+
+    > div
       display: grid
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr))
-      gap: 1rem
+      gap: 1px
 
-    .existing-cards .existing.card
-      min-height: 90px
-      position: relative
-      overflow: hidden
+    strong
+      color: vars.$c-text
+      font-size: 0.88rem
 
-      *
-        white-space: nowrap
+    small
+      color: vars.$c-sub
+      font-size: 0.72rem
 
-      &.ghost
-        background: rgba(vars.$c-darker, 0.8)
+  .method-number
+    display: grid
+    place-items: center
+    width: 31px
+    height: 31px
+    border-radius: 10px
+    color: vars.$c-main
+    background: vars.$c-main-soft
+    font-size: 0.75rem
+    font-weight: 800
 
-      .register, .last
-        opacity: 0.7
+  .primary-action, .secondary-action
+    display: inline-flex
+    align-items: center
+    gap: 5px
+    flex: 0 0 auto
+    margin: 0
 
+  .primary-action
+    color: #fff
+    background: vars.$c-main
+
+    &:hover
+      color: #fff
+      background: vars.$c-darker
+
+  .drop-zone
+    display: flex
+    align-items: center
+    justify-content: center
+    gap: 7px
+    margin-top: 16px
+    padding: 12px
+    border: 1px dashed rgba(7, 143, 136, 0.32)
+    border-radius: 12px
+    color: vars.$c-sub
+    background: rgba(7, 143, 136, 0.045)
+    font-size: 0.74rem
+
+  .conflict-cards
+    display: grid
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr))
+    gap: 1rem
+
+    .card
       span:not(.type)
         font-size: 0.8rem
 
-      > div
-        flex: 1
+    .old
+      background: rgba(255, 107, 107, 0.12)
+      border: 1px solid vars.$c-error
 
-      button
-        position: absolute
-        right: 10px
-        bottom: 10px
+    .new
+      background: rgba(100, 108, 255, 0.10)
+      border: 1px solid vars.$c-main
 
-      .id
-        overflow: hidden
-        :global(i)
-          display: inline-block
-          font-style: normal
-          transition: 350ms filter
-      &.ac
-        :global(i)
-          margin-right: 0.25em
-          &:nth-child(n+3)
-            filter: blur(8px)
-      &.sn
-        :global(i):nth-child(n+5)
-          filter: blur(8px)
-      &:hover :global(i)
-        filter: none !important
+  @media (max-width: 820px)
+    .cards-layout
+      grid-template-columns: 1fr
 
-    .conflict-cards
-      .card
-        transition: vars.$transition
+  @media (max-width: vars.$w-mobile)
+    .page-heading
+      align-items: flex-start
+      flex-direction: column
 
-      .card:hover
-        background: vars.$c-darker
+    .glass-panel
+      padding: 17px
 
-      span:not(.type)
-        font-size: 0.8rem
+    .panel-heading
+      align-items: flex-start
+      flex-direction: column
 
-      .id
-        opacity: 0.7
+    .link-method label
+      align-items: stretch
+      flex-direction: column
 </style>

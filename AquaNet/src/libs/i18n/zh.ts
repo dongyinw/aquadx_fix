@@ -68,6 +68,9 @@ const zhWelcome: typeof EN_REF_Welcome = {
   'welcome.password-missing': '密码必须填哦',
   'welcome.username-missing': '用户名/邮箱必须填哦',
   'welcome.email-password-missing': '邮箱和密码必须填哦',
+  'welcome.waiting-turnstile': '正在验证网络环境…',
+  'welcome.turnstile-error': '验证网络环境出错了,请关闭 VPN 后重试',
+  'welcome.turnstile-timeout': '验证网络环境超时了,请重试',
   'welcome.verification-sent': '验证邮件已发送至 ${email},请翻翻收件箱',
   'welcome.reset-password-sent': '重置邮件已发送至 ${email},请翻翻收件箱',
   'welcome.verify-state-0': '您还没有验证邮箱哦！验证邮件一分钟内刚刚发到您的邮箱,请翻翻收件箱',
@@ -78,6 +81,7 @@ const zhWelcome: typeof EN_REF_Welcome = {
   'welcome.verifying': '正在验证邮箱…请稍等',
   'welcome.verified': '您的邮箱已经验证成功！您现在可以登录了',
   'welcome.verification-failed': '验证失败：${message}。请重试',
+  'welcome.account-banned': '该账号已被禁止登录网页端',
   'welcome.password-reset-done': '您的密码已更新！请重新登录',
   'welcome.login_link': '登录或注册以绑定卡片。',
 }
@@ -100,6 +104,7 @@ const zhGeneral: typeof EN_REF_GENERAL = {
   'game.ongeki': "音击",
   'game.wacca': "华卡",
   "status.error": "发生错误",
+  "status.error.hint": "支持 (Discord)",
   "status.detail": "详细信息：${detail}",
   "action.refresh": "刷新",
   "action.cancel": "取消",
@@ -128,7 +133,7 @@ const zhHome: typeof EN_REF_HOME = {
   'home.link-cards-description':'绑定游戏数据卡（Amusement IC 或 Aime 卡）后才可以访问游戏存档哦',
   'home.join-community': '加入群组',
   'home.join-community-description': '加入我们的聊天群组,与其他玩家聊天、获取帮助',
-  'home.setup': '连接到 AquaDX',
+  'home.setup': '连接到 MikuNet',
   'home.setup-description': '如果您有街机框体或者手台,点击这里设置服务器的连接',
   'home.import': '导入玩家数据',
   'home.import-description': '如果你来自其他在线服,可以点击这里导入从其他服务器导出的数据',
@@ -153,6 +158,10 @@ const zhHome: typeof EN_REF_HOME = {
   'home.linkcard.unlink-notice': "你确定要取消此卡的链接吗？",
   'home.linkcard.felica-ac-warning': "该 Access Code 是一张 FeliCa AIC 卡。\n如果你使用实体卡（而非 aime.txt 模拟）刷卡登录游戏,与官方服务器不同,你需要绑定该卡的 FeliCa SN（或与之对应的,游戏界面中查看得到的 00 开头的卡号）而非此号码。\n如果你使用 aime.txt 模拟登录,请忽略本警告继续绑定。",
 
+  'home.community.discord': 'Discord',
+  'home.community.telegram': 'Telegram (中文)',
+  'home.community.qq': 'QQ (中文)',
+  'home.community.github': 'GitHub 仓库',
   'home.linkcard.card-security-warning': "卡片信息决定了您可以访问的所有玩家数据。请不要与任何人分享您的卡号。",
   'home.import.unknown-game': '未知游戏类型 (目前导入只支持舞萌和中二)',
   'home.import.new-data': '要导入的数据',
@@ -160,10 +169,10 @@ const zhHome: typeof EN_REF_HOME = {
 }
 
 const zhSetup: typeof EN_REF_SETUP = {
-  'setup.welcome': `欢迎！如果您已准备好游戏,请按照以下说明设置与 AquaDX 的连接。`,
+  'setup.welcome': `欢迎！如果您已准备好游戏,请按照以下说明设置与 MikuNet 的连接。`,
   'setup.keychip-warning': `您的密钥芯片已与您的账户绑定,请妥善保管。`,
   'setup.steps.one': `选择一种网络通信设置方法。某些浏览器可能无法进行自动设置。`,
-  'setup.steps.two': `请通过 <a href="/cards">卡片</a> 页面,使用访问码或序列号将您的 Aime 卡与 AquaDX 账户绑定。`,
+  'setup.steps.two': `请通过 <a href="/cards">卡片</a> 页面,使用访问码或序列号将您的 Aime 卡与 MikuNet 账户绑定。`,
   'setup.steps.three': `启动游戏。进入标题画面后,角落处的网络图标应变为绿色,而非灰色。`,
   'setup.support-info': `如需进一步协助,欢迎在 <a href="/support">支持频道</a> 中咨询。`,
   'setup.reveal-keychip': `显示密钥芯片`,
@@ -184,7 +193,7 @@ const zhSetup: typeof EN_REF_SETUP = {
   'setup.troubleshooting.items.three': `» 无法扫描卡片<br>
     内置的模拟读卡器默认配置为使用回车键进行扫描（长按该键）。`,
   'setup.keychip': '钥匙芯片管理',
-  'setup.keychip.warning': '对于拥有实体钥匙芯片并试图连接到 AquaDX 的机柜所有者,可在此手动设置钥匙芯片。选择钥匙芯片后,下方设置项将自动填充。',
+  'setup.keychip.warning': '对于拥有实体钥匙芯片并试图连接到 MikuNet 的机柜所有者,可在此手动设置钥匙芯片。选择钥匙芯片后,下方设置项将自动填充。',
   'setup.keychip.add': `添加钥匙芯片`,
   'setup.keychip.delete': `删除`,
   'setup.keychip.placeholder': `新钥匙芯片 ID`
@@ -339,7 +348,7 @@ export const zhUserbox: typeof EN_REF_USERBOX = {
   'userbox.lv.difficulty.4': 'LEVEL II',
   'userbox.lv.difficulty.5': 'LEVEL I',
 
-  'userbox.new.name': 'AquaBox',
+  'userbox.new.name': 'MikuBox',
   'userbox.new.setup': '将中二（Lumi 或更高版本）的游戏文件夹拖放到下方区域,以显示带有名牌和头像的 UserBox。所有文件都在浏览器中处理。',
   'userbox.new.setup.notice': '选择包含游戏数据的最外层文件夹。',
   'userbox.new.setup.processing_file': '正在处理文件',
@@ -348,11 +357,11 @@ export const zhUserbox: typeof EN_REF_USERBOX = {
   'userbox.new.switch.to_url': '切换到 URL 模式',
   'userbox.new.switch.to_drop': '切换到游戏目录模式',
   'userbox.new.url_warning': '请输入访问 UserBox 资源的 URL（请参阅文档）',
-  'userbox.new.activate_first': '启用 AquaBox（需要游戏文件）',
-  'userbox.new.activate_update': '更新 AquaBox（需要游戏文件）',
-  'userbox.new.activate': '使用 AquaBox',
+  'userbox.new.activate_first': '启用 MikuBox（需要游戏文件）',
+  'userbox.new.activate_update': '更新 MikuBox（需要游戏文件）',
+  'userbox.new.activate': '使用 MikuBox',
   'userbox.new.activate_desc': '启用后可显示带有名牌和头像的 UserBox',
-  'userbox.new.activate_profile': '在用户页面启用 AquaBox',
+  'userbox.new.activate_profile': '在用户页面启用 MikuBox',
   'userbox.new.activate_profile_desc': '启用后可在个人页面显示带有名牌和头像的 UserBox',
   'userbox.new.error.invalidFolder': '所选文件夹无效。请确认游戏版本为 Lumi 或更新,并且包含 “A000” 选项包。',
   'userbox.new.error.invalidUrl': '输入的 URL 无效。'
@@ -360,12 +369,12 @@ export const zhUserbox: typeof EN_REF_USERBOX = {
 
 export const zhMaiPhoto: typeof EN_REF_MAI_PHOTO = {
   'maiphoto.title': 'Mai 纪念照片库',
-  'maiphoto.url_warning': '注意：如果想与朋友分享图片的话,请先保存照片再发出去。不要复制图片 URL,因为 URL 中包含 AquaDX 账号信息。',
+  'maiphoto.url_warning': '注意：如果想与朋友分享图片的话,请先保存照片再发出去。不要复制图片 URL,因为 URL 中包含 MikuNet 账号信息。',
   'maiphoto.none': '还没有图片哦~ 可以在每次游戏结束的时候点击上传来上传照片。',
 }
 
 export const zhAquaTrans: typeof EN_REF_AQUATRANS = {
-  'trans.title': '🏳️‍⚧️ AquaTrans™ 数据迁移工具',
+  'trans.title': '🏳️‍⚧️ MikuTrans™ 数据迁移工具',
   'trans.confirm.unbackuped.title': '确认迁移',
   'trans.confirm.unbackuped.msg': '似乎还没有备份目标服务器的数据,真的要继续吗？（推荐先备份一下,因为迁移的时候会覆盖数据）',
   'trans.confirm.untested.title': '不太聪明喵',
@@ -374,7 +383,7 @@ export const zhAquaTrans: typeof EN_REF_AQUATRANS = {
   'trans.confirm.done.msg': '数据迁移成功！在 ${dst} 上的数据已被来自 ${src} 的数据覆盖。',
   'trans.alert.in-progress': '在迁移了在迁移了',
   'trans.prompt-html': `
-    <p>👋 欢迎使用 AquaTrans™ 服务器游玩数据迁移工具！</p>
+    <p>👋 欢迎使用 MikuTrans™ 服务器游玩数据迁移工具！</p>
     <p>这个工具可以导出任意服务器的数据,并使用连接凭证（卡号、服务器地址和 Keychip ID）将数据导入任何其他服务器。</p>
     <p>我将模拟游戏客户端,从源服务器拉取游戏数据并推送到目标服务器。</p>
     <p>填写下面的表格开始迁移吧！</p>

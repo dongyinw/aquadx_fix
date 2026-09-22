@@ -17,6 +17,9 @@
   import LinkCard from "./pages/Home/LinkCard.svelte";
   import SetupInstructions from "./pages/Home/SetupInstructions.svelte";
   import PageNotFound from "./pages/PageNotFound.svelte";
+  import Admin from "./pages/Admin.svelte";
+  import Icon from "@iconify/svelte";
+  import { initTheme, toggleTheme, type MikuNetTheme } from "./libs/theme";
 
   console.log(`%c
 ┏━┓         ┳━┓━┓┏━
@@ -35,18 +38,34 @@
   let playedMai = false
 
   let recentGame: string = DEFAULT_GAME;
+  let theme: MikuNetTheme = initTheme();
+
+  function switchTheme() {
+    theme = toggleTheme(theme);
+  }
+
+  function logOut() {
+    USER.logout();
+  }
 
   if (USER.isLoggedIn())
   {
-    USER.me().then(m => {
-      me = m
-      CARD.userGames(me.username).then(game => {
-        playedMai = !!game.mai2
-        recentGame = Object.keys(game)
-          .filter(k => !!game[k])
-          .sort((a, b) => {
-            return (new Date(game[b].lastLogin)) - (new Date(game[a].lastLogin))
-          })[0] ?? "mai2"
+    USER.accessStatus().then(status => {
+      if (status.banState === 2) {
+        localStorage.removeItem('token')
+        window.location.href = "/"
+        return
+      }
+      USER.me().then(m => {
+        me = m
+        CARD.userGames(me.username).then(game => {
+          playedMai = !!game.mai2
+          recentGame = Object.keys(game)
+            .filter(k => !!game[k])
+            .sort((a, b) => {
+              return (new Date(game[b].lastLogin)) - (new Date(game[a].lastLogin))
+            })[0] ?? "mai2"
+        })
       })
     }).catch(e => console.error(e))
   }
@@ -54,30 +73,45 @@
 </script>
 
 <nav>
-  {#if path !== "/"}
-    <a class="logo" href={USER.isLoggedIn() ? "/home" : "/"}>
-      <img src="/assets/icons/android-chrome-192x192.png" alt="MikuNet"/>
-      <span>MikuNet</span>
-    </a>
-  {/if}
-  {#if $ANNOUNCEMENT}
-    <div class="announcement">
-      <strong>{t('navigation.notice')}</strong>: {$ANNOUNCEMENT}
+  <div class="nav-inner">
+    {#if path !== "/"}
+      <a class="logo" href={USER.isLoggedIn() ? "/home" : "/"}>
+        <img src="/assets/icons/android-chrome-192x192.png" alt="MikuNet"/>
+        <span>MikuNet</span>
+      </a>
+    {:else}
+      <div class="logo-placeholder"></div>
+    {/if}
+    {#if $ANNOUNCEMENT}
+      <div class="announcement">
+        <strong>{t('navigation.notice')}</strong><span>{$ANNOUNCEMENT}</span>
+      </div>
+    {/if}
+    <div class="nav-links">
+      <a href="/home">{t('navigation.home')}</a>
+      <a href={`/ranking/${recentGame}`}>{t('navigation.rankings')}</a>
+      {#if playedMai}<a href="/pictures">photo</a>{/if}
+      {#if me?.isAdmin}<a href="/admin">admin</a>{/if}
     </div>
-  {/if}
-  <a href="/home">{t('navigation.home').toLowerCase()}</a>
-  <!-- <div on:click={() => alert("Coming soon™")} on:keydown={e => e.key === "Enter" && alert("Coming soon™")}
-       role="button" tabindex="0">{t('navigation.maps').toLowerCase()}</div> -->
-  <!-- kill me -->
-  <a href={`/ranking/${recentGame}`}>{t('navigation.rankings').toLowerCase()}</a>
-  {#if playedMai}
-    <a href="/pictures">photo</a>
-  {/if}
-  {#if me}
-    <a href="/u/{me.username}" use:tooltip={t('navigation.profile')}>
-      <img alt="profile" class="pfp" use:pfp={me}/>
-    </a>
-  {/if}
+    <div class="nav-actions">
+      <button class="theme-toggle" type="button" on:click={switchTheme}
+        title={theme === "light" ? "切换到深色主题" : "切换到浅色主题"}
+        aria-label={theme === "light" ? "切换到深色主题" : "切换到浅色主题"}>
+        <Icon icon={theme === "light" ? "solar:moon-stars-bold-duotone" : "solar:sun-2-bold-duotone"} />
+      </button>
+      {#if me}
+        <a class="profile-link" href="/u/{me.username}" use:tooltip={t('navigation.profile')}>
+          <img alt="profile" class="pfp" use:pfp={me}/>
+          <span>{me.computedName}</span>
+        </a>
+        <button class="logout-button" type="button" on:click={logOut}
+          title={t('settings.profile.logout')} aria-label={t('settings.profile.logout')}>
+          <Icon icon="solar:logout-2-bold-duotone" />
+          <span>{t('settings.profile.logout')}</span>
+        </button>
+      {/if}
+    </div>
+  </div>
 </nav>
 
 <Router {url}>
@@ -95,6 +129,7 @@
   <Route path="/settings/:page" component={Settings} />
   <Route path="/pictures" component={MaiPhoto} />
   <Route path="/transfer" component={Transfer} />
+  <Route path="/admin" component={Admin} />
   <Route component={PageNotFound} />
 </Router>
 
@@ -102,57 +137,173 @@
   @use "vars"
 
   nav
-    display: flex
-    justify-content: flex-end
-    align-items: center
-    gap: 32px
-    height: vars.$nav-height
-
-    padding: 0 48px
-
+    position: sticky
+    top: 0
     z-index: 10
-    position: relative
+    padding: 12px 24px
+
+    .nav-inner
+      display: flex
+      align-items: center
+      gap: 20px
+      max-width: 1280px
+      min-height: 48px
+      margin: 0 auto
+      padding: 0 10px
+      border: 1px solid rgba(255, 255, 255, 0.85)
+      border-radius: 16px
+      background: rgba(255, 255, 255, 0.72)
+      box-shadow: 0 12px 36px rgba(43, 72, 76, 0.10)
+      backdrop-filter: blur(22px)
 
     img
-      width: 1.5rem
-      height: 1.5rem
-      border-radius: vars.$border-radius
+      width: 1.75rem
+      height: 1.75rem
+      border-radius: 10px
       object-fit: cover
 
-    .announcement
-      position: absolute
-      left: 50%
-      transform: translate(-50%, 0)
-      top: 0
-      width: 50%
-      height: 100%
+    .logo, .logo-placeholder
       display: flex
+      align-items: center
+      min-width: 150px
+    
+    .logo
+      gap: 9px
+      color: vars.$c-text
+      font-weight: 800
+      letter-spacing: 0.12em
+
+    .logo-placeholder
+      flex: 1
+
+    .nav-links
+      display: flex
+      align-items: center
+      gap: 6px
+
+      a
+        padding: 8px 11px
+        border-radius: 9px
+        font-size: 0.9rem
+
+        &:hover
+          background: vars.$c-main-soft
+
+    .nav-actions
+      display: flex
+      align-items: center
+      gap: 6px
+      justify-content: flex-end
+      min-width: 150px
+      margin-left: auto
+
+    .theme-toggle
+      display: inline-flex
+      align-items: center
       justify-content: center
-      align-content: center
-      z-index: -1
-      background: linear-gradient(90deg, #6f0f0f00 0%, vars.$c-shadow 50%, #6f0f0f00 100%)
-      font-size: 1.125em
-      text-decoration: none !important
-      color: inherit !important
+      width: 36px
+      height: 36px
+      padding: 0
+      border-radius: 11px
+      color: vars.$c-main
+      background: rgba(255, 255, 255, 0.52)
+
+      :global(svg)
+        font-size: 1.15rem
+
+    .profile-link
+      display: flex
+      align-items: center
+      gap: 8px
+      padding: 4px 8px 4px 4px
+      border-radius: 11px
+      color: vars.$c-text
+
+      &:hover
+        background: vars.$c-main-soft
+
+      span
+        max-width: 110px
+        overflow: hidden
+        text-overflow: ellipsis
+        white-space: nowrap
+        font-size: 0.82rem
+
+    .logout-button
+      display: inline-flex
+      align-items: center
+      justify-content: center
+      gap: 5px
+      min-height: 34px
+      padding: 5px 9px
+      border-color: rgba(196, 73, 94, 0.18)
+      border-radius: 10px
+      color: vars.$c-error
+      background: rgba(196, 73, 94, 0.06)
+
+      &:hover
+        border-color: rgba(196, 73, 94, 0.34)
+        color: vars.$c-error
+        background: rgba(196, 73, 94, 0.12)
+
+      :global(svg)
+        font-size: 1rem
+
+      span
+        font-size: 0.78rem
+
 
     .pfp
       width: 2rem
       height: 2rem
+      border-radius: 10px
 
-    .logo
+    .announcement
+      position: absolute
+      left: 50%
+      top: 50%
       display: flex
       align-items: center
-      gap: 8px
-      font-weight: bold
-      color: vars.$c-main
-      letter-spacing: 0.2em
-      flex: 1
+      gap: 7px
+      max-width: 34%
+      transform: translate(-50%, -50%)
+      overflow: hidden
+      color: vars.$c-sub
+      font-size: 0.78rem
+      white-space: nowrap
 
-      @media (max-width: vars.$w-mobile)
-        > span
-          display: none
+      span
+        overflow: hidden
+        text-overflow: ellipsis
+
+      strong
+        color: vars.$c-main
 
     @media (max-width: vars.$w-mobile)
-      justify-content: center
+      padding: 8px 10px
 
+      .nav-inner
+        gap: 4px
+        padding: 0 6px
+
+      .logo, .logo-placeholder
+        min-width: auto
+
+      .logo > span, .profile-link > span, .logout-button > span, .announcement
+        display: none
+
+      .nav-links
+        gap: 0
+        margin-left: auto
+
+        a
+          padding: 8px 7px
+          font-size: 0.78rem
+
+      .nav-actions
+        min-width: auto
+
+      .theme-toggle
+        width: 32px
+        height: 32px
 </style>

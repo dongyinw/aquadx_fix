@@ -1,155 +1,144 @@
-@use "sass:color"
 @use "vars"
 @import 'components/font/twemoji-flags.css'
 @import 'lxgw-wenkai-lite-webfont/style.css'
 
 html
-  height: 100%
+  min-height: 100%
 
 body
+  min-width: 320px
+  min-height: 100vh
+  margin: 0
+  overflow-x: hidden
   font-family: vars.$font
   line-height: 1.5
   font-weight: 400
-  width: 100%
-  height: 100%
-  margin: 0
-  overflow-x: hidden
-
-  color-scheme: dark
-  color: rgba(255, 255, 255, 0.87)
+  color: vars.$c-text
   background-color: vars.$c-bg
-
+  background-image: linear-gradient(90deg, rgba(7, 143, 136, 0.07) 1px, transparent 1px), linear-gradient(rgba(7, 143, 136, 0.07) 1px, transparent 1px), linear-gradient(135deg, rgba(255, 255, 255, 0.72), transparent 52%)
+  background-size: 42px 42px, 42px 42px, auto
+  background-attachment: fixed
   font-synthesis: none
   text-rendering: optimizeLegibility
   -webkit-font-smoothing: antialiased
   -moz-osx-font-smoothing: grayscale
 
+body::before
+  content: ""
+  position: fixed
+  inset: 0
+  pointer-events: none
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.42), transparent 38%, rgba(235, 113, 139, 0.05))
+  z-index: -1
+
+#app
+  min-height: 100vh
+
 a
-  font-weight: 500
   color: vars.$c-main
-  text-decoration: inherit
+  font-weight: 600
+  text-decoration: none
 
 a:hover
-  color: vars.$c-main
+  color: vars.$c-darker
+
+h1, h2, h3, h4, p
+  color: inherit
 
 h1
-  font-size: 3.2em
-  line-height: 1.1
-
+  font-size: clamp(1.8rem, 4vw, 3rem)
+  line-height: 1.12
 
 .card
   display: flex
   flex-direction: column
-
+  padding: 16px 18px
+  border: 1px solid rgba(255, 255, 255, 0.86)
   border-radius: vars.$border-radius
-  padding: 12px 16px
-  background: vars.$ov-light
+  background: vars.$c-panel
+  box-shadow: 0 18px 48px rgba(43, 72, 76, 0.10)
+  backdrop-filter: blur(18px)
 
-
-blockquote
-  $c1: rgba(255, 149, 149, 0.05)
-  $c2: rgba(255, 152, 152, 0.12)
-  background: repeating-linear-gradient(45deg, $c1, $c1 10px, $c2 10px, $c2 20px)
-  padding: 10px 20px 10px 20px
-  margin: 16px 0
-  border-left: solid #ff7c7c 3px
-  border-radius: vars.$border-radius
-
-  &::before
-    content: "⚠"
-    margin-right: 1em
-  
-  &.success
-    $c1: rgba(156, 255, 149, 0.05)
-    $c2: rgba(152, 255, 174, 0.02)
-    background: repeating-linear-gradient(45deg, $c1, $c1 10px, $c2 10px, $c2 20px)
-    border-left: solid #97fa8c 3px
-
-    &::before
-      content: "✓"
-      margin-right: 1em
-
-  &.info
-    $c1: rgba(149, 183, 255, 0.05)
-    $c2: rgba(152, 186, 255, 0.02)
-    background: repeating-linear-gradient(45deg, $c1, $c1 10px, $c2 10px, $c2 20px)
-    border-left: solid #6e8bff 3px
-
-    &::before
-      content: "♢"
-      margin-right: 1em
-
-#app
-  width: 100%
-  height: 100%
-
-
-main:not(.no-margin)
-  max-width: 1280px
-
-  margin: 0 auto
-  padding-bottom: 100px
-
+button, input, textarea, select
+  box-sizing: border-box
+  font-family: inherit
+  font-size: 0.96rem
 
 button
-  border-radius: vars.$border-radius
-  border: 1px solid transparent
-  padding: 0.6em 1.2em
-  font-size: 1em
-  font-weight: 500
-  font-family: inherit
-  background-color: vars.$ov-lighter
-  opacity: 0.9
+  border: 1px solid rgba(73, 111, 116, 0.14)
+  border-radius: 10px
+  padding: 0.65em 1em
+  color: vars.$c-text
+  background: rgba(255, 255, 255, 0.68)
+  box-shadow: 0 5px 14px rgba(43, 72, 76, 0.06)
   cursor: pointer
   transition: vars.$transition
   white-space: nowrap
 
 button:hover
-  border-color: vars.$c-main
-
-button:focus, button:focus-visible
+  border-color: rgba(7, 143, 136, 0.46)
   color: vars.$c-main
-  outline: none
+  background: rgba(255, 255, 255, 0.92)
+  transform: translateY(-1px)
 
-button.error
-  color: unset
-  &:hover
-    border-color: vars.$c-error
-    color: vars.$c-error
-    //background: $c-error
-    //border-color: transparent
+button:focus, button:focus-visible, input:focus, input:focus-visible, textarea:focus, select:focus
+  border-color: rgba(7, 143, 136, 0.64)
+  outline: 3px solid rgba(7, 143, 136, 0.14)
 
 button.icon
-  padding: 0.6em
-  font-size: 1.2em
-  border-radius: 50px
-  @extend .flex-center
+  display: inline-flex
+  align-items: center
+  justify-content: center
+  width: 40px
+  height: 40px
+  padding: 0
+  border-radius: 12px
 
-.level-0
-  //--lv-color: #6ED43E
-  --lv-color: 110, 212, 62
+button.error, button.danger
+  color: vars.$c-error
 
-.level-1
-  //--lv-color: #F7B807
-  --lv-color: 247, 184, 7
+input, textarea, select
+  width: 100%
+  border: 1px solid rgba(73, 111, 116, 0.16)
+  border-radius: 10px
+  padding: 0.65em 0.85em
+  color: vars.$c-text
+  background: rgba(255, 255, 255, 0.74)
+  transition: vars.$transition
 
-.level-2
-  //--lv-color: #FF828D
-  --lv-color: 255, 130, 141
+textarea
+  min-height: 6em
+  resize: vertical
 
-.level-3
-  //--lv-color: #A051DC
-  --lv-color: 160, 81, 220
+select option
+  color: vars.$c-text
+  background: #fff
 
-.level-4
-  //--lv-color: #c299e7
-  --lv-color: 194, 153, 231
+input[type="checkbox"]
+  width: 1.1em
+  height: 1.1em
+  margin: 0
+  padding: 0
+  accent-color: vars.$c-main
 
-.level-5
-  // World's End for chunithm, or Utage for maimai
-  // --lv-color: #eff2e1
-  // --lv-color: 239, 242, 225
-  --lv-text-clip: linear-gradient(110deg, #5ac42c, #5ccc22, #959f26, #cc7c23, #c93143, #8f4876, #4c3eb1, #3c3397)
+label
+  cursor: pointer
+
+blockquote
+  margin: 16px 0
+  padding: 11px 16px
+  border-left: 3px solid vars.$c-warning
+  border-radius: 10px
+  color: vars.$c-sub
+  background: rgba(255, 209, 102, 0.15)
+
+blockquote.info
+  border-left-color: vars.$c-main
+  background: rgba(7, 143, 136, 0.08)
+
+blockquote.success
+  border-left-color: vars.$c-good
+  background: rgba(19, 134, 111, 0.10)
 
 .warning
   color: vars.$c-warning
@@ -157,139 +146,49 @@ button.icon
 .error
   color: vars.$c-error
 
-input, textarea
-  border-radius: vars.$border-radius
-  border: 1px solid transparent
-  padding: 0.6em 1.2em
-  font-size: 1em
-  font-weight: 500
-  font-family: inherit
-  background-color: vars.$ov-lighter
-  transition: vars.$transition
-  box-sizing: border-box
-  resize: none
-
-textarea
-  height: 5em
-
-// Dropdown
-select
-  border-radius: vars.$border-radius
-  border: 1px solid transparent
-  padding: 0.6em 1.2em
-  font-size: 1em
-  font-weight: 500
-  font-family: inherit
-  background-color: vars.$ov-lighter
-  transition: vars.$transition
-  box-sizing: border-box
-
-  option
-    background-color: #333
-    color: #fff
-
-  option:hover
-    background-color: #555
-
-input[type="checkbox"]
-  width: 1.2em
-  height: 1.2em
-  margin: 0
-  padding: 0
-  border: 1px solid vars.$c-main
-  background-color: vars.$ov-lighter
-  appearance: none
-  cursor: pointer
-  flex-shrink: 0
-
-  &:checked
-    background-color: vars.$c-main
-    border-color: vars.$c-main
-
-label
-  cursor: pointer
-
-input:focus, input:focus-visible
-  border: 1px solid vars.$c-main
-  outline: none
-
-input.warning
-  border: 1px solid vars.$c-warning
-
-input.error
-  border: 1px solid vars.$c-error
-
 .flex-center
   display: flex
-  justify-content: center
   align-items: center
-
+  justify-content: center
 
 .inline-flex-center
   display: inline-flex
-  justify-content: center
   align-items: center
+  justify-content: center
 
 .clickable
   cursor: pointer
   user-select: none
 
+main:not(.no-margin)
+  max-width: vars.$w-max
+  margin: 0 auto
+  padding-bottom: 100px
 
-// Content containers
 .content-main
   display: flex
   flex-direction: column
-  gap: 20px
-  margin: 100px auto 0
-  padding: 32px 32px 128px
-  min-height: 100%
-  max-width: vars.$w-max
-
-  background-color: color.adjust(vars.$c-bg, $lightness: -3%)
-  border-radius: 16px 16px 0 0
+  gap: 22px
+  min-height: calc(100vh - vars.$nav-height - 40px)
+  margin: 28px auto 0
+  padding: 32px 34px 100px
+  border: 1px solid rgba(255, 255, 255, 0.82)
+  border-radius: 24px 24px 0 0
+  background: rgba(255, 255, 255, 0.54)
+  box-shadow: 0 24px 80px rgba(43, 72, 76, 0.11)
+  backdrop-filter: blur(22px)
 
   @media (max-width: #{vars.$w-max + (64px) * 2})
-    margin: 100px 32px 0
+    margin: 28px 24px 0
 
   @media (max-width: vars.$w-mobile)
-    margin: 100px 0 0
-
-  .fw-block
-    margin-left: -32px
-    margin-right: -32px
-    padding: 12px 32px
-    background-color: vars.$ov-darker
-    // Inner shadow
-    box-shadow: inset 0 10px 10px -2px vars.$c-shadow, inset 0 -10px 10px -2px vars.$c-shadow
-
-  > h2.outer-title, > .outer-title-options
-    margin-top: -5rem
-    margin-bottom: 1rem
-
-    @media (max-width: vars.$w-mobile)
-      text-align: center
-
-  > .outer-title-options
-    display: flex
-    justify-content: space-between
-    align-items: center
-
-    nav
-      display: flex
-      flex-direction: row
-      gap: 10px
-      top: 4px
-
-    @media (max-width: vars.$w-mobile)
-      flex-direction: column
-
-  > h2, > .outer-title-options > h2
-    margin: 0
+    margin: 16px 0 0
+    padding: 24px 18px 80px
+    border-radius: 18px 18px 0 0
 
 main.content
   @extend .content-main
 
-// Not used. still need a lot of work
 .content-popup
   position: absolute
   inset: 0
@@ -298,75 +197,64 @@ main.content
     @extend .content-main
     position: absolute
     inset: 0
-    top: 100px
-    background: rgba(color.adjust(vars.$c-bg, $lightness: -3%), 0.9)
-    backdrop-filter: blur(5px)
-    box-shadow: 0 0 10px 6px rgba(black, 0.4)
+    top: vars.$nav-height
     max-width: calc(vars.$w-max + 20px)
+    background: rgba(255, 255, 255, 0.78)
 
-    @media (max-width: #{vars.$w-max + (64px) * 2})
-      margin: 100px 22px 0
-
-    @media (max-width: vars.$w-mobile)
-      margin: 100px 0 0
-
-
-
-// Overlay
 .overlay
   position: fixed
   inset: 0
-
-  background-color: rgba(0, 0, 0, 0.5)
-
-  display: flex
-  justify-content: center
-  align-items: center
-
   z-index: 1000
-  backdrop-filter: blur(5px)
+  display: flex
+  align-items: center
+  justify-content: center
+  background: rgba(236, 246, 245, 0.58)
+  backdrop-filter: blur(12px)
 
   h2, p
-    user-select: none
     margin: 0
+    user-select: none
 
   > div
-    background-color: vars.$c-bg
-    padding: 2rem
-    border-radius: vars.$border-radius
-
     display: flex
     flex-direction: column
     gap: 1rem
-
     max-width: 400px
-
-.aqua-tooltip
-  z-index: 900
-
-.no-margin
-  margin: 0
+    padding: 2rem
+    border: 1px solid rgba(255, 255, 255, 0.86)
+    border-radius: 18px
+    background: rgba(255, 255, 255, 0.84)
+    box-shadow: 0 24px 70px rgba(43, 72, 76, 0.16)
 
 nav
   > div, > a
     cursor: pointer
-    transition: vars.$transition
-    text-decoration: underline 1px solid transparent
-    text-underline-offset: 0.1em
-
     display: flex
     align-items: center
-    color: unset
-    font-weight: unset
+    color: vars.$c-sub
+    font-weight: 600
+    text-decoration: none
+    transition: vars.$transition
 
     &:hover
       color: vars.$c-main
-      text-decoration-color: vars.$c-main
-      text-underline-offset: 0.5em
 
-    &.active
-      color: vars.$c-main
+  .active
+    color: vars.$c-main
 
+.aqua-tooltip
+  z-index: 900
+  position: absolute
+  padding: 5px 9px
+  border: 1px solid rgba(255, 255, 255, 0.9)
+  border-radius: 9px
+  color: vars.$c-text
+  background: rgba(255, 255, 255, 0.88)
+  box-shadow: 0 9px 26px vars.$c-shadow
+  backdrop-filter: blur(14px)
+
+.no-margin
+  margin: 0
 
 .hide-scrollbar
   &::-webkit-scrollbar
@@ -374,11 +262,75 @@ nav
   -ms-overflow-style: none
   scrollbar-width: none
 
+.warning, .error
+  font-weight: 600
 
-.aqua-tooltip
-  box-shadow: 0 0 5px 0 vars.$c-shadow
-  border-radius: vars.$border-radius
-  position: absolute
-  padding: 4px 8px
-  background: vars.$ov-lighter
-  backdrop-filter: blur(5px)
+@media (prefers-reduced-motion: reduce)
+  *, *::before, *::after
+    scroll-behavior: auto !important
+    transition-duration: 0.01ms !important
+    animation-duration: 0.01ms !important
+
+:root[data-theme="dark"]
+  color-scheme: dark
+
+  body
+    color: #e6f3f1
+    background-color: #101a1c
+    background-image: linear-gradient(90deg, rgba(86, 211, 198, 0.05) 1px, transparent 1px), linear-gradient(rgba(86, 211, 198, 0.05) 1px, transparent 1px), linear-gradient(135deg, rgba(27, 45, 47, 0.92), transparent 56%)
+
+  body::before
+    background: linear-gradient(115deg, rgba(30, 55, 57, 0.64), transparent 42%, rgba(144, 64, 84, 0.10))
+
+  a
+    color: #66d8cb
+
+  h1, h2, h3, h4, p
+    color: #e6f3f1
+
+  button, input, textarea, select
+    color: #e6f3f1
+    border-color: rgba(214, 250, 245, 0.16)
+    background: rgba(24, 38, 40, 0.82)
+
+  select option
+    color: #e6f3f1
+    background: #172528
+
+  .card, .content-main, .panel, .overview-card, .quick-card, .profile-summary, .action-card
+    border-color: rgba(214, 250, 245, 0.14)
+    background-color: rgba(21, 34, 36, 0.78)
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22)
+
+  .content-main
+    background: rgba(18, 31, 33, 0.74)
+
+  .aqua-tooltip, .overlay > div
+    color: #e6f3f1
+    border-color: rgba(214, 250, 245, 0.16)
+    background: rgba(22, 38, 40, 0.92)
+
+  nav .nav-inner
+    border-color: rgba(214, 250, 245, 0.16)
+    background: rgba(21, 36, 38, 0.82)
+
+  nav .logo, nav .profile-link
+    color: #e6f3f1
+
+  .action-card
+    color: #e6f3f1
+
+    span
+      color: #b5e3de
+
+  .overlay
+    background: rgba(5, 13, 14, 0.66)
+
+  blockquote.info
+    background: rgba(7, 143, 136, 0.14)
+
+  .code-container
+    background: rgba(0, 0, 0, 0.26) !important
+
+:root[data-theme="light"]
+  color-scheme: light

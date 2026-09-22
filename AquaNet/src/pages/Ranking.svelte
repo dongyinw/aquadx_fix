@@ -160,4 +160,7 @@
     &.alternate
       background-color: vars.$ov-light
 
+      :global(:root[data-theme="dark"]) &
+        background-color: rgba(255, 255, 255, 0.12)
+
 </style>

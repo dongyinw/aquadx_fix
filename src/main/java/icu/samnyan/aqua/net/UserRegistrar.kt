@@ -56,6 +56,7 @@ class UserRegistrar(
     val aquaNetProps: AquaNetProps,
     final val paths: PathProps,
     val accountDeletion: AccountDeletionService,
+    val mai2: Mai2Repos,
 ) {
     val portraitPath = paths.aquaNetPortrait.path()
 
@@ -231,6 +232,16 @@ class UserRegistrar(
     @API("/me")
     @Doc("Get the information of the current logged-in user.", "User information")
     suspend fun getUser(@RP token: Str) = jwt.auth(token)
+
+    @API("/access-status")
+    @Doc("Get the current user's frontend access status.", "Access status")
+    fun accessStatus(@RP token: Str) = jwt.auth(token) { u ->
+        val banState = cardRepo.findAllByAquaUserAuId(u.auId)
+            .asSequence()
+            .mapNotNull { card -> mai2.userData.findByCard(card)?.banState }
+            .maxOrNull() ?: 0
+        mapOf("banState" to banState, "blocked" to (banState == 2))
+    }
 
     @API("/user-info")
     @Doc("Get the information of a user by username.", "User information")

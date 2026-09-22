@@ -32,8 +32,147 @@ export interface MikuNetUser {
   password: string,
   optOutOfLeaderboard: boolean,
   canModifyKeychips: boolean,
+  isAdmin: boolean,
   hideCountry: boolean,
   displayCandidates: boolean
+}
+
+export interface AdminUserSummary {
+  auId: number
+  username: string
+  displayName: string
+  email: string
+  lastLogin: number
+  keychipCount: number
+  isAdmin: boolean
+  regTime?: number
+}
+
+export interface AdminKeychip {
+  id: number
+  keychipId: string
+  enabled: boolean
+}
+
+export interface AdminUserDetail {
+  user: {
+    auId: number
+    username: string
+    email: string
+    displayName: string
+    computedName: string
+    country: string
+    region: string
+    profileLocation: string | null
+    profileBio: string | null
+    emailConfirmed: boolean
+    canModifyKeychips: boolean
+    isAdmin: boolean
+    lastLogin: number
+    regTime: number
+  }
+  cards: AdminCardSummary[]
+  keychips: AdminKeychip[]
+  mai2: {
+    cardExtId: number
+    userName: string
+    banState: number
+    iconId: number
+    plateId: number
+    titleId: number
+    partnerId: number
+    frameId: number
+    playerRating: number
+    highestRating: number
+    playCount?: number
+    firstPlayDate?: string
+    lastPlayDate?: string
+    lastClientId?: string
+    lastPlaceId?: number
+    lastPlaceName?: string
+    lastRomVersion: string
+    lastDataVersion: string
+  } | null
+  chu3: AdminGameProfile | null
+  ongeki: AdminGameProfile | null
+  items: { itemKind: number, itemId: number, stock: number, isValid: boolean }[]
+}
+
+export interface AdminGameProfile {
+  cardExtId?: number
+  userName: string
+  banState?: number
+  playerRating: number
+  highestRating: number
+  playCount?: number
+  firstPlayDate?: string
+  lastPlayDate?: string
+  lastClientId?: string
+  lastPlaceId?: number
+  lastPlaceName?: string
+  lastRomVersion?: string
+  lastDataVersion?: string
+}
+
+export interface AdminCardGame {
+  cardExtId?: number
+  userName: string
+  banState: number
+  iconId: number
+  plateId: number
+  titleId: number
+  partnerId: number
+  frameId: number
+  playerRating: number
+  highestRating: number
+  playCount?: number
+  firstPlayDate?: string
+  lastPlayDate?: string
+  lastClientId?: string
+  lastPlaceId?: number
+  lastPlaceName?: string
+  lastRomVersion?: string
+  lastDataVersion?: string
+}
+
+export interface AdminCardSummary {
+  id: number
+  luid: string
+  extId: number
+  registerTime?: string
+  accessTime?: string
+  isGhost: boolean
+  rankingBanned?: boolean
+  status: string
+  owner?: AdminUserSummary | null
+  mai2?: AdminCardGame | null
+  chu3?: AdminGameProfile | null
+  ongeki?: AdminGameProfile | null
+}
+
+export interface AdminPlaylog {
+  id?: number
+  playlogId?: number
+  placeId: number
+  placeName: string
+  loginDate?: number
+  playDate: string
+  userPlayDate: string
+  musicId: number
+  level: number
+  achievement: number
+  afterRating?: number
+}
+
+export interface AdminCardDetail {
+  card: AdminCardSummary
+  user: AdminUserSummary | null
+  keychips: AdminKeychip[]
+  mai2: AdminCardGame | null
+  chu3: AdminGameProfile | null
+  ongeki: AdminGameProfile | null
+  items: { itemKind: number, itemId: number, stock: number, isValid: boolean }[]
+  playlogs: AdminPlaylog[]
 }
 
 export interface CardSummaryGame {

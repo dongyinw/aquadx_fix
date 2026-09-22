@@ -201,7 +201,7 @@
       </div>
       <nav>
         {#each d.validGames as [g, name]}
-          <a href={`/u/${username}/${g}`} class:active={game === g}>{name}</a>
+          <a class="game-tab" href={`/u/${username}/${g}`} class:active={game === g}>{name}</a>
         {/each}
 
         {#if me && me.username.toLowerCase() === username.toLowerCase()}
@@ -533,6 +533,20 @@
       gap: 10px
       top: 4px
       right: 0
+
+      .game-tab
+        padding: 7px 10px
+        border: 1px solid rgba(96, 114, 118, 0.13)
+        border-radius: 10px
+        color: vars.$c-sub
+        background: rgba(255, 255, 255, 0.48)
+        font-size: 0.76rem
+        font-weight: 700
+
+        &:hover, &.active
+          color: vars.$c-main
+          border-color: rgba(7, 143, 136, 0.28)
+          background: vars.$c-main-soft
 
     .setting-icon
       font-size: 1.5rem
@@ -996,6 +1010,31 @@
 
     &.error
       color: vars.$c-error
+
+  // Keep the detail dialog readable when the app is using the dark theme.
+  :global(:root[data-theme="dark"] .score-detail)
+    color: #e6f3f1
+    background: rgba(21, 34, 36, 0.96)
+    border: 1px solid rgba(214, 250, 245, 0.16)
+
+  :global(:root[data-theme="dark"] .score-detail .detail-summary)
+    border-color: rgba(214, 250, 245, 0.16)
+
+  :global(:root[data-theme="dark"] .score-detail .detail-summary span:first-of-type)
+    color: #b5e3de
+
+  :global(:root[data-theme="dark"] .score-detail .detail-stats > div)
+    background: rgba(255, 255, 255, 0.08)
+
+  :global(:root[data-theme="dark"] .score-detail .judgment-row.header)
+    background: rgba(255, 255, 255, 0.08)
+
+  :global(:root[data-theme="dark"] .score-detail .detail-message)
+    color: #b5e3de
+    background: rgba(255, 255, 255, 0.08)
+
+  :global(:root[data-theme="dark"] .score-detail .timing)
+    color: #b5e3de
 
   @media (max-width: vars.$w-mobile)
     .score-detail

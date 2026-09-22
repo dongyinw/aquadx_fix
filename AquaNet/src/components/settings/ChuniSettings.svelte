@@ -113,7 +113,7 @@
   function exportData() {
     submitting = "export"
     GAME.export('chu3')
-      .then(data => download(JSON.stringify(data), `AquaDX_chu3_export_${userbox.userName}.json`))
+      .then(data => download(JSON.stringify(data), `MikuNet_chu3_export_${userbox.userName}.json`))
       .catch(e => error = e.message)
       .finally(() => submitting = "")
   }
@@ -170,7 +170,7 @@
       "meta": {
         "game": "chunithm",
         "playtype": "Single",
-        "service": "AquaDX-Manual"
+        "service": "MikuNet-Manual"
       },
       "scores": [],
       "classes": {}
@@ -241,7 +241,7 @@
       output.classes["emblem"] = DAN_MAP[data.userData.classEmblemBase]
     }
 
-    download(JSON.stringify(output), `AquaDX_chu3_BatchManualExport_${userbox.userName}.json`)
+    download(JSON.stringify(output), `MikuNet_chu3_BatchManualExport_${userbox.userName}.json`)
     submitting = ""
   }
 

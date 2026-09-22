@@ -7,11 +7,12 @@ import type {
   GenericGameSummary,
   GenericRanking,
   TrendEntry,
-  MikuNetUser, GameOption,
+  MikuNetUser, GameOption, AdminCardDetail, AdminCardSummary,
   UserBox,
   UserItem,
   Dict,
   GameUserOption
+  , AdminUserSummary, AdminUserDetail
 } from './generalTypes'
 import type { GameName } from './scoring'
 
@@ -175,10 +176,15 @@ async function changePassword(user: { token: string, password: string }) {
 
 const isLoggedIn = () => !!localStorage.getItem('token')
 const ensureLoggedIn = () => !isLoggedIn() && (window.location.href = '/')
+const logout = () => {
+  localStorage.removeItem('token')
+  window.location.replace('/')
+}
 
 export const USER = {
   register,
   login,
+  logout,
   resetPassword,
   changePassword,
   confirmEmail: (token: string) =>
@@ -187,6 +193,8 @@ export const USER = {
     ensureLoggedIn()
     return post('/api/v2/user/me', {})
   },
+  accessStatus: (): Promise<{ banState: number, blocked: boolean }> =>
+    post('/api/v2/user/access-status', {}),
   keychips: (): Promise<string[]> =>
     post('/api/v2/user/keychip', {}).then(it => it.keychips),
   addKeychip: (keychipId: string): Promise<string> =>
@@ -204,6 +212,37 @@ export const USER = {
   ensureLoggedIn,
   changeRegion: (regionId: number) =>
     post('/api/v2/user/change-region', { regionId }),
+}
+
+export const ADMIN = {
+  users: (query: string, regFrom = "", regTo = ""): Promise<AdminUserSummary[]> =>
+    post('/api/v2/admin/users', { query, regFrom, regTo }),
+  cards: (query: string, regFrom = "", regTo = ""): Promise<AdminCardSummary[]> =>
+    post('/api/v2/admin/cards', { query, regFrom, regTo }),
+  user: (auId: number): Promise<AdminUserDetail> =>
+    post('/api/v2/admin/user', { auId }),
+  card: (cardId: number): Promise<AdminCardDetail> =>
+    post('/api/v2/admin/card', { cardId }),
+  setProfile: (auId: number, field: string, value: string | boolean) =>
+    post('/api/v2/admin/user/profile-set', { auId, field, value: String(value) }),
+  setGameProfile: (auId: number, game: string, field: string, value: string | number) =>
+    post('/api/v2/admin/user/game-profile-set', { auId, game, field, value: String(value) }),
+  setCardGameProfile: (cardId: number, game: string, field: string, value: string | number) =>
+    post('/api/v2/admin/card/game-profile-set', { cardId, game, field, value: String(value) }),
+  grantItem: (auId: number, game: string, itemKind: number, itemId: number, amount: number) =>
+    post('/api/v2/admin/user/item-grant', { auId, game, itemKind, itemId, amount }),
+  grantCardItem: (cardId: number, game: string, itemKind: number, itemId: number, amount: number) =>
+    post('/api/v2/admin/card/item-grant', { cardId, game, itemKind, itemId, amount }),
+  setKeychip: (keychipId: string, enabled: boolean) =>
+    post('/api/v2/admin/user/keychip-set', { keychipId, enabled }),
+  addKeychip: (auId: number, keychipId: string) =>
+    post('/api/v2/admin/user/keychip-add', { auId, keychipId }),
+  deleteKeychip: (keychipId: string) =>
+    post('/api/v2/admin/user/keychip-delete', { keychipId }),
+  deleteUser: (auId: number) =>
+    post('/api/v2/admin/user/delete', { auId }),
+  deleteCard: (cardId: number) =>
+    post('/api/v2/admin/card/delete', { cardId }),
 }
 
 export const USERBOX = {

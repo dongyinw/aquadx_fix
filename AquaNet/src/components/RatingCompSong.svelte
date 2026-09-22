@@ -47,6 +47,7 @@
 
   .map-detail-container
     background-color: rgb(35,35,35)
+    color: #e6f3f1
     border-radius: vars.$border-radius
     overflow: hidden
 

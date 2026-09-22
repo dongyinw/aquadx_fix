@@ -55,6 +55,9 @@ export const EN_REF_Welcome = {
   'welcome.password-missing': 'Password is required',
   'welcome.username-missing': 'Username/email is required',
   'welcome.email-password-missing': 'Email and password are required',
+  'welcome.waiting-turnstile': 'Waiting for Turnstile to verify your network environment...',
+  'welcome.turnstile-error': 'Error verifying your network environment. Please turn off your VPN and try again.',
+  'welcome.turnstile-timeout': 'Network verification timed out. Please try again.',
   'welcome.verification-sent': 'A verification email has been sent to ${email}. Please check your inbox!',
   'welcome.reset-password-sent': 'A password reset email has been sent to ${email}. Please check your inbox!',
   'welcome.verify-state-0': 'You haven\'t verified your email. A verification email has been sent to your inbox just now. Please check your inbox!',
@@ -65,6 +68,7 @@ export const EN_REF_Welcome = {
   'welcome.verifying': 'Verifying your email... please wait.',
   'welcome.verified': 'Your email has been verified! You can now log in now.',
   'welcome.verification-failed': 'Verification failed: ${message}. Please try again.',
+  'welcome.account-banned': 'This account is blocked from using the web frontend.',
   'welcome.password-reset-done': 'Your password has been updated! Please log back in.',
   'welcome.login_link': 'Login / register to link your card.'
 }
@@ -141,16 +145,20 @@ export const EN_REF_HOME = {
   'home.linkcard.unlink-notice': 'Are you sure you want to unlink this card?',
   'home.linkcard.felica-ac-warning': 'This Access Code is of a FeliCa AIC card.\nIf you are logging in with a physical card (not aime.txt emulation), unlike the official server, you need to bind the FeliCa SN of the card (or the 00-prefixed card number shown in the game) instead of this code.\nIf you are logging in with aime.txt emulation, please ignore this warning and proceed.',
   'home.linkcard.card-security-warning': 'Access Cards give full access to your games\' player data. Do not share your card information with anyone.',
+  'home.community.discord': 'Discord',
+  'home.community.telegram': 'Telegram (Chinese)',
+  'home.community.qq': 'QQ (Chinese)',
+  'home.community.github': 'GitHub Repository',
   'home.import.unknown-game': 'Unknown game type. Currently only Mai and Chuni are supported for importing.',
   'home.import.new-data': 'Data to import',
   'home.import.data-conflict': 'Proceed will override your current data',
 }
 
 export const EN_REF_SETUP = {
-  'setup.welcome': `Welcome! If you have a game set up, please follow the instructions below to set up the connection with AquaDX.`,
+  'setup.welcome': `Welcome! If you have a game set up, please follow the instructions below to set up the connection with MikuNet.`,
   'setup.keychip-warning': `Your keychip(s) are linked to your account and should be kept secure.`,
   'setup.steps.one': `Pick a method of setting up network communications. Some browsers may not be able to do automatic setup.`,
-  'setup.steps.two': `Link your Aime card to your AquaDX account using the <a href="/cards">Cards</a> page via it's access code or serial number.`,
+  'setup.steps.two': `Link your Aime card to your MikuNet account using the <a href="/cards">Cards</a> page via it's access code or serial number.`,
   'setup.steps.three': `Start the game. Upon reaching the title screen, the network icon in the corner should now show green instead of grey.`,
   'setup.support-info': `If you need additional assistance, feel free to make an inquiry in a <a href="/support">support channel</a>.`,
   'setup.reveal-keychip': `Reveal keychip`,
@@ -171,7 +179,7 @@ export const EN_REF_SETUP = {
   'setup.troubleshooting.items.three': `» I can't scan my card<br>
     The built-in emulated card reader, by default, is configured to use the Enter / Return key to scan in (hold the key).`,
   'setup.keychip': 'Keychip Management',
-  'setup.keychip.warning': 'Keychips can be manually set here for cabinet owners with physical keychips trying to connect to AquaDX. Selecting a keychip will autofill it for the setup below.',
+  'setup.keychip.warning': 'Keychips can be manually set here for cabinet owners with physical keychips trying to connect to MikuNet. Selecting a keychip will autofill it for the setup below.',
   'setup.keychip.add': `Add keychip`,
   'setup.keychip.delete': `Delete`,
   'setup.keychip.placeholder': `New Keychip ID`
@@ -322,7 +330,7 @@ export const EN_REF_USERBOX = {
   'userbox.lv.difficulty.4': 'LEVEL II',
   'userbox.lv.difficulty.5': 'LEVEL I',
 
-  'userbox.new.name': 'AquaBox',
+  'userbox.new.name': 'MikuBox',
   'userbox.new.setup': 'Drag and drop your Chuni game folder (Lumi or newer) into the box below to display UserBoxes with their nameplate & avatar. All files are handled in-browser.',
   'userbox.new.setup.notice': 'Select the highest folder containing your game data.',
   'userbox.new.setup.processing_file': 'Processing',
@@ -331,11 +339,11 @@ export const EN_REF_USERBOX = {
   'userbox.new.switch.to_url': 'Switch to URL mode',
   'userbox.new.switch.to_drop': 'Switch to drop mode',
   'userbox.new.url_warning': 'Enter in the path to access Userbox assets. You are responsible for any results in this state. Please read the documentation. Don\'t expect support for this mode.',
-  'userbox.new.activate_first': 'Enable AquaBox (game files required)',
-  'userbox.new.activate_update': 'Update AquaBox (game files required)',
-  'userbox.new.activate': 'Use AquaBox',
+  'userbox.new.activate_first': 'Enable MikuBox (game files required)',
+  'userbox.new.activate_update': 'Update MikuBox (game files required)',
+  'userbox.new.activate': 'Use MikuBox',
   'userbox.new.activate_desc': 'Enable displaying UserBoxes with their nameplate & avatar',
-  'userbox.new.activate_profile': 'Use AquaBox on profiles',
+  'userbox.new.activate_profile': 'Use MikuBox on profiles',
   'userbox.new.activate_profile_desc': 'Enable displaying UserBoxes with their nameplate & avatar on profile pages',
   'userbox.new.error.invalidFolder': 'The folder you selected is invalid. Ensure that your game\'s version is Lumi or newer and that the "A000" option pack is present.',
   'userbox.new.error.invalidUrl': 'The URL you inputted is invalid.'
@@ -348,7 +356,7 @@ export const EN_REF_MAI_PHOTO = {
 }
 
 export const EN_REF_AQUATRANS = {
-  'trans.title': '🏳️‍⚧️ AquaTrans™ Data Transfer',
+  'trans.title': '🏳️‍⚧️ MikuTrans™ Data Transfer',
   'trans.confirm.unbackuped.title': 'Confirm transfer',
   'trans.confirm.unbackuped.msg': "It seems like you haven't backed up your destination data. Are you sure you want to proceed? (This will overwrite your destination server's data)",
   'trans.confirm.untested.title': 'Error',
@@ -357,7 +365,7 @@ export const EN_REF_AQUATRANS = {
   'trans.confirm.done.msg': 'Transfer completed successfully! Your data on ${dst} is overwritten with your data from ${src}.',
   'trans.alert.in-progress': "Transfer already in progress!",
   'trans.prompt-html': `
-    <p>👋 Welcome to the AquaTrans™ server data transfer tool!</p>
+    <p>👋 Welcome to the MikuTrans™ server data transfer tool!</p>
     <p>You can use this to export data from any server, and input data into any server using the connection credentials (card number, server address, and keychip id).</p>
     <p>This tool will simulate a game client and pull your data from the source server, and push your data to the destination server.</p>
     <p>Please fill out the info below to get started!</p>
@@ -375,7 +383,7 @@ export const EN_REF_AQUATRANS = {
   'trans.btn.test': 'Test Connection',
   'trans.btn.export': 'Export Data',
   'trans.btn.import': 'Import Data',
-  'trans.blacklist': "This server may have rules against tools such as AquaTrans, please use caution.",
+  'trans.blacklist': "This server may have rules against tools such as MikuTrans, please use caution.",
 }
 
 export const EN_REF = { ...EN_REF_USER, ...EN_REF_Welcome, ...EN_REF_GENERAL,

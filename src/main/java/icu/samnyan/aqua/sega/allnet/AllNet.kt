@@ -114,15 +114,16 @@ class AllNet(
         // Proper keychip authentication
         if (props.checkKeychip) {
             // If it's a user keychip, it should be in user database
-            val u = findUserByIncomingSerial(serial)
-            if (u != null) {
+            val keychip = findKeychipByIncomingSerial(serial)?.takeIf { it.enabled }
+            if (keychip != null) {
+                val u = keychip.user
                 // Create a new session for the user
                 logger.info("> Keychip authenticated: ${u.auId} ${u.computedName}")
                 // If the user defined its own region apply it
                 if (u.region.isNotBlank()) {
                     region = u.region
                 }
-                session = keychipSessionService.new(u, reqMap["game_id"] ?: "").token
+                session = keychipSessionService.new(u, reqMap["game_id"] ?: "", keychip.keychipId).token
             }
 
             else if (props.keychipPermissiveForTesting) {
@@ -173,15 +174,15 @@ class AllNet(
         return resp.toUrl() + "\n"
     }
 
-    private fun findUserByIncomingSerial(serial: String) = when (serial.length) {
-        FULL_KEYCHIP_LENGTH -> userKeychipRepo.findByKeychipId(serial)?.user
+    private fun findKeychipByIncomingSerial(serial: String) = when (serial.length) {
+        FULL_KEYCHIP_LENGTH -> userKeychipRepo.findByKeychipId(serial)
         SHORT_KEYCHIP_LENGTH -> {
             // segatools only sends the first 11 characters of the keychip
             // First, try to find it by suffixing AquaDX's generated suffix, then fall back to matching without the suffixed 4 digits
-            userKeychipRepo.findByKeychipId(serial + KEYCHIP_SUFFIX)?.user
-                ?: userKeychipRepo.findByKeychipIdStartingWith(serial)?.user
+            userKeychipRepo.findByKeychipId(serial + KEYCHIP_SUFFIX)
+                ?: userKeychipRepo.findByKeychipIdStartingWith(serial)
         }
-        else -> userKeychipRepo.findByKeychipId(serial)?.user
+        else -> userKeychipRepo.findByKeychipId(serial)
     }
 
     private fun switchUri(hereAddr: Str, localPort: Str, gameId: Str, ver: Str, session: Str?): Str {

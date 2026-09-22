@@ -28,10 +28,10 @@
     transition: all 0.2s ease
     cursor: pointer
     position: relative
-    background: linear-gradient(45deg, transparent 20%, rgba(var(--card-color), 0.5) 100%)
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(var(--card-color), 0.18))
     outline: 1px solid transparent
     filter: drop-shadow(0 0 12px rgba(var(--card-color), 0))
-    color: rgba(255, 255, 255, 0.78)
+    color: vars.$c-text
 
     &:hover
       box-shadow: 0 0 0.5rem 0.2rem vars.$c-shadow
@@ -45,7 +45,7 @@
       font-size: 1.2rem
       display: block
       margin-bottom: 0.5rem
-      color: color-mix(in oklab, rgb(var(--card-color)) 25%, rgba(255, 255, 255, 0.75))
+      color: color-mix(in oklab, rgb(var(--card-color)) 55%, vars.$c-text)
 
     .icon
       position: absolute

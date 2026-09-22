@@ -102,7 +102,7 @@
 
   <!-- First input line -->
   <div class="inputs">
-    <InputTextShort desc={t('trans.field.addr')} placeholder="e.g. http://aquadx.hydev.org"
+      <InputTextShort desc={t('trans.field.addr')} placeholder="e.g. https://mikunet.example"
       bind:value={src.dns} on:change disabled={tested}
       validate={v => /^https?:\/\/[a-z0-9.-]+(:\d+)?$/i.test(v)} />
     <InputTextShort desc={t('trans.field.keychip')} placeholder="e.g. A0299792458"

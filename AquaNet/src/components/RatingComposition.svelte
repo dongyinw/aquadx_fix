@@ -57,10 +57,16 @@
       height: 100%
       position: absolute
       z-index: 10
-
-      border: none
+      margin: 0
+      padding: 0
+      border: 0
       border-radius: 0
+      appearance: none
+      color: transparent
+      background: transparent !important
+      box-shadow: none
       opacity: 0
+      cursor: pointer
 
       transition: opacity 250ms
 
@@ -80,8 +86,8 @@
       &:checked ~ .rating-composition
         max-height: 3000px
 
-      opacity: 1
-      background: linear-gradient(#0000 250px, rgb(28.35, 28.35, 28.35) 100%) /* for some reason the color.adjust doesn't work here so whatever */
+      opacity: 0
+      background: transparent !important
         
     
 </style>

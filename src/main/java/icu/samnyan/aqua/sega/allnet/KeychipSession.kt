@@ -26,6 +26,9 @@ class KeychipSession(
     @JoinColumn(name = "au_id")
     var user: AquaNetUser? = null,
 
+    @Column(name = "keychip_id", length = 32)
+    val keychipId: String? = null,
+
     @Column(length = 4)
     val gameId: String,
 
@@ -51,6 +54,11 @@ fun genUrlSafeToken(length: Int): String {
 interface KeychipSessionRepo : JpaRepository<KeychipSession, String> {
     fun findByToken(token: String): KeychipSession?
 
+    fun findAllByKeychipId(keychipId: String): List<KeychipSession>
+
+    @Transactional
+    fun deleteAllByKeychipId(keychipId: String): Long
+
     @Transactional
     fun deleteAllByLastUseBefore(expire: Long)
 }
@@ -58,7 +66,8 @@ interface KeychipSessionRepo : JpaRepository<KeychipSession, String> {
 @Service
 class KeychipSessionService(
     val repo: KeychipSessionRepo,
-    val props: AllNetProps
+    val props: AllNetProps,
+    val userKeychipRepo: UserKeychipRepo
 ) {
     val logger = LoggerFactory.getLogger(KeychipSessionService::class.java)
 
@@ -75,20 +84,28 @@ class KeychipSessionService(
     /**
      * Create a new session.
      */
-    fun new(user: AquaNetUser?, gameId: String): KeychipSession {
-        val session = KeychipSession(user = user, gameId = gameId)
+    fun new(user: AquaNetUser?, gameId: String, keychipId: String? = null): KeychipSession {
+        val session = KeychipSession(user = user, keychipId = keychipId, gameId = gameId)
         return repo.save(session)
     }
 
     /**
      * Find a session. If found, renew the last use time.
      */
-    fun find(token: String) = repo.findByToken(token)?.apply {
-        lastUse = System.currentTimeMillis()
-        try {
-            repo.save(this)
-        } catch (_: Exception) {
-            logger.error("Failed to update last use time for session $token")
+    fun find(token: String) = repo.findByToken(token)?.let { session ->
+        val keychipId = session.keychipId
+        if (keychipId != null && userKeychipRepo.findByKeychipId(keychipId)?.enabled != true) {
+            repo.delete(session)
+            return@let null
+        }
+
+        session.apply {
+            lastUse = System.currentTimeMillis()
+            try {
+                repo.save(this)
+            } catch (_: Exception) {
+                logger.error("Failed to update last use time for session $token")
+            }
         }
     }
 }

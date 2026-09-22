@@ -25,7 +25,7 @@
   function exportData() {
       submitting = "export"
       GAME.export('ongeki')
-        .then(data => download(JSON.stringify(data), `AquaDX_ongeki_export_${userNameField.value}.json`))
+        .then(data => download(JSON.stringify(data), `MikuNet_ongeki_export_${userNameField.value}.json`))
         .catch(e => error = e.message)
         .finally(() => submitting = "")
     }

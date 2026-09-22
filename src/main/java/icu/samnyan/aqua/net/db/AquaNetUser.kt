@@ -90,6 +90,9 @@ class AquaNetUser(
     @Column(nullable = false)
     var canModifyKeychips: Boolean = false,
 
+    @Column(nullable = false)
+    var isAdmin: Boolean = false,
+
     @OneToOne(cascade = [CascadeType.ALL])
     @JoinColumn(name = "gameOptions", unique = true, nullable = true)
     var gameOptions: AquaGameOptions? = null,
@@ -197,7 +200,7 @@ class AquaUserServices(
     fun validKeychip(keychipId: Str): Bool {
         if (!allNetProps.checkKeychip) return true
         if (keychipId.isBlank()) return false
-        if (userKeychipRepo.findByKeychipIdStartingWith(keychipId).truthy) return true
+        if (userKeychipRepo.findByKeychipIdStartingWith(keychipId)?.enabled == true) return true
         return false
     }
 

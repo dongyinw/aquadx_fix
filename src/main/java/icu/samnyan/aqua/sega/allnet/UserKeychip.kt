@@ -21,6 +21,9 @@ class UserKeychip(
 
     @Column(unique = true, nullable = false, length = 32)
     val keychipId: String,
+
+    @Column(nullable = false)
+    var enabled: Boolean = true,
 )
 
 @Repository

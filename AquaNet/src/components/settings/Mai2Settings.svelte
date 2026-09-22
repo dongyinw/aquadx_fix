@@ -104,7 +104,7 @@
       "meta": {
         "game": "maimaidx",
         "playtype": "Single",
-        "service": "AquaDX-Manual"
+        "service": "MikuNet-Manual"
       },
       "scores": [],
       "classes": {}
@@ -194,14 +194,14 @@
     if(data.userData.classRank in CLASS_MAP){
       output.classes["matchingClass"] = CLASS_MAP[data.userData.classRank]
     }
-    download(JSON.stringify(output), `AquaDX_maimai2_BatchManualExport_${userNameField.value}.json`)
+    download(JSON.stringify(output), `MikuNet_maimai2_BatchManualExport_${userNameField.value}.json`)
     submitting = ""
   }
 
   function exportData() {
     submitting = "export"
     GAME.export('mai2')
-      .then(data => download(JSON.stringify(data), `AquaDX_maimai2_export_${userNameField.value}.json`))
+      .then(data => download(JSON.stringify(data), `MikuNet_maimai2_export_${userNameField.value}.json`))
       .catch(e => error = e.message)
       .finally(() => submitting = "")
   }
