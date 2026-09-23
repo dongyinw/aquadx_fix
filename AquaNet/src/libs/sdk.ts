@@ -197,8 +197,8 @@ export const USER = {
     post('/api/v2/user/access-status', {}),
   mai2PassStatus: (cardId: string): Promise<MagicalPassState> =>
     post('/api/v2/user/mai2-pass/status', { cardId }),
-  mai2PassPurchase: (cardId: string, passTypeId: number) =>
-    post('/api/v2/user/mai2-pass/purchase', { cardId, passTypeId }),
+  mai2PassPurchase: (cardId: string, passTypeId: number, passPackId: number, passCharaId: number) =>
+    post('/api/v2/user/mai2-pass/purchase', { cardId, passTypeId, passPackId, passCharaId }),
   keychips: (): Promise<string[]> =>
     post('/api/v2/user/keychip', {}).then(it => it.keychips),
   addKeychip: (keychipId: string): Promise<string> =>

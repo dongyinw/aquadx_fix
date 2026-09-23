@@ -14,8 +14,9 @@
   }
 
   const passOptions: PassOption[] = [
-    { passTypeId: 2, title: "金色 Pass", subtitle: "Gold Pass", packId: 7001, charaId: 700107, accent: "gold" },
-    { passTypeId: 3, title: "彩色 Pass", subtitle: "Rainbow Pass", packId: 7002, charaId: 700201, accent: "rainbow" },
+    ...[101, 102, 103, 104, 105, 106, 107, 108].map(charaId => ({ passTypeId: 2, title: "金色 Pass", subtitle: "Gold Pass", packId: 7001, charaId: 700000 + charaId, accent: "gold" })),
+    ...[201, 202, 203, 204].map(charaId => ({ passTypeId: 3, title: "彩色 Pass", subtitle: "Rainbow Pass", packId: 7002, charaId: 700000 + charaId, accent: "rainbow" })),
+    ...[301, 302, 303, 304, 305, 306, 307, 308].map(charaId => ({ passTypeId: 3, title: "彩色 Pass", subtitle: "Rainbow Pass", packId: 7003, charaId: 700000 + charaId, accent: "rainbow" })),
   ]
 
   const assetRoot = "/assets/mai2/dxpass"
@@ -25,7 +26,7 @@
   let me: MikuNetUser | null = null
   let cards: Card[] = []
   let selectedCardId = ""
-  let selectedType = 2
+  let selectedCharaId = 700107
   let state: MagicalPassState | null = null
   let loading = true
   let purchasing = false
@@ -34,7 +35,7 @@
   let canvas: HTMLCanvasElement
   let renderId = 0
 
-  $: selectedOption = passOptions.find(option => option.passTypeId === selectedType) ?? passOptions[0]
+  $: selectedOption = passOptions.find(option => option.charaId === selectedCharaId) ?? passOptions[0]
   $: currentPass = state?.userPassList?.[0] ?? null
   $: ticketExpiry = state?.userTicketLimitDateList?.find(item => item.itemId === 40001)?.limitDate ?? ""
   $: if (canvas && selectedOption) {
@@ -72,7 +73,9 @@
     try {
       state = await USER.mai2PassStatus(cardId)
       const existing = state.userPassList?.[0]
-      if (existing?.passTypeId === 2 || existing?.passTypeId === 3) selectedType = existing.passTypeId
+      const matchingOption = passOptions.find(option => option.charaId === existing?.passCharaId)
+        ?? passOptions.find(option => option.packId === existing?.passPackId)
+      if (matchingOption) selectedCharaId = matchingOption.charaId
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     } finally {
@@ -80,8 +83,8 @@
     }
   }
 
-  function chooseType(passTypeId: number) {
-    selectedType = passTypeId
+  function chooseType(charaId: number) {
+    selectedCharaId = charaId
     notice = ""
   }
 
@@ -93,7 +96,7 @@
     error = ""
     notice = ""
     try {
-      const result = await USER.mai2PassPurchase(selectedCardId, selectedType) as MagicalPassState & { success?: boolean }
+      const result = await USER.mai2PassPurchase(selectedCardId, selectedOption.passTypeId, selectedOption.packId, selectedOption.charaId) as MagicalPassState & { success?: boolean }
       state = { ...result, hasProfile: true }
       notice = `${selectedOption.title}已发放，同时获得 1 张票券 40001。`
     } catch (e) {
@@ -220,14 +223,15 @@
     }
   }
 
-  function downloadPreview() {
+  function downloadComposite() {
     if (!canvas) return
+    // The visible canvas is the synthesized Pass artwork on the left. Export only its pixels.
     canvas.toBlob(blob => {
       if (!blob) return
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement("a")
       anchor.href = url
-      anchor.download = `MikuNet_${selectedOption.title.replace(/\s/g, "")}_${selectedCardId.slice(-8)}.png`
+      anchor.download = `MikuNet_${selectedOption.title.replace(/\s/g, "")}_${selectedOption.charaId}_${selectedCardId.slice(-8)}.png`
       anchor.click()
       URL.revokeObjectURL(url)
     }, "image/png")
@@ -271,21 +275,21 @@
 
       <section class="preview-panel">
         <div class="panel-title preview-title"><div><span class="eyebrow">LOCAL ASSET PREVIEW</span><h2>{selectedOption.title}</h2></div><span class="asset-tag">ID {selectedOption.charaId}</span></div>
-        <canvas bind:this={canvas} width="840" height="720" aria-label="Magical Pass 素材预览"></canvas>
+        <canvas bind:this={canvas} width="840" height="720" aria-label="左侧合成后的 Magical Pass 素材预览"></canvas>
         <div class="preview-actions">
-          <button class="primary-action" type="button" on:click={downloadPreview} disabled={loading || !state?.hasProfile}><Icon icon="solar:download-minimalistic-bold-duotone" />下载合成素材</button>
-          <small>下载后可直接作为 Pass 展示图保存</small>
+          <button class="primary-action" type="button" on:click={downloadComposite} disabled={loading || !state?.hasProfile}><Icon icon="solar:download-minimalistic-bold-duotone" />下载左侧合成图</button>
+          <small>只下载左侧画布中的合成后素材，不会下载网页界面</small>
         </div>
       </section>
 
       <section class="purchase-panel">
-        <div class="panel-title"><span class="eyebrow">PASS STORE</span><h2>选择类型</h2></div>
+        <div class="panel-title"><span class="eyebrow">PASS STORE</span><h2>选择 Pass ID</h2></div>
         <div class="pass-options">
           {#each passOptions as option}
-            <button class="pass-option {option.accent}" class:selected={selectedType === option.passTypeId} type="button" on:click={() => chooseType(option.passTypeId)}>
+            <button class="pass-option {option.accent}" class:selected={selectedCharaId === option.charaId} type="button" on:click={() => chooseType(option.charaId)}>
               <span class="pass-option-mark"><Icon icon={option.passTypeId === 2 ? "solar:medal-star-bold-duotone" : "solar:stars-minimalistic-bold-duotone"} /></span>
-              <span><strong>{option.title}</strong><small>{option.subtitle} · Pass ID {option.packId}</small></span>
-              {#if selectedType === option.passTypeId}<Icon class="option-check" icon="solar:check-circle-bold" />{/if}
+              <span><strong>{option.title}</strong><small>{option.subtitle} · Pass ID {option.charaId} · Pack {option.packId}</small></span>
+              {#if selectedCharaId === option.charaId}<Icon class="option-check" icon="solar:check-circle-bold" />{/if}
             </button>
           {/each}
         </div>
@@ -391,6 +395,11 @@
   .card-list, .pass-options
     display: grid
     gap: 8px
+
+  .pass-options
+    max-height: 430px
+    overflow-y: auto
+    padding-right: 4px
 
   .card-choice, .pass-option
     display: flex

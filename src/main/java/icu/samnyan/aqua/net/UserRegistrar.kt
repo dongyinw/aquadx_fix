@@ -296,13 +296,37 @@ class UserRegistrar(
     @API("/mai2-pass/purchase")
     @Doc("Grant a Magical Pass and one matching ticket to one of the current user's cards.", "Magical Pass purchase result")
     @Transactional
-    fun magicalPassPurchase(@RP token: Str, @RP cardId: Str, @RP passTypeId: Int) = jwt.auth(token) { u ->
+    fun magicalPassPurchase(
+        @RP token: Str,
+        @RP cardId: Str,
+        @RP passTypeId: Int,
+        @RP passPackId: Int?,
+        @RP passCharaId: Int?,
+    ) = jwt.auth(token) { u ->
         val card = findOwnedCard(u, cardId)
         val gameUser = mai2.userData.findByCard(card) ?: (400 - "This card does not have a maimai profile")
-        val pass = when (passTypeId) {
-            2 -> mapOf("passTypeId" to 2, "passPackId" to 7001, "passCharaId" to 700107, "mapId" to 0)
-            3 -> mapOf("passTypeId" to 3, "passPackId" to 7002, "passCharaId" to 700201, "mapId" to 0)
-            else -> 400 - "Unsupported Magical Pass type"
+        val requestedPassPackId = passPackId ?: when (passTypeId) {
+            2 -> 7001
+            3 -> 7002
+            else -> 0
+        }
+        val pass = when (requestedPassPackId) {
+            7001 -> {
+                val selectedCharaId = passCharaId ?: 700107
+                if (selectedCharaId !in 700101..700108) 400 - "Unsupported Pass character ID"
+                mapOf("passTypeId" to 2, "passPackId" to 7001, "passCharaId" to selectedCharaId, "mapId" to 0)
+            }
+            7002 -> {
+                val selectedCharaId = passCharaId ?: 700201
+                if (selectedCharaId !in 700201..700204) 400 - "Unsupported Pass character ID"
+                mapOf("passTypeId" to 3, "passPackId" to 7002, "passCharaId" to selectedCharaId, "mapId" to 0)
+            }
+            7003 -> {
+                val selectedCharaId = passCharaId ?: 700301
+                if (selectedCharaId !in 700301..700308) 400 - "Unsupported Pass character ID"
+                mapOf("passTypeId" to 3, "passPackId" to 7003, "passCharaId" to selectedCharaId, "mapId" to 0)
+            }
+            else -> 400 - "Unsupported Magical Pass ID"
         }
 
         val start = jstNow()
