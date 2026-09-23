@@ -1,4 +1,4 @@
-import { AQUA_HOST, getDataHost } from './config'
+import { AQUA_HOST, DATA_HOST } from './config'
 import type {
   AllMusic,
   Card,
@@ -290,9 +290,9 @@ export const GAME = {
 
 export const DATA = {
   allMusic: (game: GameName): Promise<AllMusic> =>
-    fetch(`${getDataHost(game)}/d/${game}/00/all-music.json`).then(it => it.json()),
+    fetch(`${DATA_HOST}/d/${game}/00/all-music.json`).then(it => it.json()),
   allItems: (game: GameName): Promise<Record<string, Record<string, any>>> =>
-    fetch(`${getDataHost(game)}/d/${game}/00/all-items.json`).then(it => it.json()),
+    fetch(`${DATA_HOST}/d/${game}/00/all-items.json`).then(it => it.json()),
 }
 
 export const SETTING = {

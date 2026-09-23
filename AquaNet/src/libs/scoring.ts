@@ -1,4 +1,4 @@
-import { getDataHost } from "./config"
+import { DATA_HOST } from "./config"
 import type { MusicMeta } from "./generalTypes"
 
 export type GameName = 'mai2' | 'chu3' | 'ongeki' | 'wacca'
@@ -149,7 +149,7 @@ export function parseComposition(item: string, allMusics: Record<string, MusicMe
     mult,
     rank,
     difficulty: diff,
-    img: `${getDataHost(game)}/d/${game}/music/00${mapData[0].toString().padStart(6, '0').substring(2)}.png`,
+    img: `${DATA_HOST}/d/${game}/music/00${mapData[0].toString().padStart(6, '0').substring(2)}.png`,
     ratingChange: calcDxChange()
   }
 }
