@@ -292,6 +292,22 @@ export const GAME = {
     post(`/api/v2/game/${game}/set-rival`, { rivalUserName, isAdd }),
 }
 
+export const CIRCLE = {
+  info: (aimeId: string) => post('/api/game/maimai2/userCircleInfo', { aimeId }),
+  list: (aimeId: string, page = 0) => post('/api/game/maimai2/circle', { aimeId, page }),
+  members: (aimeId: string, page = 0) => post('/api/game/maimai2/circleMemberUser', { aimeId, page }),
+  requests: (aimeId: string, page = 0) => post('/api/game/maimai2/requestJoinCircleList', { aimeId, page }),
+  create: (aimeId: string, circle: Record<string, unknown>) => post('/api/game/maimai2/createCircle', { aimeId }, { json: circle }),
+  update: (aimeId: string, circle: Record<string, unknown>) => post('/api/game/maimai2/updateCircle', { aimeId }, { json: circle }),
+  join: (aimeId: string, circleId: number) => post('/api/game/maimai2/requestJoinCircle', { aimeId, circleId }),
+  joinByCode: (aimeId: string, circleCode: string) => post('/api/game/maimai2/requestJoinCircleByCode', { aimeId, circleCode }),
+  leave: (aimeId: string) => post('/api/game/maimai2/exitCircle', { aimeId }),
+  dissolve: (aimeId: string) => post('/api/game/maimai2/dissolveCircle', { aimeId }),
+  kick: (aimeId: string, userCode: string) => post('/api/game/maimai2/deleteUserToCircle', { aimeId, userCode }),
+  approve: (aimeId: string, userCode: string) => post('/api/game/maimai2/approveUserJoinCircle', { aimeId, userCode }),
+  reject: (aimeId: string, userCode: string) => post('/api/game/maimai2/rejectUserJoinCircle', { aimeId, userCode }),
+}
+
 export const DATA = {
   allMusic: (game: GameName): Promise<AllMusic> =>
     fetch(`${DATA_HOST}/d/${game}/00/all-music.json`).then(it => it.json()),

@@ -60,7 +60,6 @@ class UpsertUserAllHandler(
                 }
             }
 
-            userData?.let(::keepCurrentCollectionIfUploadReset)
         })
 
         // If the user was previously migrated to Minato, saving would mark them "migrated and then cleared".
@@ -200,17 +199,6 @@ class UpsertUserAllHandler(
         repos.userGeneralData.save(data.apply { propertyValue = sb })
     }
 
-    private fun Mai2UserDetail.keepCurrentCollectionIfUploadReset(current: Mai2UserDetail) {
-        fun keepIfReset(uploaded: Int, saved: Int, resetValues: Set<Int>): Int {
-            return if (saved !in resetValues && uploaded in resetValues) saved else uploaded
-        }
-
-        iconId = keepIfReset(iconId, current.iconId, setOf(0, 10))
-        plateId = keepIfReset(plateId, current.plateId, setOf(0, 1))
-        titleId = keepIfReset(titleId, current.titleId, setOf(0, 1))
-        partnerId = keepIfReset(partnerId, current.partnerId, setOf(0, 1, 38))
-        frameId = keepIfReset(frameId, current.frameId, setOf(0, 1))
-    }
 
     companion object {
         val logger = LoggerFactory.getLogger(UpsertUserAllHandler::class.java)

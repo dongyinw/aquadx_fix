@@ -570,41 +570,15 @@ fun Maimai2ServletController.initApis() {
         "festaSideDataList" to empty,
     ) }
 
-    "GetPlaceCircleData" static { mapOf(
-        "returnCode" to 0,
-        "circleId" to 0,
-        "aggrDate" to ""
-    ) }
+    "GetPlaceCircleData" { circleService.gamePlaceCircleData((data["placeId"] as? Number)?.toInt() ?: 0) }
 
-    "GetUserCircleData" static { mapOf(
-        "circleId" to 0,
-        "circleName" to "一緒に歌おう！",
-        "isPlace" to false,
-        "circleClass" to 0,
-        "lastLoginDate" to "",
-        "circlePointRankingList" to empty
-    ) }
+    "GetUserCircleData" { circleService.gameUserCircleData(uid) }
 
-    "GetUserCircleChallenge" { mapOf(
-        "userId" to uid,
-        "userCircleChallenge" to null,
-        "circleCircleChallenge" to null,
-        "achievement" to 0
-    ) }
+    "GetUserCircleChallenge" { circleService.gameUserCircleChallenge(uid) }
 
-    "GetUserCirclePointData" { mapOf(
-        "userId" to uid,
-        "aggrDate" to "",
-        "userCirclePointDataList" to empty
-    ) }
+    "GetUserCirclePointData" { circleService.gameUserCirclePointData(uid) }
 
-    "GetUserCirclePointRanking" static { mapOf(
-        "circleId" to 0,
-        "circleName" to "一緒に歌おう！",
-        "aggrDate" to "",
-        "lastMonthCircleRank" to 0,
-        "lastMonthPoint" to 0
-    ) }
+    "GetUserCirclePointRanking" { circleService.gameUserCirclePointRanking(uid) }
 
     "GetUserFesta" static { mapOf(
         "userFestaData" to mapOf(
