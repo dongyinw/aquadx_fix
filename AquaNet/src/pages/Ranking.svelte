@@ -105,6 +105,84 @@
     display: flex
     flex-direction: column
 
+  .outer-title-options
+    display: flex
+    align-items: center
+    justify-content: space-between
+    gap: 18px
+    margin-bottom: 22px
+    padding: 10px 12px
+    border: 1px solid rgba(255, 255, 255, 0.78)
+    border-radius: 16px
+    background: rgba(255, 255, 255, 0.52)
+    box-shadow: 0 12px 32px rgba(43, 72, 76, 0.08)
+    backdrop-filter: blur(18px)
+
+    h2
+      flex: 0 0 auto
+      margin: 0 4px
+      font-size: 1.35rem
+
+    nav
+      display: flex
+      flex: 1 1 auto
+      justify-content: flex-end
+      gap: 5px
+      min-width: 0
+
+      a
+        flex: 0 0 auto
+        padding: 8px 13px
+        border: 1px solid transparent
+        border-radius: 10px
+        color: vars.$c-sub
+        font-size: 0.82rem
+        font-weight: 700
+        white-space: nowrap
+
+        &:hover
+          color: vars.$c-main
+          background: rgba(7, 143, 136, 0.08)
+
+        &.active
+          color: vars.$c-main
+          border-color: rgba(7, 143, 136, 0.18)
+          background: vars.$c-main-soft
+          box-shadow: 0 5px 14px rgba(7, 143, 136, 0.12)
+
+    :global(:root[data-theme="dark"]) &
+      border-color: rgba(214, 250, 245, 0.14)
+      background: rgba(21, 36, 38, 0.76)
+      box-shadow: 0 16px 42px rgba(0, 0, 0, 0.18)
+
+      nav a
+        color: #b5e3de
+
+        &:hover
+          color: #e6f3f1
+          background: rgba(86, 211, 198, 0.12)
+
+        &.active
+          color: #e6f3f1
+          border-color: rgba(86, 211, 198, 0.26)
+          background: rgba(7, 143, 136, 0.32)
+
+    @media (max-width: vars.$w-mobile)
+      align-items: stretch
+      flex-direction: column
+      gap: 8px
+      padding: 12px
+
+      nav
+        justify-content: flex-start
+        overflow-x: auto
+        padding-bottom: 2px
+
+        &::-webkit-scrollbar
+          display: none
+
+        scrollbar-width: none
+
   .lb-user
     display: flex
     align-items: center
