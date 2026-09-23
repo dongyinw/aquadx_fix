@@ -54,6 +54,23 @@
   let detailLoading = false
   let detailError = ""
 
+  // Keep the dialog outside the glass content container so fixed positioning
+  // is always relative to the viewport on mobile browsers.
+  function portal(node: HTMLElement) {
+    const placeholder = document.createComment("score-detail-portal")
+    node.parentNode?.insertBefore(placeholder, node)
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    document.body.appendChild(node)
+
+    return {
+      destroy() {
+        document.body.style.overflow = previousOverflow
+        placeholder.remove()
+      }
+    }
+  }
+
   const judgmentRows = [
     { label: "Tap", prefix: "tap" },
     { label: "Hold", prefix: "hold" },
@@ -464,7 +481,7 @@
   <StatusOverlays {error} loading={!d || isLoading} />
 
 {#if selectedScore}
-  <div class="score-detail-overlay" role="presentation" on:click={(e) => e.currentTarget === e.target && closeScore()}>
+  <div class="score-detail-overlay" use:portal role="presentation" on:click={(e) => e.currentTarget === e.target && closeScore()}>
     <div class="score-detail" role="dialog" aria-modal="true" aria-label="成绩详情">
       <div class="detail-header">
         <div>
@@ -882,11 +899,14 @@
     padding: 1rem
     background: rgba(0, 0, 0, 0.72)
     backdrop-filter: blur(5px)
+    overflow: auto
+    overscroll-behavior: contain
 
   .score-detail
-    width: min(680px, 100%)
-    max-height: calc(100vh - 2rem)
+    width: min(680px, calc(100vw - 2rem))
+    max-height: calc(100dvh - 2rem)
     overflow-y: auto
+    min-width: 0
     padding: 1.5rem
     box-sizing: border-box
     border-radius: vars.$border-radius
@@ -923,6 +943,7 @@
       object-fit: cover
 
     div
+      min-width: 0
       display: flex
       flex-direction: column
       gap: 0.25rem
@@ -1037,8 +1058,13 @@
     color: #b5e3de
 
   @media (max-width: vars.$w-mobile)
+    .score-detail-overlay
+      padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left))
+
     .score-detail
       padding: 1rem
+      width: min(680px, calc(100vw - 1.5rem))
+      max-height: calc(100dvh - 1.5rem)
 
     .detail-stats
       grid-template-columns: repeat(2, 1fr)
