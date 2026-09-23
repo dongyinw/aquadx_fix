@@ -1,4 +1,4 @@
-import { AQUA_HOST, DATA_HOST } from './config'
+import { AQUA_HOST, getDataHost } from './config'
 
 
 export async function getMaimai(endpoint: string, params: any) {
@@ -9,5 +9,5 @@ export async function getMaimai(endpoint: string, params: any) {
 }
 
 export async function getMaimaiAllMusic(): Promise<{ [key: string]: any }> {
-  return fetch(`${DATA_HOST}/maimai/meta/00/all-music.json`).then(it => it.json())
+  return fetch(`${getDataHost('mai2')}/d/mai2/00/all-music.json`).then(it => it.json())
 }

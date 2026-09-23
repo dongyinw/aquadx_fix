@@ -2,6 +2,12 @@ import type { ChusanMatchingOption } from "./generalTypes"
 
 export const AQUA_HOST = import.meta.env.VITE_AQUA_HOST
 export const DATA_HOST = import.meta.env.VITE_DATA_HOST
+export const MAI2_DATA_HOST = import.meta.env.VITE_MAI2_DATA_HOST || ""
+
+// Maimai uses the local resource mirror by default; other games keep the shared data host.
+export function getDataHost(game: string): string {
+  return game === "mai2" ? MAI2_DATA_HOST : DATA_HOST
+}
 
 // This will be displayed for users to connect from the client
 export const AQUA_CONNECTION = import.meta.env.VITE_AQUA_CONNECTION

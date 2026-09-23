@@ -11,7 +11,7 @@
     AllMusic
 
   } from "../libs/generalTypes";
-  import { DATA_HOST } from "../libs/config";
+  import { getDataHost } from "../libs/config";
   import 'cal-heatmap/cal-heatmap.css';
   import moment from "moment";
   import 'chartjs-adapter-moment';
@@ -406,7 +406,7 @@
           <div class:alt={i % 2 === 0} class="score-entry" role="button" tabindex="0"
                on:click={() => openScore(r)}
                on:keydown={e => (e.key === "Enter" || e.key === " ") && openScore(r)}>
-            <img src={`${DATA_HOST}/d/${game}/music/00${r.musicId.toString().padStart(6, '0').substring(2)}.png`} alt="" on:error={coverNotFound} />
+            <img src={`${getDataHost(game)}/d/${game}/music/00${r.musicId.toString().padStart(6, '0').substring(2)}.png`} alt="" on:error={coverNotFound} />
             <div class="info">
               <div>{r.name ?? t("UserHome.UnknownSong")}</div>
               <div>
@@ -450,7 +450,7 @@
         <div class="scores">
           {#each d.user.favorites as favoriteSongId, i}
             <div>
-              <img src={`${DATA_HOST}/d/${game}/music/00${favoriteSongId.toString().padStart(6, '0').substring(2)}.png`} alt="" on:error={coverNotFound} />
+              <img src={`${getDataHost(game)}/d/${game}/music/00${favoriteSongId.toString().padStart(6, '0').substring(2)}.png`} alt="" on:error={coverNotFound} />
               <div class="info">
                 <div class="song-title">{allMusics[favoriteSongId.toString()] ? allMusics[favoriteSongId.toString()].name : t("UserHome.UnknownSong")}</div>
               </div>
@@ -475,7 +475,7 @@
       </div>
 
       <div class="detail-summary">
-        <img src={`${DATA_HOST}/d/${game}/music/00${selectedScore.musicId.toString().padStart(6, '0').substring(2)}.png`} alt="" on:error={coverNotFound} />
+        <img src={`${getDataHost(game)}/d/${game}/music/00${selectedScore.musicId.toString().padStart(6, '0').substring(2)}.png`} alt="" on:error={coverNotFound} />
         <div>
           <strong>{moment(selectedScore.userPlayDate ?? selectedScore.playDate).format("YYYY-MM-DD HH:mm")}</strong>
           <span>{GAME_TITLE[game]} · {selectedScore.notes?.[selectedScore.level === 10 ? 0 : selectedScore.level]?.lv?.toFixed(1) ?? selectedScore.worldsEndTag ?? '-'}</span>

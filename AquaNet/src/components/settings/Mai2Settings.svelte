@@ -1,6 +1,6 @@
 <script lang="ts">
   import { slide, fade } from "svelte/transition";
-  import { FADE_IN, FADE_OUT, DATA_HOST } from "../../libs/config";
+  import { FADE_IN, FADE_OUT, getDataHost } from "../../libs/config";
   import { t } from "../../libs/i18n.js";
   import Icon from "@iconify/svelte";
   import StatusOverlays from "../StatusOverlays.svelte";
@@ -110,7 +110,7 @@
       "classes": {}
     }
     try {
-      musicData = await fetch(`${DATA_HOST}/d/mai2/00/all-music.json`).then(res => res.json())
+      musicData = await fetch(`${getDataHost('mai2')}/d/mai2/00/all-music.json`).then(res => res.json())
     } catch (e: any) {
       error = e.message;
       submitting = ""
