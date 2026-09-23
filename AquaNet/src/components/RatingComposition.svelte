@@ -4,6 +4,8 @@
   import RatingCompSong from "./RatingCompSong.svelte";
   import { parseComposition, type GameName } from "../libs/scoring";
   import { type MusicMeta } from "../libs/generalTypes";
+  import { t } from "../libs/i18n";
+  import Icon from "@iconify/svelte";
 
   export let title: string;
   export let comp: string | undefined;
@@ -15,25 +17,35 @@
     ?.map(it => parseComposition(it, allMusics, game))
 
   if (top) split = split?.toSorted((a, b) => b.score - a.score).slice(0, top)
-  if (split) console.log("Split", split)
 
   let mustResize = split && split.length > 12
+  let expanded = false
 </script>
 
 {#if split && split.length > 0 && comp}
   <div class="rating-composition-container" class:must-resize={mustResize}>
-    {#if mustResize}
-      <input type="checkbox">
-    {/if}
-
-    <h2>{title}</h2>
-    <div class="rating-composition">
+    <div class="rating-heading">
+      <h2>{title}</h2>
+    </div>
+    <div class="rating-composition" class:expanded={expanded}>
       {#each split as p}
         <div>
           <RatingCompSong {p} {game}/>
         </div>
       {/each}
     </div>
+    {#if mustResize}
+      <button
+        class="rating-toggle"
+        type="button"
+        aria-label={expanded ? t("UserHome.RatingComposition.ShowLess") : t("UserHome.RatingComposition.ShowMore")}
+        aria-expanded={expanded}
+        on:click={() => expanded = !expanded}
+      >
+        <span>{expanded ? t("UserHome.RatingComposition.ShowLess") : t("UserHome.RatingComposition.ShowMore")}</span>
+        <Icon icon={expanded ? "line-md:chevron-small-up" : "line-md:chevron-small-down"} aria-hidden="true" />
+      </button>
+    {/if}
   </div>
 {/if}
 
@@ -52,42 +64,42 @@
   .rating-composition-container
     position: relative
 
-    input
-      width: 100%
-      height: 100%
-      position: absolute
-      z-index: 10
-      margin: 0
-      padding: 0
-      border: 0
-      border-radius: 0
-      appearance: none
-      color: transparent
-      background: transparent !important
-      box-shadow: none
-      opacity: 0
-      cursor: pointer
+  .rating-heading
+    display: flex
+    align-items: center
+    gap: 0.2rem
 
-      transition: opacity 250ms
+    h2
+      margin: 20px 0
+
+  .rating-toggle
+    display: flex
+    align-items: center
+    justify-content: center
+    gap: 0.35rem
+    min-height: 2.25rem
+    margin: vars.$gap auto 0
+    padding: 0.35rem 0.9rem
+    border: 1px solid rgba(vars.$c-main, 0.45)
+    border-radius: vars.$border-radius
+    color: vars.$c-main
+    background: rgba(vars.$c-main, 0.08)
+    cursor: pointer
+    transition: background-color 150ms, border-color 150ms
+
+    &:hover, &:focus-visible
+      border-color: vars.$c-main
+      background: vars.$c-main-soft
+
+    :global(svg)
+      font-size: 1.1rem
 
   .rating-composition-container.must-resize
-    input
-      & ~ .rating-composition
-        max-height: 250px
+    .rating-composition
+      max-height: 250px
 
-      & ~ h2::after
-        content: "▾"
-        margin-left: 0.5em
-      &:checked ~ h2::after
-        content: "▴"
-
-      &:checked
-        opacity: 0
-      &:checked ~ .rating-composition
+      &.expanded
         max-height: 3000px
-
-      opacity: 0
-      background: transparent !important
         
     
 </style>

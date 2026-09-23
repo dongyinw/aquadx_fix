@@ -53,9 +53,9 @@
   let selectedScore: MusicAndPlay | null = null
   let detailLoading = false
   let detailError = ""
+  let detailRequest = 0
 
-  // Keep the dialog outside the glass content container so fixed positioning
-  // is always relative to the viewport on mobile browsers.
+  // Keep the dialog relative to the viewport even when the page is scrolled.
   function portal(node: HTMLElement) {
     const placeholder = document.createComment("score-detail-portal")
     node.parentNode?.insertBefore(placeholder, node)
@@ -79,23 +79,38 @@
     { label: "Break", prefix: "break" },
   ]
 
+  const safeNumber = (value: unknown) => {
+    const number = Number(value)
+    return Number.isFinite(number) ? number : 0
+  }
+  const formatNumber = (value: unknown) => safeNumber(value).toLocaleString()
+  const ratingDelta = (score: GenericGamePlaylog) => safeNumber(score.afterRating) - safeNumber(score.beforeRating)
+  const scoreAchievement = (score: GenericGamePlaylog) => safeNumber(score.achievement)
   const hasJudgments = (score: GenericGamePlaylog) => score.tapCriticalPerfect !== undefined
   const judgmentValue = (score: GenericGamePlaylog, prefix: string, grade: string) =>
-    Number((score as Record<string, unknown>)[`${prefix}${grade}`] ?? 0)
+    Number((score as unknown as Record<string, unknown>)[`${prefix}${grade}`] ?? 0)
 
   function openScore(score: MusicAndPlay) {
+    const request = ++detailRequest
     selectedScore = score
+    detailLoading = false
     detailError = ""
 
-    if (!score.id || hasJudgments(score)) return
+    if (score.id == null || hasJudgments(score)) return
 
     detailLoading = true
     GAME.playlog(game, score.id).then(detail => {
+      if (request !== detailRequest) return
       selectedScore = { ...score, ...detail } as MusicAndPlay
-    }).catch(e => detailError = e.message).finally(() => detailLoading = false)
+    }).catch(e => {
+      if (request === detailRequest) detailError = e.message
+    }).finally(() => {
+      if (request === detailRequest) detailLoading = false
+    })
   }
 
   function closeScore() {
+    detailRequest += 1
     selectedScore = null
     detailLoading = false
     detailError = ""
@@ -492,7 +507,7 @@
       </div>
 
       <div class="detail-summary">
-        <img src={`${DATA_HOST}/d/${game}/music/00${selectedScore.musicId.toString().padStart(6, '0').substring(2)}.png`} alt="" on:error={coverNotFound} />
+        <img class="detail-cover" src={`${DATA_HOST}/d/${game}/music/00${selectedScore.musicId.toString().padStart(6, '0').substring(2)}.png`} alt="" on:error={coverNotFound} />
         <div>
           <strong>{moment(selectedScore.userPlayDate ?? selectedScore.playDate).format("YYYY-MM-DD HH:mm")}</strong>
           <span>{GAME_TITLE[game]} · {selectedScore.notes?.[selectedScore.level === 10 ? 0 : selectedScore.level]?.lv?.toFixed(1) ?? selectedScore.worldsEndTag ?? '-'}</span>
@@ -501,10 +516,10 @@
       </div>
 
       <div class="detail-stats">
-        <div><span>达成率</span><strong>{(selectedScore.achievement / 10000).toFixed(4)}%</strong><small>{("" + getMult(selectedScore.achievement, game)[2]).replace("p", "+")}</small></div>
-        <div><span>DX 分</span><strong>{(selectedScore.deluxscore ?? selectedScore.totalDxScore ?? 0).toLocaleString()}</strong></div>
-        <div><span>最大连击</span><strong>{selectedScore.maxCombo.toLocaleString()}<small> / {selectedScore.totalCombo.toLocaleString()}</small></strong></div>
-        <div><span>Rating 变化</span><strong class:positive={selectedScore.afterRating > selectedScore.beforeRating}>{selectedScore.afterRating > selectedScore.beforeRating ? "+" : ""}{selectedScore.afterRating - selectedScore.beforeRating}</strong></div>
+        <div><span>达成率</span><strong>{(scoreAchievement(selectedScore) / 10000).toFixed(4)}%</strong><small>{("" + getMult(scoreAchievement(selectedScore), game)[2]).replace("p", "+")}</small></div>
+        <div><span>DX 分</span><strong>{formatNumber(selectedScore.deluxscore ?? selectedScore.totalDxScore)}</strong></div>
+        <div><span>最大连击</span><strong>{formatNumber(selectedScore.maxCombo)}<small> / {formatNumber(selectedScore.totalCombo)}</small></strong></div>
+        <div><span>Rating 变化</span><strong class:positive={ratingDelta(selectedScore) > 0}>{ratingDelta(selectedScore) > 0 ? "+" : ""}{ratingDelta(selectedScore)}</strong></div>
       </div>
 
       {#if detailLoading}
@@ -936,9 +951,13 @@
     padding-bottom: 1.25rem
     border-bottom: 1px solid vars.$ov-light
 
-    img
+    img.detail-cover
+      display: block
       width: 80px
       height: 80px
+      min-width: 80px
+      max-width: 80px
+      flex: 0 0 80px
       border-radius: vars.$border-radius
       object-fit: cover
 
@@ -984,13 +1003,14 @@
       color: vars.$c-good
 
   .judgment-table
-    overflow: hidden
+    overflow-x: auto
     border: 1px solid vars.$c-main
     border-radius: vars.$border-radius
 
   .judgment-row
     display: grid
     grid-template-columns: 1.2fr repeat(5, 1fr)
+    min-width: 30rem
     border-top: 1px solid rgba(vars.$c-main, 0.35)
     text-align: center
 
@@ -1074,6 +1094,180 @@
 
       > *
         padding: 0.45rem 0.1rem
+
+// The dialog is portalled to body, so these rules must not depend on #user-home.
+:global(.score-detail-overlay)
+  position: fixed
+  inset: 0
+  z-index: 1000
+  display: flex
+  align-items: center
+  justify-content: center
+  padding: 1rem
+  box-sizing: border-box
+  background: rgba(0, 0, 0, 0.72)
+  backdrop-filter: blur(5px)
+  overflow: auto
+  overscroll-behavior: contain
+
+:global(.score-detail-overlay .score-detail)
+  width: min(680px, calc(100vw - 2rem))
+  max-height: calc(100dvh - 2rem)
+  overflow-y: auto
+  min-width: 0
+  padding: 1.5rem
+  box-sizing: border-box
+  border-radius: vars.$border-radius
+  color: vars.$c-text
+  background: vars.$c-bg
+  box-shadow: 0 12px 45px vars.$c-shadow
+
+:global(.score-detail-overlay .detail-header)
+  display: flex
+  align-items: flex-start
+  justify-content: space-between
+  gap: 1rem
+
+  > div > span
+    color: vars.$c-main
+    font-size: 0.8rem
+    letter-spacing: 0.08em
+
+  h2
+    margin: 0.2rem 0 0
+    font-size: 1.4rem
+
+:global(.score-detail-overlay .detail-summary)
+  display: flex
+  align-items: center
+  gap: 1rem
+  margin: 1.25rem 0
+  padding-bottom: 1.25rem
+  border-bottom: 1px solid vars.$ov-light
+
+:global(.score-detail-overlay .detail-cover)
+  display: block
+  width: 80px
+  height: 80px
+  min-width: 80px
+  max-width: 80px
+  flex: 0 0 80px
+  border-radius: vars.$border-radius
+  object-fit: cover
+
+:global(.score-detail-overlay .detail-summary > div)
+  min-width: 0
+  display: flex
+  flex-direction: column
+  gap: 0.25rem
+
+  span
+    color: vars.$c-main
+    font-size: 0.8rem
+
+  span:first-of-type
+    color: vars.$c-sub
+
+:global(.score-detail-overlay .detail-stats)
+  display: grid
+  grid-template-columns: repeat(4, 1fr)
+  gap: 0.6rem
+  margin-bottom: 1.25rem
+
+  > div
+    padding: 0.65rem
+    border-radius: vars.$border-radius
+    background: vars.$ov-light
+
+    span, small
+      display: block
+      color: vars.$c-sub
+      font-size: 0.72rem
+
+    strong
+      display: block
+      margin-top: 0.25rem
+      color: vars.$c-main
+      font-size: 1.05rem
+
+    small
+      margin-top: 0.1rem
+
+  .positive
+    color: vars.$c-good
+
+:global(.score-detail-overlay .judgment-table)
+  overflow-x: auto
+  border: 1px solid vars.$c-main
+  border-radius: vars.$border-radius
+
+:global(.score-detail-overlay .judgment-row)
+  display: grid
+  grid-template-columns: 1.2fr repeat(5, 1fr)
+  min-width: 30rem
+  border-top: 1px solid rgba(vars.$c-main, 0.35)
+  text-align: center
+
+  &:first-child
+    border-top: 0
+
+  > *
+    padding: 0.55rem 0.2rem
+
+  strong
+    text-align: left
+    padding-left: 0.7rem
+
+  .critical
+    color: vars.$c-warning
+
+  .miss
+    color: vars.$c-error
+
+:global(.score-detail-overlay .judgment-row.header)
+  color: vars.$c-main
+  background: vars.$ov-light
+  font-size: 0.75rem
+
+:global(.score-detail-overlay .timing)
+  display: flex
+  gap: 1rem
+  margin-top: 0.8rem
+  color: vars.$c-sub
+  font-size: 0.8rem
+
+:global(.score-detail-overlay .detail-message)
+  padding: 1rem
+  border-radius: vars.$border-radius
+  color: vars.$c-sub
+  background: vars.$ov-light
+  text-align: center
+
+  &.error
+    color: vars.$c-error
+
+:global(:root[data-theme="dark"] .score-detail-overlay .score-detail)
+  color: #e6f3f1
+  background: rgba(21, 34, 36, 0.96)
+  border: 1px solid rgba(214, 250, 245, 0.16)
+
+@media (max-width: vars.$w-mobile)
+  :global(.score-detail-overlay)
+    padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left))
+
+  :global(.score-detail-overlay .score-detail)
+    padding: 1rem
+    width: min(680px, calc(100vw - 1.5rem))
+    max-height: calc(100dvh - 1.5rem)
+
+  :global(.score-detail-overlay .detail-stats)
+    grid-template-columns: repeat(2, 1fr)
+
+  :global(.score-detail-overlay .judgment-row)
+    font-size: 0.72rem
+
+    > *
+      padding: 0.45rem 0.1rem
 
 
 </style>
