@@ -18,7 +18,10 @@ import icu.samnyan.aqua.sega.diva.model.db.userdata.PlayerProfile
 import icu.samnyan.aqua.sega.general.dao.CardRepository
 import icu.samnyan.aqua.sega.general.model.Card
 import icu.samnyan.aqua.sega.general.model.CardStatus
+import icu.samnyan.aqua.sega.general.service.CardService
 import icu.samnyan.aqua.sega.maimai2.model.Mai2Repos
+import icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserGeneralData
+import icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserItem
 import icu.samnyan.aqua.sega.ongeki.OngekiUserRepos
 import icu.samnyan.aqua.sega.wacca.model.db.WaccaRepos
 import jakarta.servlet.http.HttpServletRequest
@@ -31,11 +34,16 @@ import org.springframework.web.multipart.MultipartFile
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
+import java.time.format.DateTimeFormatter
 import kotlin.io.path.Path
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
 import kotlin.io.path.name
 import kotlin.io.path.writeBytes
+
+private const val MAGICAL_PASS_STORE_KEY = "aquadx.magical_pass"
+private const val MAGICAL_PASS_TICKET_STORE_KEY = "aquadx.magical_pass_ticket"
+private val MAGICAL_PASS_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")
 
 @RestController
 @API("/api/v2/user")
@@ -57,6 +65,7 @@ class UserRegistrar(
     final val paths: PathProps,
     val accountDeletion: AccountDeletionService,
     val mai2: Mai2Repos,
+    val cardService: CardService,
 ) {
     val portraitPath = paths.aquaNetPortrait.path()
 
@@ -241,6 +250,104 @@ class UserRegistrar(
             .mapNotNull { card -> mai2.userData.findByCard(card)?.banState }
             .maxOrNull() ?: 0
         mapOf("banState" to banState, "blocked" to (banState == 2))
+    }
+
+    private fun findOwnedCard(u: AquaNetUser, cardId: Str): Card {
+        val card = cardService.tryLookup(cardId) ?: (404 - "Card not found")
+        if (card.aquaUser?.auId != u.auId) 403 - "Card is not linked to your account"
+        return card
+    }
+
+    private fun passState(card: Card): Map<String, Any?> {
+        val gameUser = mai2.userData.findByCard(card)
+        if (gameUser == null) {
+            return mapOf(
+                "cardId" to card.luid,
+                "hasProfile" to false,
+                "userPassList" to emptyList<Any>(),
+                "userTicketLimitDateList" to emptyList<Any>(),
+                "ticket" to null,
+            )
+        }
+
+        val passList = mai2.userGeneralData.findByUserAndPropertyKey(gameUser, MAGICAL_PASS_STORE_KEY)
+            ?.propertyValue?.jsonArray() ?: emptyList()
+        val ticketLimitDateList = mai2.userGeneralData.findByUserAndPropertyKey(gameUser, MAGICAL_PASS_TICKET_STORE_KEY)
+            ?.propertyValue?.jsonArray() ?: emptyList()
+        val ticket = mai2.userItem.findByUserAndItemKindAndItemId(gameUser, 12, 40001)
+
+        return mapOf(
+            "cardId" to card.luid,
+            "hasProfile" to true,
+            "userPassList" to passList,
+            "userTicketLimitDateList" to ticketLimitDateList,
+            "ticket" to ticket?.let {
+                mapOf("itemKind" to it.itemKind, "itemId" to it.itemId, "stock" to it.stock, "isValid" to it.isValid)
+            },
+        )
+    }
+
+    @API("/mai2-pass/status")
+    @Doc("Get Magical Pass and ticket state for one of the current user's cards.", "Magical Pass state")
+    fun magicalPassStatus(@RP token: Str, @RP cardId: Str) = jwt.auth(token) { u ->
+        passState(findOwnedCard(u, cardId))
+    }
+
+    @API("/mai2-pass/purchase")
+    @Doc("Grant a Magical Pass and one matching ticket to one of the current user's cards.", "Magical Pass purchase result")
+    @Transactional
+    fun magicalPassPurchase(@RP token: Str, @RP cardId: Str, @RP passTypeId: Int) = jwt.auth(token) { u ->
+        val card = findOwnedCard(u, cardId)
+        val gameUser = mai2.userData.findByCard(card) ?: (400 - "This card does not have a maimai profile")
+        val pass = when (passTypeId) {
+            2 -> mapOf("passTypeId" to 2, "passPackId" to 7001, "passCharaId" to 700107, "mapId" to 0)
+            3 -> mapOf("passTypeId" to 3, "passPackId" to 7002, "passCharaId" to 700201, "mapId" to 0)
+            else -> 400 - "Unsupported Magical Pass type"
+        }
+
+        val start = jstNow()
+        val end = start.plusDays(14)
+        val startDate = start.format(MAGICAL_PASS_DATE_FORMATTER)
+        val endDate = end.format(MAGICAL_PASS_DATE_FORMATTER)
+        val userPass = pass + mapOf("startDate" to startDate, "endDate" to endDate)
+        val userPassList = listOf(userPass)
+        val ticketLimitDateList = listOf(
+            mapOf("itemId" to 40001, "limitDate" to endDate, "lastUsedDate" to "")
+        )
+
+        val passData = mai2.userGeneralData.findByUserAndPropertyKey(gameUser, MAGICAL_PASS_STORE_KEY)
+            ?: Mai2UserGeneralData().apply {
+                user = gameUser
+                propertyKey = MAGICAL_PASS_STORE_KEY
+            }
+        passData.propertyValue = userPassList.toJson()
+        mai2.userGeneralData.save(passData)
+
+        val ticket = mai2.userItem.findByUserAndItemKindAndItemId(gameUser, 12, 40001)
+            ?: Mai2UserItem().apply {
+                user = gameUser
+                itemKind = 12
+                itemId = 40001
+            }
+        ticket.stock += 1
+        ticket.isValid = true
+        mai2.userItem.save(ticket)
+
+        val ticketData = mai2.userGeneralData.findByUserAndPropertyKey(gameUser, MAGICAL_PASS_TICKET_STORE_KEY)
+            ?: Mai2UserGeneralData().apply {
+                user = gameUser
+                propertyKey = MAGICAL_PASS_TICKET_STORE_KEY
+            }
+        ticketData.propertyValue = ticketLimitDateList.toJson()
+        mai2.userGeneralData.save(ticketData)
+
+        mapOf(
+            "success" to true,
+            "cardId" to card.luid,
+            "userPassList" to userPassList,
+            "ticket" to mapOf("itemKind" to ticket.itemKind, "itemId" to ticket.itemId, "stock" to ticket.stock, "isValid" to ticket.isValid),
+            "userTicketLimitDateList" to ticketLimitDateList,
+        )
     }
 
     @API("/user-info")

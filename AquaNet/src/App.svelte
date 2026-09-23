@@ -18,6 +18,7 @@
   import SetupInstructions from "./pages/Home/SetupInstructions.svelte";
   import PageNotFound from "./pages/PageNotFound.svelte";
   import Admin from "./pages/Admin.svelte";
+  import MagicalPass from "./pages/MagicalPass.svelte";
   import Icon from "@iconify/svelte";
   import { initTheme, toggleTheme, type MikuNetTheme } from "./libs/theme";
 
@@ -90,6 +91,7 @@
     <div class="nav-links">
       <a href="/home">{t('navigation.home')}</a>
       <a href={`/ranking/${recentGame}`}>{t('navigation.rankings')}</a>
+      {#if me}<a href="/pass">pass</a>{/if}
       {#if playedMai}<a href="/pictures">photo</a>{/if}
       {#if me?.isAdmin}<a href="/admin">admin</a>{/if}
     </div>
@@ -121,6 +123,7 @@
   <Route path="/home" component={Home} />
   <Route path="/cards" component={LinkCard} />
   <Route path="/setup" component={SetupInstructions} />
+  <Route path="/pass" component={MagicalPass} />
   <Route path="/ranking" component={Ranking} />
   <Route path="/ranking/:game" component={Ranking} />
   <Route path="/u/:username" component={UserHome} />

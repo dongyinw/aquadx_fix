@@ -88,6 +88,7 @@
         <a class="quick-card" href="/cards"><span class="quick-icon coral"><Icon icon="solar:card-bold-duotone" /></span><span><strong>卡片管理</strong><small>绑定新的 Aime 卡或查看已绑定卡片</small></span><Icon class="arrow" icon="line-md:arrow-right" /></a>
         <a class="quick-card" href="/setup"><span class="quick-icon gold"><Icon icon="solar:plug-circle-bold-duotone" /></span><span><strong>连接设置</strong><small>查看游戏端连接配置</small></span><Icon class="arrow" icon="line-md:arrow-right" /></a>
         <a class="quick-card" href="/ranking"><span class="quick-icon blue"><Icon icon="solar:chart-2-bold-duotone" /></span><span><strong>排行榜</strong><small>浏览服务器上的成绩排名</small></span><Icon class="arrow" icon="line-md:arrow-right" /></a>
+        <a class="quick-card" href="/pass"><span class="quick-icon rainbow"><Icon icon="solar:ticket-bold-duotone" /></span><span><strong>Magical Pass</strong><small>购买通行证并下载专属素材</small></span><Icon class="arrow" icon="line-md:arrow-right" /></a>
       </div>
     </section>
 
@@ -223,6 +224,10 @@
   .blue
     color: #3876a7
     background: rgba(56, 118, 167, 0.11)
+
+  .rainbow
+    color: #b34d88
+    background: linear-gradient(135deg, rgba(112, 198, 255, 0.22), rgba(239, 135, 181, 0.22))
 
   .dashboard-section
     display: grid

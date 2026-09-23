@@ -315,11 +315,12 @@ fun Maimai2ServletController.initApis() {
         val ticketLimitDateList = listOf(
             mapOf(
                 "itemId" to 40001,
-                "limitDate" to end.plusDays(1).format(magicalPassDateFormatter),
+                "limitDate" to end.format(magicalPassDateFormatter),
                 "lastUsedDate" to ""
             )
         )
 
+        var awardedTicketStock = 0
         db.userData.findByCardExtId(uid)?.let { user ->
             val passData = db.userGeneralData.findByUserAndPropertyKey(user, magicalPassStoreKey)
                 ?: Mai2UserGeneralData().apply {
@@ -335,8 +336,9 @@ fun Maimai2ServletController.initApis() {
                     itemKind = 12
                     itemId = 40001
                 }
-            ticket.stock = maxOf(ticket.stock, 5)
+            ticket.stock += 1
             ticket.isValid = true
+            awardedTicketStock = ticket.stock
             db.userItem.save(ticket)
 
             val ticketData = db.userGeneralData.findByUserAndPropertyKey(user, magicalPassTicketStoreKey)
@@ -351,7 +353,7 @@ fun Maimai2ServletController.initApis() {
         mapOf(
             "returnCode" to 1,
             "userPassList" to userPassList,
-            "userItemList" to listOf(mapOf("itemKind" to 12, "itemId" to 40001, "stock" to 5, "isValid" to true)),
+            "userItemList" to listOf(mapOf("itemKind" to 12, "itemId" to 40001, "stock" to awardedTicketStock, "isValid" to true)),
             "userTicketLimitDateList" to ticketLimitDateList
         )
     }

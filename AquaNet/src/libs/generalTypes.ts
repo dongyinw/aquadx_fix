@@ -14,6 +14,30 @@ export interface Card {
   isGhost: boolean
 }
 
+export interface MagicalPassEntry {
+  passTypeId: number
+  passPackId: number
+  passCharaId: number
+  mapId: number
+  startDate: string
+  endDate: string
+}
+
+export interface MagicalPassTicket {
+  itemKind: number
+  itemId: number
+  stock: number
+  isValid: boolean
+}
+
+export interface MagicalPassState {
+  cardId: string
+  hasProfile: boolean
+  userPassList: MagicalPassEntry[]
+  userTicketLimitDateList: { itemId: number, limitDate: string, lastUsedDate: string }[]
+  ticket: MagicalPassTicket | null
+}
+
 export interface MikuNetUser {
   username: string
   email: string
