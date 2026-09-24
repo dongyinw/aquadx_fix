@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    image: ghcr.io/dongyinw/aquadx_fix:latest
+    image: ghcr.io/dongyinw/aquadx_fix
     ports:
       - "80:80"
       - "8443:8443"
