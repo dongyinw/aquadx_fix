@@ -8,5 +8,6 @@ class UserRivalMusic(
 class UserRivalMusicDetail(
     var level: Int,
     var achievement: Int,
-    var deluxscoreMax: Int
+    var deluxscoreMax: Int,
+    var comboStatus: Int = 0,
 )

@@ -188,19 +188,20 @@ class Maimai2(
         us.cardByName(u.username) { myCard ->
             val rivalCard = us.cardByName(rivalUserName) { it }
             val rivalUser = repos.userData.findByCardExtId(rivalCard.extId) ?: (404 - "User not found")
+            val myUser = repos.userData.findByCardExtId(myCard.extId) ?: (404 - "User not found")
+            if (rivalUser.id == myUser.id) (400 - "You cannot set yourself as a rival")
             val myRival = repos.userGeneralData.findByUser_Card_ExtIdAndPropertyKey(myCard.extId, "favorite_rival")
                 ?: Mai2UserGeneralData().apply {
-                    user = repos.userData.findByCardExtId(myCard.extId) ?: (404 - "User not found")
+                    user = myUser
                     propertyKey = "favorite_rival"
                 }
-            val myRivalList = myRival.propertyValue.split(',').filter { it.isNotEmpty() }.mut
+            val myRivalList = myRival.propertyValue.split(',').mapNotNull { it.toLongOrNull() }.distinct().toMutableList()
 
-            if (isAdd && myRivalList.size >= 4) {
-                (400 - "Rival list is full")
-            } else if (isAdd) {
-                myRivalList.add(rivalUser.id.toString())
-            } else {
-                myRivalList.remove(rivalUser.id.toString())
+            if (isAdd && rivalUser.id !in myRivalList) {
+                if (myRivalList.size >= 4) (400 - "Rival list is full")
+                myRivalList.add(rivalUser.id)
+            } else if (!isAdd) {
+                myRivalList.remove(rivalUser.id)
             }
 
             myRival.propertyValue = myRivalList.joinToString(",")

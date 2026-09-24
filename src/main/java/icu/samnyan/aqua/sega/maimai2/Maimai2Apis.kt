@@ -224,31 +224,11 @@ fun Maimai2ServletController.initApis() {
 
     "GetUserRivalData" {
         val rivalId = parsing { data["rivalId"]!!.long }
-
-        // rivalId should store and fetch with the id column of table rather than card_ext_id
-        // or user will be able to get others' ext_id by setting them as rival
-        mapOf(
-            "userId" to uid,
-            "userRivalData" to mapOf(
-                "rivalId" to rivalId,
-                "rivalName" to (db.userData.findById(rivalId)()?.userName ?: "")
-            )
-        )
+        socialService.gameRivalData(uid, rivalId)
     }
 
     "GetUserRivalMusic" {
-        val rivalId = parsing { data["rivalId"]!!.long }
-
-        val lst = db.userMusicDetail.findByUserId(rivalId)
-        val res = lst.associate { it.musicId to UserRivalMusic(it.musicId) }
-
-        lst.forEach {
-            res[it.musicId]!!.userRivalMusicDetailList.add(
-                UserRivalMusicDetail(it.level, it.achievement, it.deluxscoreMax)
-            )
-        }
-
-        mapOf("userId" to uid, "rivalId" to rivalId, "nextIndex" to 0, "userRivalMusicList" to res.values)
+        socialService.gameRivalMusic(uid, data)
     }
 
     "GetUserRegion" {
@@ -361,12 +341,20 @@ fun Maimai2ServletController.initApis() {
     // Empty List Handlers
     "GetUserGhost".unpaged { empty }
     "GetUserFriendBonus" { mapOf("userId" to uid, "returnCode" to 0, "getMiles" to 0) }
-    "GetTransferFriend" { mapOf("userId" to uid, "transferFriendList" to empty) }
+    "GetTransferFriend" { socialService.gameTransferFriends(uid) }
     "GetUserNewItem" { mapOf("userId" to uid, "itemKind" to 0, "itemId" to 0) }
 
     "GetUserCardPrintError" static { mapOf("length" to 0, "userPrintDetailList" to empty) }
-    "GetUserFriendCheck" static { mapOf("returnCode" to 0) }
-    "UserFriendRegist" static { mapOf("returnCode1" to 0, "returnCode2" to 0) }
+    "GetUserFriendCheck" {
+        val userId1 = parsing { data["userId1"]!!.long }
+        val userId2 = parsing { data["userId2"]!!.long }
+        socialService.gameFriendCheck(uid, userId1, userId2)
+    }
+    "UserFriendRegist" {
+        val userId1 = parsing { data["userId1"]!!.long }
+        val userId2 = parsing { data["userId2"]!!.long }
+        socialService.gameFriendRegist(uid, userId1, userId2)
+    }
     "GetGameNgMusicId" static { mapOf("length" to 0, "musicIdList" to empty, "ngMusicDataList" to empty) }
     "GetGameNationalData" {
         val requestedLevels = (data["levelList"] as? List<*>)

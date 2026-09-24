@@ -4,6 +4,7 @@ import ext.*
 import icu.samnyan.aqua.net.Fedy
 import icu.samnyan.aqua.net.games.mai2.Maimai2
 import icu.samnyan.aqua.net.games.mai2.circle.Mai2CircleService
+import icu.samnyan.aqua.net.games.mai2.Mai2SocialService
 import icu.samnyan.aqua.net.utils.ApiException
 import icu.samnyan.aqua.net.utils.simpleDescribe
 import icu.samnyan.aqua.sega.allnet.TokenChecker
@@ -48,6 +49,7 @@ class Maimai2ServletController(
     val db: Mai2Repos,
     val net: Maimai2,
     val circleService: Mai2CircleService,
+    val socialService: Mai2SocialService,
 ): MeowApi(
     serialize = { _, resp -> if (resp is String) resp else resp.toJson() },
     @kotlin.ExperimentalStdlibApi

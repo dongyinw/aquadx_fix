@@ -308,6 +308,16 @@ export const CIRCLE = {
   reject: (aimeId: string, userCode: string) => post('/api/game/maimai2/rejectUserJoinCircle', { aimeId, userCode }),
 }
 
+export const SOCIAL = {
+  state: (aimeId: string) => post('/api/game/maimai2/social', { aimeId }),
+  search: (aimeId: string, username: string) => post('/api/game/maimai2/socialSearch', { aimeId, username }),
+  request: (aimeId: string, username: string) => post('/api/game/maimai2/socialRequest', { aimeId, username }),
+  accept: (aimeId: string, friendId: number) => post('/api/game/maimai2/socialAccept', { aimeId, friendId }),
+  reject: (aimeId: string, friendId: number) => post('/api/game/maimai2/socialReject', { aimeId, friendId }),
+  remove: (aimeId: string, friendId: number) => post('/api/game/maimai2/socialRemove', { aimeId, friendId }),
+  rival: (aimeId: string, rivalId: number, isAdd: boolean) => post('/api/game/maimai2/socialRival', { aimeId, rivalId, isAdd }),
+}
+
 export const DATA = {
   allMusic: (game: GameName): Promise<AllMusic> =>
     fetch(`${DATA_HOST}/d/${game}/00/all-music.json`).then(it => it.json()),
