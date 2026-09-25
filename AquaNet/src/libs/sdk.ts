@@ -84,7 +84,20 @@ async function ensureOk(res: Response) {
  * @returns The JSON response from the server
  */
 export async function post(endpoint: string, params: Dict = {}, init?: ExtReqInit): Promise<any> {
-  return postHelper(endpoint, params, init).then(it => it.json())
+  return postHelper(endpoint, params, init).then(async response => {
+    const contentType = response.headers.get('content-type') ?? ''
+    if (!contentType.toLowerCase().includes('json'))
+      throw new Error('API ' + endpoint + ' returned ' + (contentType || 'an unknown content type') + ' instead of JSON. Check VITE_AQUA_HOST.')
+    return response.json()
+  })
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url)
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!response.ok || !contentType.toLowerCase().includes('json'))
+    throw new Error('Data request returned ' + response.status + ' ' + (contentType || 'an unknown content type') + ' instead of JSON. Check VITE_DATA_HOST: ' + url)
+  return response.json()
 }
 
 /**
@@ -320,9 +333,9 @@ export const SOCIAL = {
 
 export const DATA = {
   allMusic: (game: GameName): Promise<AllMusic> =>
-    fetch(`${DATA_HOST}/d/${game}/00/all-music.json`).then(it => it.json()),
+    fetchJson<AllMusic>(`${DATA_HOST}/d/${game}/00/all-music.json`),
   allItems: (game: GameName): Promise<Record<string, Record<string, any>>> =>
-    fetch(`${DATA_HOST}/d/${game}/00/all-items.json`).then(it => it.json()),
+    fetchJson<Record<string, Record<string, any>>>(`${DATA_HOST}/d/${game}/00/all-items.json`),
 }
 
 export const SETTING = {

@@ -18,6 +18,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import java.io.Serializable
+import java.util.UUID
 import java.time.LocalDateTime
 import kotlin.jvm.optionals.getOrNull
 import kotlin.reflect.KFunction
@@ -67,6 +68,10 @@ class AquaNetUser(
     var displayCandidates: Boolean = false,
 
     // Email confirmation
+
+    @JsonIgnore
+    @Column(name = "friend_code", unique = true, length = 16)
+    var friendCode: String? = null,
     var emailConfirmed: Boolean = false,
 
     @OneToOne(cascade = [CascadeType.PERSIST, CascadeType.MERGE])
@@ -114,6 +119,7 @@ interface AquaNetUserRepo : JpaRepository<AquaNetUser, Long> {
     fun findByAuId(auId: Long): AquaNetUser?
     fun findByEmailIgnoreCase(email: String): AquaNetUser?
     fun findByUsernameIgnoreCase(username: String): AquaNetUser?
+    fun findByFriendCode(friendCode: String): AquaNetUser?
     fun findByGhostCardExtId(extId: Long): AquaNetUser?
 }
 
@@ -149,11 +155,11 @@ class AquaUserServices(
                 SettingField(name, it, prop.setter)
             }
     }
-
     fun create(username: Str, email: Str, password: Str, country: Str, emailConfirmed: Boolean = false): AquaNetUser {
         // Create user
         val user = AquaNetUser(
             username = checkUsername(username),
+            friendCode = UUID.randomUUID().toString().replace("-", "").take(16).uppercase(),
             email = validateEmail(email),
             pwHash = checkPwHash(password),
             regTime = millis(), lastLogin = millis(), country = country,

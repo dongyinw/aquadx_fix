@@ -63,6 +63,8 @@ class Mai2SocialService(
     private val mai2: Mai2Repos,
     private val friendships: Mai2SocialFriendRepo,
 ) {
+    private data class PlayerTarget(val profile: Mai2UserDetail, val username: String)
+
     private fun pair(a: Long, b: Long) = minOf(a, b) to maxOf(a, b)
 
     private fun relation(a: Long, b: Long): Mai2SocialFriend? {
@@ -83,13 +85,27 @@ class Mai2SocialService(
         action(card, profile)
     }
 
-    private fun playerView(profile: Mai2UserDetail) = mapOf(
+    private fun playerView(profile: Mai2UserDetail, username: String = "") = mapOf(
         "id" to profile.id,
-        "username" to (profile.card?.aquaUser?.username ?: ""),
+        "username" to username,
         "playerName" to profile.userName,
         "rating" to profile.playerRating,
         "lastPlayDate" to profile.lastPlayDate,
     )
+
+    private suspend fun targetProfile(identifier: String): PlayerTarget {
+        val value = identifier.trim()
+        val code = value.uppercase().removePrefix("MN-").replace("-", "")
+        val (card, username) = if (code.matches(Regex("[0-9A-F]{16}"))) {
+            val user = us.userRepo.findByFriendCode(code) ?: (404 - "Friend code not found")
+            us.cardByName(user.username) to user.username
+        } else {
+            us.cardByName(value) to value
+        }
+        val profile = mai2.userData.findByCardExtId(card.extId)
+            ?: (404 - "Maimai profile not found")
+        return PlayerTarget(profile, username)
+    }
 
     private fun rivalIds(profile: Mai2UserDetail): List<Long> =
         mai2.userGeneralData.findByUserAndPropertyKey(profile, "favorite_rival")
@@ -113,10 +129,11 @@ class Mai2SocialService(
     }
 
     @Transactional(readOnly = true)
-    suspend fun state(token: String, aimeId: String) = withPlayer(token, aimeId) { _, profile ->
+    suspend fun state(token: String, aimeId: String) = withPlayer(token, aimeId) { card, profile ->
         val rows = friendships.findForUser(profile.id)
         val rivals = rivalIds(profile).mapNotNull { mai2.userData.findById(it).orElse(null) }.map(::playerView)
         mapOf(
+            "friendCode" to card.aquaUser?.friendCode,
             "friends" to rows.filter { it.status == Mai2SocialFriend.ACCEPTED }.map { relationView(profile, it) },
             "incomingRequests" to rows.filter { it.status == Mai2SocialFriend.PENDING && it.requestedByUserId != profile.id }.map { relationView(profile, it) },
             "outgoingRequests" to rows.filter { it.status == Mai2SocialFriend.PENDING && it.requestedByUserId == profile.id }.map { relationView(profile, it) },
@@ -126,27 +143,25 @@ class Mai2SocialService(
 
     @Transactional(readOnly = true)
     suspend fun search(token: String, aimeId: String, username: String): Map<String, Any?> = withPlayer(token, aimeId) { _, profile ->
-        val targetCard = us.cardByName(username.trim())
-        val target = mai2.userData.findByCardExtId(targetCard.extId) ?: (404 - "Maimai profile not found")
-        if (target.id == profile.id) (400 - "You cannot add yourself")
-        val row = relation(profile.id, target.id)
-        playerView(target) + mapOf(
+        val target = targetProfile(username)
+        if (target.profile.id == profile.id) (400 - "You cannot add yourself")
+        val row = relation(profile.id, target.profile.id)
+        playerView(target.profile, target.username) + mapOf(
             "status" to row?.status,
             "direction" to row?.let {
                 if (it.status == Mai2SocialFriend.ACCEPTED) "friend"
                 else if (it.requestedByUserId == profile.id) "outgoing" else "incoming"
             },
-            "isRival" to isRival(profile, target.id),
+            "isRival" to isRival(profile, target.profile.id),
         )
     }
 
     @Transactional
     suspend fun requestFriend(token: String, aimeId: String, username: String) = withPlayer(token, aimeId) { _, profile ->
-        val targetCard = us.cardByName(username.trim())
-        val target = mai2.userData.findByCardExtId(targetCard.extId) ?: (404 - "Maimai profile not found")
-        if (target.id == profile.id) (400 - "You cannot add yourself")
+        val target = targetProfile(username)
+        if (target.profile.id == profile.id) (400 - "You cannot add yourself")
         val now = LocalDateTime.now()
-        val row = relation(profile.id, target.id)
+        val row = relation(profile.id, target.profile.id)
         when {
             row?.status == Mai2SocialFriend.ACCEPTED -> mapOf("status" to row.status)
             row?.status == Mai2SocialFriend.PENDING && row.requestedByUserId != profile.id -> {
@@ -157,7 +172,7 @@ class Mai2SocialService(
             }
             row?.status == Mai2SocialFriend.PENDING -> mapOf("status" to row.status)
             else -> {
-                val (low, high) = pair(profile.id, target.id)
+                val (low, high) = pair(profile.id, target.profile.id)
                 friendships.save(Mai2SocialFriend(
                     userLowId = low,
                     userHighId = high,

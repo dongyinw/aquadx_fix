@@ -15,6 +15,7 @@
     isRival?: boolean;
   };
   type SocialState = {
+    friendCode: string;
     friends: Player[];
     incomingRequests: Player[];
     outgoingRequests: Player[];
@@ -23,7 +24,7 @@
 
   let cards: Card[] = [];
   let selectedCardId = "";
-  let state: SocialState = { friends: [], incomingRequests: [], outgoingRequests: [], rivals: [] };
+  let state: SocialState = { friendCode: "", friends: [], incomingRequests: [], outgoingRequests: [], rivals: [] };
   let searchName = "";
   let searchResult: Player | null = null;
   let busy = false;
@@ -31,6 +32,7 @@
   let message = "";
   let noticeTimer: ReturnType<typeof setTimeout>;
 
+  const formatFriendCode = (code: string) => code ? "MN-" + (code.match(/.{1,4}/g)?.join("-") ?? code) : "加载中";
   const unwrap = <T,>(value: any): T => value?.data ?? value;
   const playerName = (player: Player) => player.playerName || player.username || `玩家 #${player.id}`;
   const rivalLimit = 4;
@@ -57,6 +59,7 @@
     if (!selectedCardId) return;
     const result = unwrap<SocialState>(await SOCIAL.state(selectedCardId));
     state = {
+      friendCode: result.friendCode ?? "",
       friends: result.friends ?? [],
       incomingRequests: result.incomingRequests ?? [],
       outgoingRequests: result.outgoingRequests ?? [],
@@ -77,6 +80,15 @@
     message = `${failed ? "! " : "✓ "}${text}`;
     clearTimeout(noticeTimer);
     noticeTimer = setTimeout(() => message = "", 3200);
+  }
+
+  async function copyFriendCode() {
+    try {
+      await navigator.clipboard.writeText(formatFriendCode(state.friendCode));
+      notify("好友码已复制。");
+    } catch {
+      notify("复制失败，请手动选择好友码。", true);
+    }
   }
 
   async function changeCard(event: Event) {
@@ -179,8 +191,15 @@
 
   <section class="search-section">
     <div class="section-heading"><div><span class="eyebrow">FIND PLAYER</span><h2>添加好友</h2></div></div>
+    <div class="friend-code-panel">
+      <div>
+        <span class="friend-code-label">我的好友码</span>
+        <strong class="friend-code-value">{formatFriendCode(state.friendCode)}</strong>
+      </div>
+      <button class="primary-button" disabled={busy || !state.friendCode} on:click={copyFriendCode}>复制好友码</button>
+    </div>
     <form class="search-form" on:submit|preventDefault={search}>
-      <label class="search-input"><Icon icon="solar:magnifer-bold-duotone" /><input bind:value={searchName} maxlength="64" placeholder="输入 MikuNet 用户名" autocomplete="off" /></label>
+      <label class="search-input"><Icon icon="solar:magnifer-bold-duotone" /><input bind:value={searchName} maxlength="64" placeholder="输入 MikuNet 用户名或好友码（MN-XXXX-XXXX-XXXX-XXXX）" autocomplete="off" /></label>
       <button class="primary-button" disabled={busy || !searchName.trim()}><Icon icon="solar:magnifer-bold-duotone" />搜索</button>
     </form>
     {#if searchResult}
@@ -384,6 +403,26 @@
   .row-actions
     justify-content: flex-end
 
+  .friend-code-panel
+    display: flex
+    align-items: center
+    justify-content: space-between
+    gap: 12px
+    margin-bottom: 16px
+    padding: 0 0 14px
+    border-bottom: 1px solid #d5e3e2
+
+  .friend-code-label
+    display: block
+    margin-bottom: 4px
+    color: v.$c-muted
+    font-size: .78rem
+
+  .friend-code-value
+    display: block
+    color: v.$c-main
+    font: 700 1.1rem ui-monospace, SFMono-Regular, Consolas, monospace
+
   .primary-button, .icon-button
     display: inline-flex
     align-items: center
@@ -413,6 +452,12 @@
     background: rgba(255, 255, 255, .72)
     border-color: #d5e3e2
     font-size: 1.15rem
+    :global(svg)
+      display: none
+    &.danger-icon::before
+      content: "×"
+    &.rival-toggle::before
+      content: "★"
     &:hover:not(:disabled)
       color: v.$c-main
       border-color: v.$c-main
