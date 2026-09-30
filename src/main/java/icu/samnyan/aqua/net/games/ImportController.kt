@@ -123,7 +123,7 @@ abstract class ImportController<ExportModel: IExportClass<UserModel>, UserModel:
     }
 
     private fun parseImport(json: String): ExportModel = try {
-        json.parseJackson(exportClass.java)
+        extractGameImportPayload(json, gameName).parseJackson(exportClass.java)
     } catch (e: Exception) {
         val jsonError = generateSequence<Throwable>(e) { it.cause }
             .filterIsInstance<JacksonException>()
@@ -243,4 +243,25 @@ abstract class ImportController<ExportModel: IExportClass<UserModel>, UserModel:
 
         val log = logger()
     }
+}
+
+internal fun extractGameImportPayload(json: String, gameName: String): String {
+    val root = JACKSON.readTree(json)
+    if (!root.isObject) 400 - "Invalid import data: expected a JSON object"
+
+    val payload = if (root.has("games")) {
+        val games = root.get("games")
+        if (!games.isObject) 400 - "Invalid game export package"
+        games.get(gameName) ?: (400 - "Game export package does not contain $gameName data")
+    } else {
+        root
+    }
+
+    if (!payload.isObject || !payload.hasNonNull("gameId") ||
+        !payload.hasNonNull("userData") || !payload.get("userData").isObject
+    ) {
+        400 - "Invalid import data: expected gameId and userData"
+    }
+
+    return JACKSON.writeValueAsString(payload)
 }

@@ -39,13 +39,11 @@
   }
 
   async function exportData() {
-    if (!gameProfiles || exportLoading) return;
+    if (!gameProfiles?.mai2 || exportLoading) return;
     exportLoading = true;
     try {
-      const games = (Object.keys(gameProfiles) as GameName[]).filter(game => !!gameProfiles?.[game]);
-      const exported: Record<string, unknown> = {};
-      for (const game of games) exported[game] = await GAME.export(game);
-      const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), games: exported }, null, 2)], { type: "application/json" });
+      const exported = await GAME.export("mai2");
+      const blob = new Blob([JSON.stringify(exported, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -96,9 +94,9 @@
       <div class="section-heading"><div><span class="eyebrow">TOOLS</span><h2>数据工具</h2></div><span>备份与恢复你的游戏资料</span></div>
       <div class="tool-grid">
         <ImportDataAction />
-        <button class="export-card" type="button" on:click={exportData} disabled={!gameProfiles || exportLoading}>
+        <button class="export-card" type="button" on:click={exportData} disabled={!gameProfiles?.mai2 || exportLoading}>
           <span class="tool-icon"><Icon icon="solar:file-download-bold-duotone" /></span>
-          <span><strong>{exportLoading ? "正在导出" : "导出玩家数据"}</strong><small>{gameProfiles ? (Object.keys(gameProfiles) as GameName[]).filter(game => gameProfiles?.[game]).map(game => gameLabels[game]).join("、") || "暂无可导出的资料" : "正在读取资料"}</small></span>
+          <span><strong>{exportLoading ? "正在导出" : "导出玩家数据"}</strong><small>{gameProfiles ? (gameProfiles.mai2 ? "MikuNet · 舞萌 DX" : "暂无舞萌 DX 资料") : "正在读取资料"}</small></span>
           <Icon class="arrow" icon="line-md:arrow-right" />
         </button>
       </div>

@@ -2,6 +2,7 @@ package test
 
 import ext.JACKSON
 import ext.parseJackson
+import icu.samnyan.aqua.net.games.extractGameImportPayload
 import icu.samnyan.aqua.net.games.chu3.Chu3DataExport
 import icu.samnyan.aqua.net.games.mai2.Maimai2DataExport
 import icu.samnyan.aqua.net.games.mai2.toMuNetFormat
@@ -68,7 +69,7 @@ class ImportExportParityTest : StringSpec({
             Maimai2DataExport().apply { userData.banState = 2 }.toMuNetFormat()
         ))
 
-        json.fieldNames().asSequence().toSet() shouldBe setOf(
+        json.propertyNames().toSet() shouldBe setOf(
             "userData", "userExtend", "userOption", "userUdemae", "mapEncountNpcList",
             "userActList", "userCharacterList", "userChargeList", "userCourseList", "userFavoriteList",
             "userFriendSeasonRankingList", "userGeneralDataList", "userItemList", "userLoginBonusList",
@@ -76,6 +77,22 @@ class ImportExportParityTest : StringSpec({
             "userKaleidxScopeList", "userPlaylogList", "gameId",
         )
         json.at("/userData/banState").intValue() shouldBe 2
+    }
+
+    "MikuNet multi-game export imports its maimai payload" {
+        val wrapped = """{"exportedAt":123,"games":{"mai2":{"gameId":"SDEZ","userData":{"userName":"test"}},"ongeki":{"gameId":"SDGS"}}}"""
+
+        val payload = extractGameImportPayload(wrapped, "mai2")
+        val imported = payload.parseJackson(Maimai2DataExport::class.java)
+
+        imported.gameId shouldBe "SDEZ"
+        imported.userData.userName shouldBe "test"
+    }
+
+    "MuNET raw game export stays importable" {
+        val raw = JACKSON.writeValueAsString(Maimai2DataExport().toMuNetFormat())
+
+        JACKSON.readTree(extractGameImportPayload(raw, "mai2")) shouldBe JACKSON.readTree(raw)
     }
 
     "ONGEKI export JSON can be imported without changing data" {
