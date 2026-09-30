@@ -3,6 +3,7 @@ package icu.samnyan.aqua.net.games.mai2
 import ext.API
 import ext.returns
 import ext.vars
+import ext.JACKSON
 import icu.samnyan.aqua.net.games.ExportOptions
 import icu.samnyan.aqua.net.games.IExportClass
 import icu.samnyan.aqua.net.games.ImportClass
@@ -12,6 +13,7 @@ import icu.samnyan.aqua.sega.maimai2.model.Mai2UserLinked
 import icu.samnyan.aqua.sega.maimai2.model.request.Mai2UserFavoriteItem
 import icu.samnyan.aqua.sega.maimai2.model.userdata.*
 import org.springframework.web.bind.annotation.RestController
+import tools.jackson.databind.node.ObjectNode
 import kotlin.reflect.full.declaredMembers
 
 @Suppress("UNCHECKED_CAST")
@@ -90,6 +92,14 @@ class Mai2Import(
 ) {
     override fun createEmpty() = Maimai2DataExport()
     override val userDataRepo = repos.userData
+    override fun formatExport(data: Maimai2DataExport): Any = data.toMuNetFormat()
+}
+
+internal fun Maimai2DataExport.toMuNetFormat(): ObjectNode {
+    val root = JACKSON.readTree(JACKSON.writeValueAsString(this)) as ObjectNode
+    listOf("userCardList", "userPrintDetailList", "userRegionsList").forEach { root.remove(it) }
+    (root.get("userData") as ObjectNode).put("banState", userData.banState)
+    return root
 }
 
 data class Maimai2DataExport(

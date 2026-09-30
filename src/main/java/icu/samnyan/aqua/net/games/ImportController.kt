@@ -72,6 +72,8 @@ abstract class ImportController<ExportModel: IExportClass<UserModel>, UserModel:
     abstract fun createEmpty(): ExportModel
     abstract val userDataRepo: GenericUserDataRepo<UserModel>
 
+    protected open fun formatExport(data: ExportModel): Any = data
+
     @Autowired lateinit var us: AquaUserServices
     @Autowired lateinit var netProps: AquaNetProps
     @Autowired lateinit var transManager: PlatformTransactionManager
@@ -104,7 +106,7 @@ abstract class ImportController<ExportModel: IExportClass<UserModel>, UserModel:
     @API("export")
     fun exportUserData(@RP token: Str) = us.jwt.auth(token) { u ->
         log.info("Exporting user data for ${u.auId}")
-        export(u)
+        formatExport(export(u))
     }
 
     internal fun replaceInTransaction(existingUserData: UserModel?, auId: Long, insert: () -> Unit) {

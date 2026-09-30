@@ -4,6 +4,7 @@ import ext.JACKSON
 import ext.parseJackson
 import icu.samnyan.aqua.net.games.chu3.Chu3DataExport
 import icu.samnyan.aqua.net.games.mai2.Maimai2DataExport
+import icu.samnyan.aqua.net.games.mai2.toMuNetFormat
 import icu.samnyan.aqua.net.games.ongeki.OngekiDataExport
 import icu.samnyan.aqua.sega.chusan.model.userdata.Chu3UserLinkedVerse
 import icu.samnyan.aqua.sega.chusan.model.userdata.UserCharge
@@ -60,6 +61,21 @@ class ImportExportParityTest : StringSpec({
         assertJsonRoundTrip(data)
         JACKSON.readTree(JACKSON.writeValueAsString(data))
             .at("/userKaleidxScopeList/0/lastPlayDate").isTextual shouldBe true
+    }
+
+    "maimai DX export matches the MuNET schema" {
+        val json = JACKSON.readTree(JACKSON.writeValueAsString(
+            Maimai2DataExport().apply { userData.banState = 2 }.toMuNetFormat()
+        ))
+
+        json.fieldNames().asSequence().toSet() shouldBe setOf(
+            "userData", "userExtend", "userOption", "userUdemae", "mapEncountNpcList",
+            "userActList", "userCharacterList", "userChargeList", "userCourseList", "userFavoriteList",
+            "userFriendSeasonRankingList", "userGeneralDataList", "userItemList", "userLoginBonusList",
+            "userMapList", "userMusicDetailList", "userIntimateList", "userFavoriteMusicList",
+            "userKaleidxScopeList", "userPlaylogList", "gameId",
+        )
+        json.at("/userData/banState").intValue() shouldBe 2
     }
 
     "ONGEKI export JSON can be imported without changing data" {
