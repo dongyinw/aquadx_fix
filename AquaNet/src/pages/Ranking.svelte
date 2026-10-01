@@ -215,7 +215,13 @@
 
     .rating
       font-weight: bold
-      color: white
+      color: vars.$c-darker
+      font-variant-numeric: tabular-nums
+      white-space: nowrap
+      flex-shrink: 0
+
+      :global(:root[data-theme="dark"]) &
+        color: #66d8cb
 
     .fc, .ap
       width: 5%
