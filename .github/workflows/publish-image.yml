@@ -17,6 +17,18 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Set up JDK for regression tests
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Verify custom portrait saves before publishing
+        run: |
+          chmod +x gradlew
+          ./gradlew test -PrunTests --tests test.Mai2CustomPortraitSaveTest --no-daemon
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
