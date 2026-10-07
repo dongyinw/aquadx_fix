@@ -185,7 +185,8 @@ class UpsertUserAllHandler(
             return if (savedValue !in resetValues && uploadedValue in resetValues) savedValue else uploadedValue
         }
 
-        uploaded.iconId = keepIfReset(uploaded.iconId, current.iconId, setOf(0, 10))
+        // Icon 10 selects the user's custom portrait and must be saved as a valid choice.
+        uploaded.iconId = keepIfReset(uploaded.iconId, current.iconId, setOf(0))
         uploaded.plateId = keepIfReset(uploaded.plateId, current.plateId, setOf(0, 1))
         uploaded.titleId = keepIfReset(uploaded.titleId, current.titleId, setOf(0, 1))
         uploaded.partnerId = keepIfReset(uploaded.partnerId, current.partnerId, setOf(0, 1, 38))
