@@ -60,6 +60,7 @@ jobs:
           pnpm exec vite build
 
       - name: Upload AquaNet frontend
+        id: frontend
         uses: actions/upload-artifact@v4
         with:
           name: AquaNet-frontend-${{ github.sha }}
@@ -86,6 +87,7 @@ jobs:
             type=sha
 
       - name: Build and publish image
+        id: image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -95,3 +97,52 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Export main branch Docker image file
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        shell: bash
+        run: |
+          set -euo pipefail
+          image_base="ghcr.io/${GITHUB_REPOSITORY,,}"
+          image_ref="${image_base}:sha-${GITHUB_SHA:0:7}"
+          docker pull "$image_ref"
+          docker tag "$image_ref" "${image_base}:latest"
+          mkdir -p release
+          archive="AquaDX-image-${GITHUB_SHA}.tar.gz"
+          docker save "$image_ref" "${image_base}:latest" | gzip -1 > "release/$archive"
+          (cd release && sha256sum "$archive" > "$archive.sha256")
+
+      - name: Upload main branch Docker image file
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        id: image_file
+        uses: actions/upload-artifact@v4
+        with:
+          name: AquaDX-image-${{ github.sha }}
+          path: release/AquaDX-image-*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Summarize published artifacts
+        shell: bash
+        env:
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+          FRONTEND_URL: ${{ steps.frontend.outputs.artifact-url }}
+          IMAGE_FILE_URL: ${{ steps.image_file.outputs.artifact-url }}
+        run: |
+          image_base="ghcr.io/${GITHUB_REPOSITORY,,}"
+          {
+            echo "Source commit: \`$GITHUB_SHA\`"
+            echo
+            echo "Frontend dist: [download]($FRONTEND_URL)"
+            echo
+            echo "Docker image: \`${image_base}@${IMAGE_DIGEST}\`"
+            if [ -n "$IMAGE_FILE_URL" ]; then
+              echo
+              echo "Docker image file: [download]($IMAGE_FILE_URL)"
+              echo
+              echo "Pull: \`docker pull ${image_base}:latest\`"
+              echo
+              echo "Offline import: \`gzip -dc AquaDX-image-${GITHUB_SHA}.tar.gz | docker load\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
