@@ -74,6 +74,13 @@ abstract class ImportController<ExportModel: IExportClass<UserModel>, UserModel:
 
     protected open fun formatExport(data: ExportModel): Any = data
 
+    protected open fun clearExistingData(existing: UserModel) {
+        userDataRepo.delete(existing)
+        userDataRepo.flush()
+    }
+
+    protected open fun prepareImportedProfile(existing: UserModel?, data: ExportModel): UserModel = data.userData
+
     @Autowired lateinit var us: AquaUserServices
     @Autowired lateinit var netProps: AquaNetProps
     @Autowired lateinit var transManager: PlatformTransactionManager
@@ -112,10 +119,8 @@ abstract class ImportController<ExportModel: IExportClass<UserModel>, UserModel:
     internal fun replaceInTransaction(existingUserData: UserModel?, auId: Long, insert: () -> Unit) {
         trans.execute {
             existingUserData?.also { gu ->
-                // After migration v1000.7, all user-linked entities have ON DELETE CASCADE.
                 log.info("$game Import: Replacing old data for user $auId")
-                userDataRepo.delete(gu)
-                userDataRepo.flush()
+                clearExistingData(gu)
             }
 
             insert()
@@ -143,7 +148,6 @@ abstract class ImportController<ExportModel: IExportClass<UserModel>, UserModel:
 
             val lists = listRepos.toList().associate { (f, r) -> r to f.get(export) as List<IUserEntity<UserModel>> }.vNotNull()
             val singles = singleRepos.toList().associate { (f, r) -> r to f.get(export) as IUserEntity<UserModel> }.vNotNull()
-            var repoFieldMap = exportRepos.toList().associate { (f, r) -> r to f }
 
             // Validate new user data
             // Check that all ids are 0 (this should be true since all ids are @JsonIgnore)
@@ -164,13 +168,18 @@ abstract class ImportController<ExportModel: IExportClass<UserModel>, UserModel:
 
             replaceInTransaction(existingUserData, u.auId) {
                 // Insert new data
-                val nu = userDataRepo.save(export.userData)
-                // Set user fields
-                lists.values.flatten().forEach { it.user = nu }
-                singles.values.forEach { it.user = nu }
-                // Save new data
-                singles.forEach { (repo, single) -> (repo as IUserRepo<UserModel, Any>).save(single) }
-                lists.forEach { (repo, list) -> (repo as IUserRepo<UserModel, Any>).saveAll(list) }
+                val nu = userDataRepo.save(prepareImportedProfile(existingUserData, export))
+                // Read the prepared export so games can preserve server-local relationships.
+                singleRepos.forEach { (field, repo) ->
+                    val single = field.get(export) as IUserEntity<UserModel>
+                    single.user = nu
+                    (repo as IUserRepo<UserModel, Any>).save(single)
+                }
+                listRepos.forEach { (field, repo) ->
+                    val list = field.get(export) as List<IUserEntity<UserModel>>
+                    list.forEach { it.user = nu }
+                    (repo as IUserRepo<UserModel, Any>).saveAll(list)
+                }
                 // Handle custom importers
                 customImporters.forEach { (field, importer) ->
                     importer(export, nu)
