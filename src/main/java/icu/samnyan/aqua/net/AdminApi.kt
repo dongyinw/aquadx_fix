@@ -4,6 +4,8 @@ import ext.*
 import icu.samnyan.aqua.net.components.JWT
 import icu.samnyan.aqua.net.db.AquaNetUser
 import icu.samnyan.aqua.net.db.AquaNetUserRepo
+import icu.samnyan.aqua.net.db.AquaUserServices
+import icu.samnyan.aqua.net.db.ResetPasswordRepo
 import icu.samnyan.aqua.sega.allnet.KeychipSessionRepo
 import icu.samnyan.aqua.sega.allnet.UserKeychip
 import icu.samnyan.aqua.sega.allnet.UserKeychipRepo
@@ -24,8 +26,13 @@ import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.RequestMethod
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeParseException
+import java.util.Locale
+
+data class AdminPasswordResetRequest(val password: String)
 
 /** Administrative operations for the MikuNet web console. */
 @RestController
@@ -40,6 +47,8 @@ class AdminApi(
     val chu3: Chu3Repos,
     val ongeki: OngekiRepos,
     val accountDeletion: AccountDeletionService,
+    val userServices: AquaUserServices,
+    val resetPasswordRepo: ResetPasswordRepo,
 ) {
     companion object {
         private val log = LoggerFactory.getLogger(AdminApi::class.java)
@@ -169,12 +178,20 @@ class AdminApi(
             .mapNotNull { ongeki.u.data.findByCard_ExtId(it.extId) }
             .firstOrNull()
 
-    private fun dateStart(value: String?): Long? = value?.trim()?.takeIf { it.isNotEmpty() }?.let {
-        LocalDate.parse(it).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    private fun dateBound(value: String?, end: Boolean = false): Long? = value?.trim()?.takeIf { it.isNotEmpty() }?.let {
+        val date = try {
+            LocalDate.parse(it)
+        } catch (_: DateTimeParseException) {
+            400 - "Registration date must use YYYY-MM-DD"
+        }
+        (if (end) date.plusDays(1) else date).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
     }
 
-    private fun dateEnd(value: String?): Long? = value?.trim()?.takeIf { it.isNotEmpty() }?.let {
-        LocalDate.parse(it).plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    private fun registrationRange(regFrom: Str?, regTo: Str?): Pair<Long?, Long?> {
+        val from = dateBound(regFrom)
+        val to = dateBound(regTo, end = true)
+        if (from != null && to != null && from >= to) 400 - "Registration start date must not be after end date"
+        return from to to
     }
 
     private fun inDateRange(value: Long, from: Long?, to: Long?) =
@@ -184,14 +201,13 @@ class AdminApi(
     @Transactional
     fun users(
         @RP token: Str,
-        @RP query: Str,
-        @RP(required = false) regFrom: Str?,
-        @RP(required = false) regTo: Str?,
+        @RP(required = false) query: Str? = null,
+        @RP(required = false) regFrom: Str? = null,
+        @RP(required = false) regTo: Str? = null,
     ): List<Map<String, Any?>> {
         admin(token)
-        val q = query.trim().lowercase()
-        val from = dateStart(regFrom)
-        val to = dateEnd(regTo)
+        val q = query.orEmpty().trim().lowercase(Locale.ROOT)
+        val (from, to) = registrationRange(regFrom, regTo)
         return userRepo.findAll().asSequence()
             .filter { u ->
                 inDateRange(u.regTime, from, to) &&
@@ -199,7 +215,7 @@ class AdminApi(
                     u.auId.toString(), u.username, u.displayName, u.email,
                     u.cards.joinToString(" ") { it.luid },
                     u.keychips.joinToString(" ") { it.keychipId },
-                ).any { it.lowercase().contains(q) })
+                ).any { it.lowercase(Locale.ROOT).contains(q) })
             }
             .take(100)
             .map(::userSummary)
@@ -210,14 +226,13 @@ class AdminApi(
     @Transactional
     fun cards(
         @RP token: Str,
-        @RP query: Str,
-        @RP(required = false) regFrom: Str?,
-        @RP(required = false) regTo: Str?,
+        @RP(required = false) query: Str? = null,
+        @RP(required = false) regFrom: Str? = null,
+        @RP(required = false) regTo: Str? = null,
     ): List<Map<String, Any?>> {
         admin(token)
-        val q = query.trim().lowercase()
-        val from = dateStart(regFrom)
-        val to = dateEnd(regTo)
+        val q = query.orEmpty().trim().lowercase(Locale.ROOT)
+        val (from, to) = registrationRange(regFrom, regTo)
         return cardRepo.findAll().asSequence()
             .filter { card ->
                 val owner = card.aquaUser
@@ -225,7 +240,7 @@ class AdminApi(
                 (q.isBlank() || listOf(
                     card.id.toString(), card.extId.toString(), card.luid, card.status.name,
                     owner?.auId?.toString().orEmpty(), owner?.username.orEmpty(), owner?.email.orEmpty(),
-                ).any { it.lowercase().contains(q) })
+                ).any { it.lowercase(Locale.ROOT).contains(q) })
             }
             .take(200)
             .map { cardSummary(it, includeOwner = true) }
@@ -289,6 +304,23 @@ class AdminApi(
             "ongeki" to ongekiUser?.let(::gamePayload),
             "items" to (mai2User?.let(::itemPayload) ?: emptyList<Map<String, Any?>>()),
         )
+    }
+
+    @Transactional
+    @API(value = ["/user/password-reset"], method = [RequestMethod.POST])
+    fun resetUserPassword(
+        @RP token: Str,
+        @RP auId: Long,
+        @RB request: AdminPasswordResetRequest,
+    ): Map<String, Any> {
+        val actor = admin(token)
+        val target = user(auId)
+        target.pwHash = userServices.checkPwHash(request.password)
+        userRepo.save(target)
+        userServices.clearAllSessions(target)
+        resetPasswordRepo.deleteAll(resetPasswordRepo.findByAquaNetUserAuId(target.auId))
+        log.info("Admin {} reset password for user {}", actor.auId, target.auId)
+        return mapOf("success" to true)
     }
 
     @Transactional

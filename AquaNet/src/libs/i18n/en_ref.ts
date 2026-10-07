@@ -21,6 +21,8 @@ export const EN_REF_USER = {
   'UserHome.NoData': 'No data in the past ${days} days',
   'UserHome.UnknownSong': '(unknown song)',
   'UserHome.Settings': 'Settings',
+  'UserHome.ExportData': 'Export ${game} data',
+  'UserHome.ExportingData': 'Exporting…',
   'UserHome.NoValidGame': 'The user hasn\'t played any game yet.',
   'UserHome.ShowRanksDetails': 'Click to show details',
   'UserHome.RankDetail.Title': 'Achievement Details',

@@ -27,7 +27,8 @@
   let state: SocialState = { friendCode: "", friends: [], incomingRequests: [], outgoingRequests: [], rivals: [] };
   let searchName = "";
   let searchResult: Player | null = null;
-  let busy = false;
+  let busy = true;
+  let loaded = false;
   let error = "";
   let message = "";
   let noticeTimer: ReturnType<typeof setTimeout>;
@@ -41,11 +42,16 @@
 
   async function initialize() {
     busy = true;
+    loaded = false;
     error = "";
     try {
       const me = await USER.me() as MikuNetUser;
-      cards = [...(me.cards ?? [])].sort((a, b) => Number(b.isGhost) - Number(a.isGhost));
-      selectedCardId = cards.find(card => card.isGhost)?.luid ?? cards[0]?.luid ?? "";
+      const accountCard = me.ghostCard?.luid ? { ...me.ghostCard, isGhost: true } : null;
+      cards = Array.from(new Map([
+        ...(me.cards ?? []), ...(accountCard ? [accountCard] : []),
+      ].map(card => [card.luid, card])).values())
+        .sort((a, b) => Number(b.isGhost) - Number(a.isGhost));
+      selectedCardId = accountCard?.luid ?? cards.find(card => card.isGhost)?.luid ?? cards[0]?.luid ?? "";
       if (!selectedCardId) throw new Error("账号没有可用的舞萌卡片，请先绑定卡片。");
       await reload();
     } catch (e) {
@@ -65,6 +71,7 @@
       outgoingRequests: result.outgoingRequests ?? [],
       rivals: result.rivals ?? [],
     };
+    loaded = true;
     if (searchResult) {
       searchResult = state.friends.find(player => player.id === searchResult?.id)
         ? { ...searchResult, direction: "friend", status: "ACCEPTED", isRival: state.rivals.some(player => player.id === searchResult?.id) }
@@ -94,7 +101,16 @@
   async function changeCard(event: Event) {
     selectedCardId = (event.currentTarget as HTMLSelectElement).value;
     searchResult = null;
-    await run(reload, "已切换游戏卡片。");
+    loaded = false;
+    busy = true;
+    error = "";
+    try {
+      await reload();
+    } catch (e) {
+      error = (e as Error).message || String(e);
+    } finally {
+      busy = false;
+    }
   }
 
   async function run(action: () => Promise<unknown>, success: string) {
@@ -105,7 +121,7 @@
       notify(success);
       await reload();
     } catch (e) {
-      notify((e as Error).message || String(e), true);
+      error = (e as Error).message || String(e);
     } finally {
       busy = false;
     }
@@ -187,8 +203,10 @@
 
   {#if message}<div class="toast" role="status">{message}</div>{/if}
   {#if error}<div class="notice error"><Icon icon="solar:danger-triangle-bold-duotone" /><span>{error}</span></div>{/if}
-  {#if busy && !state}<div class="notice">正在读取好友资料…</div>{/if}
+  {#if busy && !loaded}<div class="notice" role="status">正在读取好友资料…</div>{/if}
+  {#if !busy && !loaded && error}<button class="primary-button" on:click={initialize}>重新读取好友资料</button>{/if}
 
+  {#if loaded}
   <section class="search-section">
     <div class="section-heading"><div><span class="eyebrow">FIND PLAYER</span><h2>添加好友</h2></div></div>
     <div class="friend-code-panel">
@@ -267,6 +285,7 @@
       </div>
     {:else}<div class="notice">尚未设置劲敌。可从搜索结果或好友列表中添加。</div>{/if}
   </section>
+  {/if}
 </main>
 
 <style lang="sass">

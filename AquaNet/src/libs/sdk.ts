@@ -233,15 +233,17 @@ export const USER = {
 
 export const ADMIN = {
   users: (query: string, regFrom = "", regTo = ""): Promise<AdminUserSummary[]> =>
-    post('/api/v2/admin/users', { query, regFrom, regTo }),
+    post('/api/v2/admin/users', { query, ...(regFrom ? { regFrom } : {}), ...(regTo ? { regTo } : {}) }),
   cards: (query: string, regFrom = "", regTo = ""): Promise<AdminCardSummary[]> =>
-    post('/api/v2/admin/cards', { query, regFrom, regTo }),
+    post('/api/v2/admin/cards', { query, ...(regFrom ? { regFrom } : {}), ...(regTo ? { regTo } : {}) }),
   user: (auId: number): Promise<AdminUserDetail> =>
     post('/api/v2/admin/user', { auId }),
   card: (cardId: number): Promise<AdminCardDetail> =>
     post('/api/v2/admin/card', { cardId }),
   setProfile: (auId: number, field: string, value: string | boolean) =>
     post('/api/v2/admin/user/profile-set', { auId, field, value: String(value) }),
+  resetPassword: (auId: number, password: string): Promise<{ success: boolean }> =>
+    post('/api/v2/admin/user/password-reset', { auId }, { json: { password } }),
   setGameProfile: (auId: number, game: string, field: string, value: string | number) =>
     post('/api/v2/admin/user/game-profile-set', { auId, game, field, value: String(value) }),
   setCardGameProfile: (cardId: number, game: string, field: string, value: string | number) =>

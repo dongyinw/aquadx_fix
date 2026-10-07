@@ -49,6 +49,7 @@
   let allMusics: AllMusic
   let showDetailRank = false
   let isLoading = false
+  let exportLoading = false
   let showMoreRecent = false
   let selectedScore: MusicAndPlay | null = null
   let detailLoading = false
@@ -198,6 +199,29 @@
       d!.user.rival = isAdd
     }).catch(e => error = e.message).finally(() => isLoading = false)
   }
+
+  async function exportData() {
+    if (exportLoading || !me || me.username.toLowerCase() !== username.toLowerCase()) return
+    const exportGame = game
+    const exportUsername = me.username
+    exportLoading = true
+    error = ""
+    try {
+      const data = await GAME.export(exportGame)
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }))
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `MikuNet_${exportGame}_data_${exportUsername}.json`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e)
+    } finally {
+      exportLoading = false
+    }
+  }
 </script>
 
 <main id="user-home" class="content">
@@ -237,6 +261,10 @@
         {/each}
 
         {#if me && me.username.toLowerCase() === username.toLowerCase()}
+          <button class="export-data clickable" disabled={exportLoading} on:click={exportData}>
+            <Icon icon="solar:download-minimalistic-bold-duotone" />
+            {exportLoading ? t("UserHome.ExportingData") : t("UserHome.ExportData", { game: GAME_TITLE[game] })}
+          </button>
           <a class="setting-icon clickable" use:tooltip={t("UserHome.Settings")} href={`/settings/${game}`}>
             <Icon icon="eos-icons:rotating-gear"/>
           </a>
@@ -580,6 +608,21 @@
           border-color: rgba(7, 143, 136, 0.28)
           background: vars.$c-main-soft
 
+    .export-data
+      display: inline-flex
+      align-items: center
+      gap: 5px
+      padding: 7px 10px
+      border: 1px solid rgba(7, 143, 136, 0.28)
+      border-radius: 10px
+      color: vars.$c-main
+      background: vars.$c-main-soft
+      font-size: 0.76rem
+      white-space: nowrap
+      &:disabled
+        opacity: 0.55
+        cursor: wait
+
     .setting-icon
       font-size: 1.5rem
       color: vars.$c-main
@@ -620,6 +663,11 @@
   @media (max-width: vars.$w-mobile)
     .user-pfp
       margin-top: -68px
+      flex-wrap: wrap
+      nav
+        position: static
+        width: 100%
+        flex-wrap: wrap
       h2
         font-size: 1.5rem
 

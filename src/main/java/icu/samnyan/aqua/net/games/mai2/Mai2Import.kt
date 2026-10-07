@@ -93,6 +93,30 @@ class Mai2Import(
     override fun createEmpty() = Maimai2DataExport()
     override val userDataRepo = repos.userData
     override fun formatExport(data: Maimai2DataExport): Any = data.toMuNetFormat()
+
+    override fun clearExistingData(existing: Mai2UserDetail) {
+        // Keep the profile ID: friends and other players' rivals refer to it.
+        Mai2Repos::class.declaredMembers.filter { it returns Mai2UserLinked::class }.forEach { field ->
+            val repo = field.call(repos) as Mai2UserLinked<*>
+            if (field.name == "userGeneralData") {
+                // Rival IDs belong to this server, not to an imported save file.
+                repos.userGeneralData.deleteAll(repos.userGeneralData.findByUser(existing)
+                    .filter { it.propertyKey != "favorite_rival" })
+            } else {
+                repo.deleteByUser(existing)
+            }
+            repo.flush()
+        }
+    }
+
+    override fun prepareImportedProfile(existing: Mai2UserDetail?, data: Maimai2DataExport): Mai2UserDetail {
+        data.userGeneralDataList = data.userGeneralDataList.filter { it.propertyKey != "favorite_rival" }
+        if (existing == null) return data.userData
+        Mai2UserDetail::class.vars().filter { it.name !in setOf("id", "card") }.forEach { field ->
+            field.set(existing, field.get(data.userData))
+        }
+        return existing
+    }
 }
 
 internal fun Maimai2DataExport.toMuNetFormat(): ObjectNode {
