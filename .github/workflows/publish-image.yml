@@ -24,10 +24,47 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Verify custom portrait saves before publishing
+      - name: Verify profile imports, social data and account management
         run: |
           chmod +x gradlew
-          ./gradlew test -PrunTests --tests test.Mai2CustomPortraitSaveTest --no-daemon
+          ./gradlew test -PrunTests \
+            --tests test.Mai2CustomPortraitSaveTest \
+            --tests test.Mai2SocialProfileTest \
+            --tests test.Mai2ImportSocialRetentionTest \
+            --tests test.ImportTransactionTest \
+            --tests test.ImportExportParityTest \
+            --tests test.AdminAccountManagementTest \
+            --tests test.WaccaDataExportTest --no-daemon
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.7.0
+
+      - name: Set up Node.js for the frontend
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: AquaNet/pnpm-lock.yaml
+
+      - name: Build AquaNet frontend
+        working-directory: AquaNet
+        env:
+          VITE_AQUA_HOST: https://web.maimaidx.top/aqua
+          VITE_DATA_HOST: https://asset.maimaidx.top
+          VITE_AQUA_CONNECTION: maoninet.jp
+          npm_package_version: 1.0.0
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec vite build
+
+      - name: Upload AquaNet frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: AquaNet-frontend-${{ github.sha }}
+          path: AquaNet/dist/
+          if-no-files-found: error
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
