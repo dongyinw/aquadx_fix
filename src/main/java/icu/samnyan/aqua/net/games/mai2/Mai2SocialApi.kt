@@ -81,8 +81,11 @@ class Mai2SocialService(
             ?: aimeId.toLongOrNull()?.let(us.cardRepo::findByExtId)
             ?: (404 - "Card not found")
         if (card.aquaUser?.auId != account.auId) (403 - "Card is not linked to this account")
-        val profile = mai2.userData.findByCardExtId(card.extId) ?: (404 - "Maimai DX profile not found on this card")
-        action(card, profile)
+        // Linked physical cards use the same account profile as the game server.
+        val profileCard = account.ghostCard
+        val profile = mai2.userData.findByCardExtId(profileCard.extId)
+            ?: (404 - "Maimai DX profile not found on this account")
+        action(profileCard, profile)
     }
 
     private fun playerView(profile: Mai2UserDetail, username: String = "") = mapOf(
