@@ -23,6 +23,7 @@
   let notice = ""
   let loading = true
   let query = ""
+  let searchRequest = 0
   let regFrom = ""
   let regTo = ""
   let view: View = "users"
@@ -35,6 +36,9 @@
 
   let profileField = "displayName"
   let profileValue = ""
+  let newPassword = ""
+  let confirmPassword = ""
+  let passwordResetting = false
   let selectedGame: ManagedGame = "mai2"
   let gameField = "userName"
   let gameValue = ""
@@ -58,6 +62,8 @@
     notice = ""
   }
 
+  const isSelf = (user: AdminUserDetail["user"]) => user.username.toLowerCase() === me?.username.toLowerCase()
+
   function formatTime(value: string | number | null | undefined): string {
     if (!value) return "暂无"
     const date = new Date(typeof value === "number" ? value : value)
@@ -71,27 +77,45 @@
   }
 
   async function search() {
+    const request = ++searchRequest
+    const searchView = view
     loading = true
     error = ""
     try {
-      if (view === "users") {
-        users = await ADMIN.users(query, regFrom, regTo)
+      if (searchView === "users") {
+        const result = await ADMIN.users(query, regFrom, regTo)
+        if (request !== searchRequest || view !== searchView) return
+        users = result
         if (selectedUser && !users.some(user => user.auId === selectedUser?.auId)) {
           selectedUser = null
           userDetail = null
+          clearPasswords()
         }
       } else {
-        cards = await ADMIN.cards(query, regFrom, regTo)
+        const result = await ADMIN.cards(query, regFrom, regTo)
+        if (request !== searchRequest || view !== searchView) return
+        cards = result
         if (selectedCard && !cards.some(card => card.id === selectedCard?.id)) {
           selectedCard = null
           cardDetail = null
         }
       }
     } catch (e) {
-      fail(e)
+      if (request === searchRequest) fail(e)
     } finally {
-      loading = false
+      if (request === searchRequest) loading = false
     }
+  }
+
+  function searchAllTime() {
+    regFrom = ""
+    regTo = ""
+    search()
+  }
+
+  function clearPasswords() {
+    newPassword = ""
+    confirmPassword = ""
   }
 
   async function switchView(next: View) {
@@ -101,6 +125,7 @@
     selectedCard = null
     userDetail = null
     cardDetail = null
+    clearPasswords()
     await search()
   }
 
@@ -111,6 +136,7 @@
     userDetail = null
     cardDetail = null
     cardsExpanded = false
+    clearPasswords()
     loading = true
     error = ""
     try {
@@ -131,6 +157,7 @@
     selectedUser = null
     cardDetail = null
     userDetail = null
+    clearPasswords()
     loading = true
     error = ""
     try {
@@ -179,10 +206,33 @@
     }
   }
 
+  async function resetUserPassword() {
+    if (!userDetail || passwordResetting) return
+    if (newPassword.length < 8) return fail(new Error("新密码至少需要 8 个字符"))
+    if (newPassword !== confirmPassword) return fail(new Error("两次输入的密码不一致"))
+    const target = userDetail.user
+    passwordResetting = true
+    error = ""
+    notice = ""
+    try {
+      await ADMIN.resetPassword(target.auId, newPassword)
+      clearPasswords()
+      if (isSelf(target)) {
+        USER.logout()
+        return
+      }
+      notice = `用户 ${target.username} 的密码已重置，需要重新登录`
+    } catch (e) {
+      fail(e)
+    } finally {
+      passwordResetting = false
+    }
+  }
+
   async function setBoolean(field: string, event: Event) {
     if (!userDetail) return
     const checked = (event.currentTarget as HTMLInputElement).checked
-    if (field === "isAdmin" && userDetail.user.auId === me?.auId && !checked) {
+    if (field === "isAdmin" && isSelf(userDetail.user) && !checked) {
       notice = "不能取消当前登录账号的管理员权限"
       return
     }
@@ -345,14 +395,16 @@
       <aside class="sidebar panel">
         <form class="search" on:submit|preventDefault={search}>
           <Icon icon="line-md:search" />
-          <input bind:value={query} placeholder={view === "users" ? "搜索用户名、邮箱、AU ID" : "搜索卡号、LUID、用户"} aria-label="搜索" />
+          <input bind:value={query} placeholder={view === "users" ? "输入部分用户名、邮箱或 AU ID" : "输入部分卡号、LUID 或用户名"} aria-label="搜索" />
           {#if query}<button class="clear" type="button" title="清除搜索" aria-label="清除搜索" on:click={() => { query = ""; search() }}><Icon icon="line-md:close" /></button>{/if}
+          <button class="search-submit" type="submit">搜索</button>
         </form>
         <div class="date-filters">
           <label>注册时间从<input type="date" bind:value={regFrom} /></label>
           <label>到<input type="date" bind:value={regTo} /></label>
           <button class="filter-submit" type="button" on:click={search}><Icon icon="solar:filter-bold-duotone" />筛选</button>
         </div>
+        <div class="search-hint"><span>支持模糊搜索；日期留空查询全部时间</span><button type="button" on:click={searchAllTime}>全部时间</button></div>
         <div class="list-meta"><span>{view === "users" ? "Net 用户" : "卡片账户"}</span><strong>{view === "users" ? users.length : cards.length}</strong></div>
 
         {#if view === "users"}
@@ -434,8 +486,17 @@
             <div class="toggle-grid">
               <label><input type="checkbox" checked={userDetail.user.emailConfirmed} on:change={(e) => setBoolean("emailConfirmed", e)} /> 邮箱已验证</label>
               <label><input type="checkbox" checked={userDetail.user.canModifyKeychips} on:change={(e) => setBoolean("canModifyKeychips", e)} /> 允许用户管理 keychip</label>
-              <label title={userDetail.user.auId === me?.auId ? "不能取消当前登录账号的管理员权限" : "管理员权限"}><input type="checkbox" checked={userDetail.user.isAdmin} disabled={userDetail.user.auId === me?.auId} on:change={(e) => setBoolean("isAdmin", e)} /> 管理员权限{#if userDetail.user.auId === me?.auId}<small class="self-admin-lock">当前账号</small>{/if}</label>
+              <label title={isSelf(userDetail.user) ? "不能取消当前登录账号的管理员权限" : "管理员权限"}><input type="checkbox" checked={userDetail.user.isAdmin} disabled={isSelf(userDetail.user)} on:change={(e) => setBoolean("isAdmin", e)} /> 管理员权限{#if isSelf(userDetail.user)}<small class="self-admin-lock">当前账号</small>{/if}</label>
             </div>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading"><h3>重置用户密码</h3><span>重置后该用户需要重新登录</span></div>
+            <form class="form-grid" on:submit|preventDefault={resetUserPassword}>
+              <label>新密码<input type="password" bind:value={newPassword} autocomplete="new-password" minlength="8" required disabled={passwordResetting} placeholder="至少 8 个字符" /></label>
+              <label>确认新密码<input type="password" bind:value={confirmPassword} autocomplete="new-password" minlength="8" required disabled={passwordResetting} /></label>
+              <button type="submit" disabled={passwordResetting}><Icon icon="solar:lock-password-bold-duotone" />{passwordResetting ? "正在重置…" : "重置密码"}</button>
+            </form>
           </section>
 
           <section class="panel game-profile-panel">
@@ -623,6 +684,25 @@
       padding: 4px
       border: 0
       background: transparent
+
+    .search-submit
+      padding: 6px 9px
+      font-size: 0.75rem
+      flex-shrink: 0
+
+  .search-hint
+    display: flex
+    align-items: center
+    justify-content: space-between
+    gap: 6px
+    margin: 9px 2px 0
+    color: vars.$c-sub
+    font-size: 0.68rem
+
+    button
+      padding: 4px 6px
+      flex-shrink: 0
+      font-size: inherit
 
   .date-filters
     display: grid
