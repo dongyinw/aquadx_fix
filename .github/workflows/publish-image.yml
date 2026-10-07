@@ -59,14 +59,6 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm exec vite build
 
-      - name: Upload AquaNet frontend
-        id: frontend
-        uses: actions/upload-artifact@v4
-        with:
-          name: AquaNet-frontend-${{ github.sha }}
-          path: AquaNet/dist/
-          if-no-files-found: error
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -127,14 +119,13 @@ jobs:
         shell: bash
         env:
           IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
-          FRONTEND_URL: ${{ steps.frontend.outputs.artifact-url }}
           IMAGE_FILE_URL: ${{ steps.image_file.outputs.artifact-url }}
         run: |
           image_base="ghcr.io/${GITHUB_REPOSITORY,,}"
           {
             echo "Source commit: \`$GITHUB_SHA\`"
             echo
-            echo "Frontend dist: [download]($FRONTEND_URL)"
+            echo "Frontend dist: built locally at AquaNet/dist on the build server; not uploaded."
             echo
             echo "Docker image: \`${image_base}@${IMAGE_DIGEST}\`"
             if [ -n "$IMAGE_FILE_URL" ]; then
