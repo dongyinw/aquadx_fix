@@ -182,7 +182,7 @@
 
 <main id="welcome-page" class="no-margin">
   <section class="welcome-intro">
-    <div class="brand-mark"><img src="/assets/icons/android-chrome-192x192.png" alt="MikuNet" /></div>
+    <div class="brand-mark"><img src="/assets/branding/mikunet-logo.webp" alt="MikuNet" width="960" height="640" fetchpriority="high" /></div>
     <span class="kicker">MikuNet / ONLINE SERVICE</span>
     <h1>让每一次游玩，都有自己的位置。</h1>
     <p>管理卡片、同步成绩，继续你的街机记录。</p>
@@ -248,21 +248,14 @@
     max-width: 570px
 
   .brand-mark
-    display: grid
-    place-items: center
-    width: 58px
-    height: 58px
+    width: min(360px, 100%)
     margin-bottom: 24px
-    border: 1px solid rgba(255, 255, 255, 0.9)
-    border-radius: 17px
-    background: rgba(255, 255, 255, 0.72)
-    box-shadow: 0 16px 42px rgba(43, 72, 76, 0.12)
-    backdrop-filter: blur(18px)
 
     img
-      width: 40px
-      height: 40px
-      border-radius: 12px
+      display: block
+      width: 100%
+      height: auto
+      object-fit: contain
 
   .kicker, .eyebrow
     color: vars.$c-main
@@ -388,6 +381,9 @@
       gap: 32px
       min-height: 100vh
       padding: 42px 18px
+
+    .brand-mark
+      width: min(280px, 100%)
 
     .welcome-intro h1
       font-size: clamp(2rem, 12vw, 3.5rem)

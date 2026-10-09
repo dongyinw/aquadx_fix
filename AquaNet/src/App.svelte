@@ -79,7 +79,7 @@
   <div class="nav-inner">
     {#if path !== "/"}
       <a class="logo" href={USER.isLoggedIn() ? "/home" : "/"}>
-        <img src="/assets/icons/android-chrome-192x192.png" alt="MikuNet"/>
+        <img src="/assets/branding/mikunet-icon.webp" alt="MikuNet" width="32" height="32"/>
         <span>MikuNet</span>
       </a>
     {:else}
@@ -181,6 +181,13 @@
       color: vars.$c-text
       font-weight: 800
       letter-spacing: 0.12em
+
+    .logo img
+      width: 2rem
+      height: 2rem
+      border-radius: 50%
+      object-fit: contain
+      flex-shrink: 0
 
     .logo-placeholder
       flex: 1

@@ -1,14 +1,14 @@
 {
-    "name": "",
-    "short_name": "",
+    "name": "MikuNet",
+    "short_name": "MikuNet",
     "icons": [
         {
-            "src": "/assets/icons/android-chrome-192x192.png",
+            "src": "/assets/icons/android-chrome-192x192.png?v=mikunet-20261010",
             "sizes": "192x192",
             "type": "image/png"
         },
         {
-            "src": "/assets/icons/android-chrome-512x512.png",
+            "src": "/assets/icons/android-chrome-512x512.png?v=mikunet-20261010",
             "sizes": "512x512",
             "type": "image/png"
         }
