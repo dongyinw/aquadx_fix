@@ -131,8 +131,8 @@ class AdminAccountManagementTest : StringSpec({
         val recent = AquaNetUser(auId = 3, username = "other", regTime = registeredOn("2026-10-08"))
         `when`(f.users.findAll()).thenReturn(listOf(old, recent))
         f.api.users("admin-token", "  ONGyi  ").map { it["auId"] } shouldBe listOf(2L)
-        f.api.users("admin-token").map { it["auId"] } shouldBe listOf(2L, 3L)
-        f.api.users("admin-token", "", " ", "").map { it["auId"] } shouldBe listOf(2L, 3L)
+        f.api.users("admin-token").map { it["auId"] } shouldBe listOf(3L, 2L)
+        f.api.users("admin-token", "", " ", "").map { it["auId"] } shouldBe listOf(3L, 2L)
         f.mvc().perform(post("/api/v2/admin/users").param("token", "admin-token").param("query", "yin"))
             .andExpect(status().isOk).andReturn().response.contentAsString.let {
                 JACKSON.readTree(it).size() shouldBe 1
@@ -148,8 +148,8 @@ class AdminAccountManagementTest : StringSpec({
         ))
         f.api.users("admin-token", regFrom = "2026-10-07", regTo = "2026-10-07")
             .map { it["auId"] } shouldBe listOf(2L)
-        f.api.users("admin-token", regTo = "2026-10-07").map { it["auId"] } shouldBe listOf(1L, 2L)
-        f.api.users("admin-token", regFrom = "2026-10-07").map { it["auId"] } shouldBe listOf(2L, 3L)
+        f.api.users("admin-token", regTo = "2026-10-07").map { it["auId"] } shouldBe listOf(2L, 1L)
+        f.api.users("admin-token", regFrom = "2026-10-07").map { it["auId"] } shouldBe listOf(3L, 2L)
     }
 
     "invalid and reversed dates report a client error instead of searching an unintended range" {

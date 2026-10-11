@@ -22,6 +22,7 @@ import icu.samnyan.aqua.sega.ongeki.OngekiRepos
 import icu.samnyan.aqua.sega.ongeki.model.UserData as OngekiUserData
 import icu.samnyan.aqua.net.games.IUserData
 import jakarta.persistence.EntityManager
+import jakarta.persistence.PersistenceContext
 import jakarta.transaction.Transactional
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
@@ -47,11 +48,13 @@ class AdminApi(
     val mai2: Mai2Repos,
     val chu3: Chu3Repos,
     val ongeki: OngekiRepos,
-    val em: EntityManager,
     val accountDeletion: AccountDeletionService,
     val userServices: AquaUserServices,
     val resetPasswordRepo: ResetPasswordRepo,
 ) {
+    @PersistenceContext
+    lateinit var em: EntityManager
+
     companion object {
         private val log = LoggerFactory.getLogger(AdminApi::class.java)
         private val keychipPattern = Regex("^[A-Z\\d]{15}$")
@@ -210,7 +213,7 @@ class AdminApi(
         admin(token)
         val q = query.orEmpty().trim().lowercase(Locale.ROOT)
         val (from, to) = registrationRange(regFrom, regTo)
-        return userRepo.findAll(Sort.by(Sort.Direction.DESC, "regTime").and(Sort.by(Sort.Direction.DESC, "auId"))).asSequence()
+        return userRepo.findAll().sortedWith(compareByDescending<AquaNetUser> { it.regTime }.thenByDescending { it.auId }).asSequence()
             .filter { u ->
                 inDateRange(u.regTime, from, to) &&
                 (q.isBlank() || listOf(
@@ -235,7 +238,7 @@ class AdminApi(
         admin(token)
         val q = query.orEmpty().trim().lowercase(Locale.ROOT)
         val (from, to) = registrationRange(regFrom, regTo)
-        return cardRepo.findAll(Sort.by(Sort.Direction.DESC, "registerTime").and(Sort.by(Sort.Direction.DESC, "id"))).asSequence()
+        return cardRepo.findAll().sortedWith(compareByDescending<Card> { it.registerTime }.thenByDescending { it.id }).asSequence()
             .filter { card ->
                 val owner = card.aquaUser
                 inDateRange(card.registerTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), from, to) &&
