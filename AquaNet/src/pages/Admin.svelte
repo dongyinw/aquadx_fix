@@ -3,6 +3,7 @@
   import StatusOverlays from "../components/StatusOverlays.svelte"
   import Icon from "../components/ui/Icon.svelte"
   import { ADMIN, USER } from "../libs/sdk"
+  import type { AdminAnalytics } from "../libs/sdk"
   import type {
     AdminCardDetail,
     AdminCardGame,
@@ -49,6 +50,12 @@
   let itemAmount = 1
   let newKeychip = ""
   let cardsExpanded = false
+  let analytics: AdminAnalytics | null = null
+  let analyticsLoading = false
+  let analyticsError = ""
+  let analyticsPeriod = "7"
+  let analyticsFrom = ""
+  let analyticsTo = ""
 
   const gameLabels: Record<ManagedGame, string> = { mai2: "舞萌 DX", chu3: "中二节奏", ongeki: "音击" }
   const gameFields: Record<ManagedGame, string[]> = {
@@ -104,6 +111,29 @@
       if (request === searchRequest) fail(e)
     } finally {
       if (request === searchRequest) loading = false
+    }
+  }
+
+  async function loadAnalytics() {
+    analyticsLoading = true
+    analyticsError = ""
+    const end = new Date()
+    const to = end.toISOString().slice(0, 10)
+    let from = ""
+    if (analyticsPeriod === "custom") {
+      from = analyticsFrom
+    } else {
+      const days = Number(analyticsPeriod)
+      const begin = new Date(end)
+      begin.setDate(begin.getDate() - Math.max(0, days - 1))
+      from = begin.toISOString().slice(0, 10)
+    }
+    try {
+      analytics = await ADMIN.analytics(from, analyticsPeriod === "custom" ? analyticsTo : to)
+    } catch (e) {
+      analyticsError = e instanceof Error ? e.message : String(e)
+    } finally {
+      analyticsLoading = false
     }
   }
 
@@ -356,6 +386,7 @@
 
   USER.me().then(value => {
     me = value
+    if (value.isAdmin) void loadAnalytics()
     if (!value.isAdmin) {
       error = "当前账号没有管理员权限"
       loading = false
@@ -391,6 +422,31 @@
   </header>
 
   {#if me?.isAdmin}
+      {#if me?.isAdmin}
+        <section class="analytics-panel panel">
+          <div class="section-heading"><div><h3>游玩数据趋势</h3><span>舞萌 DX 游玩记录 · 达成率按成绩平均值计算</span></div>
+            <div class="analytics-tools">
+              <select bind:value={analyticsPeriod} on:change={loadAnalytics} aria-label="统计时间范围">
+                <option value="1">近 1 日</option><option value="7">近 7 日</option><option value="30">近 30 日</option><option value="custom">自定义</option>
+              </select>
+              {#if analyticsPeriod === "custom"}<input type="date" bind:value={analyticsFrom} /><span>至</span><input type="date" bind:value={analyticsTo} /><button class="filter-submit" on:click={loadAnalytics}>查询</button>{/if}
+            </div>
+          </div>
+          {#if analyticsError}<p class="analytics-error">{analyticsError}</p>{:else if analyticsLoading && !analytics}<p class="empty">正在读取统计数据…</p>{:else if analytics}
+            <div class="analytics-kpis">
+              <div><small>游玩人数</small><strong>{analytics.players}</strong></div><div><small>游客账户人数</small><strong>{analytics.guestPlayers}</strong></div>
+              <div><small>游玩曲目总数</small><strong>{analytics.totalPlays}</strong></div><div><small>游玩总达成率</small><strong>{analytics.achievementRate.toFixed(2)}%</strong></div>
+            </div>
+            <div class="trend-chart" role="img" aria-label="每日游玩人数和游客人数趋势">
+              {#each analytics.trend as point (point.date)}<div class="trend-day" title={`${point.date} · 游玩 ${point.plays} 次 · 玩家 ${point.players} · 游客 ${point.guestPlayers}`}>
+                <div class="trend-bars"><i style={`height:${Math.max(3, point.players / Math.max(1, ...analytics.trend.map(item => item.players)) * 100)}%`}></i><i class="guest-bar" style={`height:${Math.max(2, point.guestPlayers / Math.max(1, ...analytics.trend.map(item => item.guestPlayers)) * 100)}%`}></i></div><small>{point.date.slice(5)}</small>
+              </div>{:else}<p class="empty">所选期间暂无游玩记录</p>{/each}
+            </div>
+            <div class="analytics-legend"><span><i></i>游玩人数</span><span><i class="guest-dot"></i>游客人数</span></div>
+            <div class="table-scroll"><table><thead><tr><th>排名</th><th>曲目 ID</th><th>游玩次数</th><th>平均达成率</th></tr></thead><tbody>{#each analytics.ranking as song}<tr><td>{song.rank}</td><td>{song.musicId}</td><td>{song.plays}</td><td>{song.averageAchievement.toFixed(2)}%</td></tr>{:else}<tr><td colspan="4">暂无曲目记录</td></tr>{/each}</tbody></table></div>
+          {/if}
+        </section>
+      {/if}
     <section class="workspace">
       <aside class="sidebar panel">
         <form class="search" on:submit|preventDefault={search}>
@@ -591,6 +647,85 @@
 
 <style lang="sass">
   @use "../vars"
+
+  .analytics-panel
+    margin-bottom: 20px
+  .analytics-tools, .analytics-legend
+    display: flex
+    align-items: center
+    gap: 10px
+  .analytics-tools input, .analytics-tools select
+    min-width: 120px
+  .analytics-kpis
+    display: grid
+    grid-template-columns: repeat(4, minmax(0, 1fr))
+    gap: 12px
+    margin: 18px 0
+    div
+      border-radius: 12px
+      background: rgba(20, 160, 160, .08)
+      padding: 14px
+      display: grid
+      gap: 7px
+    small
+      color: #74858a
+    strong
+      font-size: 1.35rem
+  .trend-chart
+    height: 180px
+    display: flex
+    align-items: stretch
+    gap: 8px
+    overflow-x: auto
+    padding: 10px 0
+  .trend-day
+    min-width: 34px
+    flex: 1
+    display: flex
+    flex-direction: column
+    align-items: center
+    justify-content: end
+    gap: 8px
+    .trend-bars
+      width: 100%
+      height: 140px
+      display: flex
+      gap: 3px
+      align-items: end
+      justify-content: center
+    i
+      width: 10px
+      min-height: 2px
+      border-radius: 5px 5px 0 0
+      background: #24b9ad
+    .guest-bar
+      background: #ed6ba6
+    small
+      font-size: .7rem
+      white-space: nowrap
+  .analytics-legend
+    margin: 8px 0 16px
+    color: #74858a
+    span
+      display: flex
+      align-items: center
+      gap: 6px
+    i
+      width: 9px
+      height: 9px
+      border-radius: 50%
+      background: #24b9ad
+    .guest-dot
+      background: #ed6ba6
+  .analytics-error
+    color: #c54b58
+  @media (max-width: 760px)
+    .analytics-kpis
+      grid-template-columns: repeat(2, minmax(0, 1fr))
+    .section-heading
+      align-items: flex-start
+    .analytics-tools
+      flex-wrap: wrap
 
   .admin-page
     max-width: 1440px

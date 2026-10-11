@@ -48,7 +48,7 @@
       const me = await USER.me() as MikuNetUser;
       const accountCard = me.ghostCard?.luid ? { ...me.ghostCard, isGhost: true } : null;
       cards = Array.from(new Map([
-        ...(me.cards ?? []), ...(accountCard ? [accountCard] : []),
+        ...(accountCard ? [accountCard] : []),
       ].map(card => [card.luid, card])).values())
         .sort((a, b) => Number(b.isGhost) - Number(a.isGhost));
       selectedCardId = accountCard?.luid ?? cards.find(card => card.isGhost)?.luid ?? cards[0]?.luid ?? "";

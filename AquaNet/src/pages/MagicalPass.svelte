@@ -46,7 +46,7 @@
     USER.ensureLoggedIn()
     USER.me().then(user => {
       me = user
-      cards = [...user.cards].sort((a, b) => Number(b.isGhost) - Number(a.isGhost) || b.registerTime.localeCompare(a.registerTime))
+      cards = user.ghostCard ? [{ ...user.ghostCard, isGhost: true }] : user.cards.filter(card => card.isGhost).slice(0, 1)
       selectedCardId = cards[0]?.luid ?? ""
       if (selectedCardId) void loadStatus(selectedCardId)
     }).catch(e => {

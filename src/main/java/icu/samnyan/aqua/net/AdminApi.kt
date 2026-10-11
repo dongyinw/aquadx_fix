@@ -21,6 +21,7 @@ import icu.samnyan.aqua.sega.chusan.model.userdata.Chu3UserData
 import icu.samnyan.aqua.sega.ongeki.OngekiRepos
 import icu.samnyan.aqua.sega.ongeki.model.UserData as OngekiUserData
 import icu.samnyan.aqua.net.games.IUserData
+import jakarta.persistence.EntityManager
 import jakarta.transaction.Transactional
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
@@ -46,6 +47,7 @@ class AdminApi(
     val mai2: Mai2Repos,
     val chu3: Chu3Repos,
     val ongeki: OngekiRepos,
+    val em: EntityManager,
     val accountDeletion: AccountDeletionService,
     val userServices: AquaUserServices,
     val resetPasswordRepo: ResetPasswordRepo,
@@ -208,7 +210,7 @@ class AdminApi(
         admin(token)
         val q = query.orEmpty().trim().lowercase(Locale.ROOT)
         val (from, to) = registrationRange(regFrom, regTo)
-        return userRepo.findAll().asSequence()
+        return userRepo.findAll(Sort.by(Sort.Direction.DESC, "regTime").and(Sort.by(Sort.Direction.DESC, "auId"))).asSequence()
             .filter { u ->
                 inDateRange(u.regTime, from, to) &&
                 (q.isBlank() || listOf(
@@ -233,7 +235,7 @@ class AdminApi(
         admin(token)
         val q = query.orEmpty().trim().lowercase(Locale.ROOT)
         val (from, to) = registrationRange(regFrom, regTo)
-        return cardRepo.findAll().asSequence()
+        return cardRepo.findAll(Sort.by(Sort.Direction.DESC, "registerTime").and(Sort.by(Sort.Direction.DESC, "id"))).asSequence()
             .filter { card ->
                 val owner = card.aquaUser
                 inDateRange(card.registerTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), from, to) &&
@@ -245,6 +247,78 @@ class AdminApi(
             .take(200)
             .map { cardSummary(it, includeOwner = true) }
             .toList()
+    }
+
+    @API("/analytics")
+    fun analytics(
+        @RP token: Str,
+        @RP(required = false) from: Str? = null,
+        @RP(required = false) to: Str? = null,
+    ): Map<String, Any?> {
+        admin(token)
+        fun bound(value: String?, end: Boolean = false) = value?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            val date = try { LocalDate.parse(it) } catch (_: DateTimeParseException) { 400 - "Date must use YYYY-MM-DD" }
+            (if (end) date.plusDays(1) else date).atStartOfDay()
+        }
+        val start = bound(from) ?: LocalDate.now().minusDays(6).atStartOfDay()
+        val end = bound(to, true) ?: LocalDate.now().plusDays(1).atStartOfDay()
+        if (!start.isBefore(end)) 400 - "Start date must be before end date"
+        if (java.time.Duration.between(start, end).toDays() > 366) 400 - "Date range cannot exceed 366 days"
+
+        val summary = em.createNativeQuery("""
+            SELECT COUNT(*), COUNT(DISTINCT p.user_id),
+                   COUNT(DISTINCT CASE WHEN sc.is_ghost = 1 THEN p.user_id END),
+                   COALESCE(SUM(p.achievement), 0), COALESCE(AVG(p.achievement), 0)
+            FROM maimai2_user_playlog p
+            JOIN maimai2_user_detail md ON md.id = p.user_id
+            JOIN sega_card sc ON sc.id = md.aime_card_id
+            WHERE STR_TO_DATE(p.user_play_date, '%Y-%m-%d') >= :startDate
+              AND STR_TO_DATE(p.user_play_date, '%Y-%m-%d') < :endDate
+        """.trimIndent())
+            .setParameter("startDate", start.toLocalDate().toString())
+            .setParameter("endDate", end.toLocalDate().toString())
+            .singleResult as Array<*>
+        val trend = em.createNativeQuery("""
+            SELECT DATE_FORMAT(STR_TO_DATE(p.user_play_date, '%Y-%m-%d'), '%Y-%m-%d'),
+                   COUNT(*), COUNT(DISTINCT p.user_id),
+                   COUNT(DISTINCT CASE WHEN sc.is_ghost = 1 THEN p.user_id END),
+                   COALESCE(AVG(p.achievement), 0)
+            FROM maimai2_user_playlog p
+            JOIN maimai2_user_detail md ON md.id = p.user_id
+            JOIN sega_card sc ON sc.id = md.aime_card_id
+            WHERE STR_TO_DATE(p.user_play_date, '%Y-%m-%d') >= :startDate
+              AND STR_TO_DATE(p.user_play_date, '%Y-%m-%d') < :endDate
+            GROUP BY 1 ORDER BY 1
+        """.trimIndent())
+            .setParameter("startDate", start.toLocalDate().toString())
+            .setParameter("endDate", end.toLocalDate().toString())
+            .resultList.map { row ->
+                val values = row as Array<*>
+                mapOf("date" to values[0].toString(), "plays" to (values[1] as Number).toLong(),
+                    "players" to (values[2] as Number).toLong(), "guestPlayers" to (values[3] as Number).toLong(),
+                    "averageAchievement" to (values[4] as Number).toDouble() / 10000.0)
+            }
+        val ranking = em.createNativeQuery("""
+            SELECT music_id, COUNT(*) AS play_count, COALESCE(AVG(achievement), 0)
+            FROM maimai2_user_playlog
+            WHERE STR_TO_DATE(user_play_date, '%Y-%m-%d') >= :startDate
+              AND STR_TO_DATE(user_play_date, '%Y-%m-%d') < :endDate
+            GROUP BY music_id ORDER BY play_count DESC, music_id ASC LIMIT 20
+        """.trimIndent())
+            .setParameter("startDate", start.toLocalDate().toString())
+            .setParameter("endDate", end.toLocalDate().toString())
+            .resultList.mapIndexed { index, row ->
+                val values = row as Array<*>
+                mapOf("rank" to index + 1, "musicId" to (values[0] as Number).toInt(),
+                    "plays" to (values[1] as Number).toLong(), "averageAchievement" to (values[2] as Number).toDouble() / 10000.0)
+            }
+        val totalPlays = (summary[0] as Number).toLong()
+        return mapOf("from" to start.toLocalDate().toString(), "to" to end.minusDays(1).toLocalDate().toString(),
+            "totalPlays" to totalPlays, "players" to (summary[1] as Number).toLong(),
+            "guestPlayers" to (summary[2] as Number).toLong(),
+            "averageAchievement" to (summary[4] as Number).toDouble() / 10000.0,
+            "achievementRate" to (summary[3] as Number).toDouble() / (totalPlays.coerceAtLeast(1) * 10000.0),
+            "trend" to trend, "ranking" to ranking)
     }
 
     @API("/card")

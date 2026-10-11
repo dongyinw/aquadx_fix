@@ -231,7 +231,15 @@ export const USER = {
     post('/api/v2/user/change-region', { regionId }),
 }
 
+export interface AdminAnalytics {
+  from: string; to: string; totalPlays: number; players: number; guestPlayers: number;
+  averageAchievement: number; achievementRate: number;
+  trend: { date: string; plays: number; players: number; guestPlayers: number; averageAchievement: number }[];
+  ranking: { rank: number; musicId: number; plays: number; averageAchievement: number }[];
+}
+
 export const ADMIN = {
+  analytics: (from = "", to = ""): Promise<AdminAnalytics> => post('/api/v2/admin/analytics', { ...(from ? { from } : {}), ...(to ? { to } : {}) }),
   users: (query: string, regFrom = "", regTo = ""): Promise<AdminUserSummary[]> =>
     post('/api/v2/admin/users', { query, ...(regFrom ? { regFrom } : {}), ...(regTo ? { regTo } : {}) }),
   cards: (query: string, regFrom = "", regTo = ""): Promise<AdminCardSummary[]> =>
