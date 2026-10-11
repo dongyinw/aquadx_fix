@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import Icon from "@iconify/svelte"
+  import Icon from "../components/ui/Icon.svelte"
   import type { Card, MagicalPassEntry, MagicalPassState, MikuNetUser } from "../libs/generalTypes"
   import { USER } from "../libs/sdk"
 

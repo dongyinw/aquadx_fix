@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import Icon from "@iconify/svelte";
+  import Icon from "../components/ui/Icon.svelte";
   import { CIRCLE, USER } from "../libs/sdk";
   import type { MikuNetUser, Card } from "../libs/generalTypes";
 

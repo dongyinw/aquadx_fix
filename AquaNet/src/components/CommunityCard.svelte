@@ -1,7 +1,7 @@
 <!-- Svelte 4.2.11 -->
 
 <script lang="ts">
-  import Icon from "@iconify/svelte";
+  import Icon from "./ui/Icon.svelte";
 
   export let color: string = '179, 198, 255'
   export let icon: string

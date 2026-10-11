@@ -31,3 +31,16 @@ and finally:
 bun install
 bun run dev
 ```
+
+### Local frontend assets
+
+UI icons use `src/components/ui/Icon.svelte`, the offline Iconify component, and
+`src/libs/icons/collections.json`. The checked-in subset contains all icons used by
+the frontend; collection sources and licenses are recorded in `licenses.json`.
+New icons must also be added to this local subset instead of using the online component.
+
+Day.js 1.11.13 and its locale scripts are vendored in `public/assets/vendor/dayjs`.
+The Vite transform redirects cal-heatmap locale loading to these same-origin files
+and normalizes locale global names (for example, `zh-cn` to `zh_cn`). The local core
+script must remain before the application's module script in `index.html`.
+Both development and production builds use the local assets.

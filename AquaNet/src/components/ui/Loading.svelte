@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Icon from '@iconify/svelte';
+  import Icon from './Icon.svelte';
   import { fade } from 'svelte/transition'
 </script>
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
-  import Icon from "@iconify/svelte";
+  import Icon from "../components/ui/Icon.svelte";
   import { USER } from "../libs/sdk";
   import { t } from "../libs/i18n"
 

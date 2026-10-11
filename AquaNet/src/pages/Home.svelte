@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Icon from "@iconify/svelte";
+  import Icon from "../components/ui/Icon.svelte";
   import { CARD, GAME, USER } from "../libs/sdk.js";
   import type { CardSummary, MikuNetUser } from "../libs/generalTypes";
   import type { GameName } from "../libs/scoring";

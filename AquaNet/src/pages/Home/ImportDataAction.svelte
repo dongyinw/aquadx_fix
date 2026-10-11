@@ -4,7 +4,7 @@
   import ActionCard from "../../components/ActionCard.svelte";
   import StatusOverlays from "../../components/StatusOverlays.svelte";
   import { CARD, GAME, USER } from "../../libs/sdk";
-  import Icon from "@iconify/svelte";
+  import Icon from "../../components/ui/Icon.svelte";
 
   let load = false;
   let error = "";

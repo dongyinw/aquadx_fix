@@ -12,7 +12,7 @@
   import { FADE_IN, FADE_OUT, USERBOX_DEFAULT_URL } from "../../libs/config";
   import { fade, slide } from "svelte/transition";
   import StatusOverlays from "../StatusOverlays.svelte";
-  import Icon from "@iconify/svelte";
+  import Icon from "../ui/Icon.svelte";
   import GameSettingFields from "./GameSettingFields.svelte";
 
   import { userboxFileProcess, ddsDB, initializeDb } from "../../libs/userbox/userbox"

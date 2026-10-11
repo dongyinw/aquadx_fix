@@ -18,7 +18,7 @@
   import { CARD, DATA, GAME, USER } from "../libs/sdk";
   import { type GameName, getMult, roundFloor } from "../libs/scoring";
   import StatusOverlays from "../components/StatusOverlays.svelte";
-  import Icon from "@iconify/svelte";
+  import Icon from "../components/ui/Icon.svelte";
   import { countryCodeToEmoji, GAME_TITLE, t } from "../libs/i18n";
   import RankDetails from "../components/RankDetails.svelte";
   import RatingComposition from "../components/RatingComposition.svelte";

@@ -5,7 +5,7 @@
   import { parseComposition, type GameName } from "../libs/scoring";
   import { type MusicMeta } from "../libs/generalTypes";
   import { t } from "../libs/i18n";
-  import Icon from "@iconify/svelte";
+  import Icon from "./ui/Icon.svelte";
 
   export let title: string;
   export let comp: string | undefined;

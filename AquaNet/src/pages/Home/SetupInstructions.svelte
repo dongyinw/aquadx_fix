@@ -9,7 +9,7 @@
   import { t } from "../../libs/i18n";
   import DashboardTabs from "../../components/DashboardTabs.svelte";
   import { patchUserSegatools } from "../../libs/setup";
-  import Icon from "@iconify/svelte";
+  import Icon from "../../components/ui/Icon.svelte";
 
   let user: MikuNetUser
   let keychips: string[] = [];
@@ -156,7 +156,7 @@ ${keychipLines}`.trim(), {
             {#if !!window.showOpenFilePicker}
               <details class="setup-option"><summary><span><Icon icon="solar:magic-stick-3-bold-duotone" />{t('setup.type.automatic')}</span><Icon class="chevron" icon="line-md:chevron-small-down" /></summary><div class="option-body">{@html t('setup.automatic')}{#if automaticSetupStatus != "none"}<blockquote class={`keychip-status ${automaticSetupStatus}`}>{t(`setup.automatic.${automaticSetupStatus}`)}</blockquote>{/if}<button class="primary-action" on:click={patchSegatools}><Icon icon="solar:folder-with-files-bold-duotone" />{t('setup.automatic.select')}</button></div></details>
             {/if}
-            <details class="setup-option" open><summary><span><Icon icon="solar:terminal-2-bold-duotone" />{t('setup.type.manual')}</span><Icon class="chevron" icon="line-md:chevron-small-down" /></summary><div class="option-body">{@html t('setup.manual')}<div class="code-container"><div class="code" class:revealed={exposeKeychip}>{@html keychipCode}</div>{#if !exposeKeychip}<button class="reveal-btn" on:click={() => exposeKeychip = true}><Icon icon="solar:eye-bold-duotone" />{t('setup.reveal-keychip')}</button>{/if}</div></div></details>
+            <details class="setup-option" open><summary><span><Icon icon="solar:file-terminal-bold-duotone" />{t('setup.type.manual')}</span><Icon class="chevron" icon="line-md:chevron-small-down" /></summary><div class="option-body">{@html t('setup.manual')}<div class="code-container"><div class="code" class:revealed={exposeKeychip}>{@html keychipCode}</div>{#if !exposeKeychip}<button class="reveal-btn" on:click={() => exposeKeychip = true}><Icon icon="solar:eye-bold-duotone" />{t('setup.reveal-keychip')}</button>{/if}</div></div></details>
           {:else}<div class="empty-config"><Icon icon="solar:key-minimalistic-square-3-bold-duotone" /><strong>先添加或选择一个 Keychip</strong><span>选择凭证后，这里会生成对应的连接配置。</span></div>{/if}
         </section>
 

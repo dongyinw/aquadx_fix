@@ -2,7 +2,7 @@
   import { slide, fade } from "svelte/transition";
   import { FADE_IN, FADE_OUT, DATA_HOST } from "../../libs/config";
   import { t } from "../../libs/i18n.js";
-  import Icon from "@iconify/svelte";
+  import Icon from "../ui/Icon.svelte";
   import StatusOverlays from "../StatusOverlays.svelte";
   import { GAME, SETTING, USER } from "../../libs/sdk";
   import GameSettingFields from "./GameSettingFields.svelte";

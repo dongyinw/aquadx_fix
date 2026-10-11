@@ -21,7 +21,7 @@
   import MagicalPass from "./pages/MagicalPass.svelte";
   import Circle from "./pages/Circle.svelte";
   import Social from "./pages/Social.svelte";
-  import Icon from "@iconify/svelte";
+  import Icon from "./components/ui/Icon.svelte";
   import { initTheme, toggleTheme, type MikuNetTheme } from "./libs/theme";
 
   console.log(`%c

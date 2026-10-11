@@ -3,7 +3,7 @@
   import type { MikuNetUser } from "../../libs/generalTypes";
   import { CARD, USER } from "../../libs/sdk";
   import StatusOverlays from "../../components/StatusOverlays.svelte";
-  import Icon from "@iconify/svelte";
+  import Icon from "../ui/Icon.svelte";
   import { pfp } from "../../libs/ui";
   import { t, ts } from "../../libs/i18n";
   import Cropper from "svelte-easy-crop";

@@ -1,7 +1,7 @@
 <!-- Administrative user, card and keychip console. -->
 <script lang="ts">
   import StatusOverlays from "../components/StatusOverlays.svelte"
-  import Icon from "@iconify/svelte"
+  import Icon from "../components/ui/Icon.svelte"
   import { ADMIN, USER } from "../libs/sdk"
   import type {
     AdminCardDetail,

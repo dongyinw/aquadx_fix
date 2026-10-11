@@ -5,7 +5,7 @@
   import { GAME, SETTING, USER } from "../../libs/sdk";
   import { download } from "../../libs/ui";
   import InputField from "../ui/InputField.svelte";
-  import Icon from "@iconify/svelte";
+  import Icon from "../ui/Icon.svelte";
   import { t } from "../../libs/i18n";
   import StatusOverlays from "../StatusOverlays.svelte";
 
