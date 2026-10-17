@@ -1,19 +1,20 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { title } from "../libs/ui";
   import { GAME } from "../libs/sdk";
   import type { GenericRanking } from "../libs/generalTypes";
   import type { GameName } from "../libs/scoring";
   import { GAME_TITLE } from "../libs/i18n";
   import { t } from "../libs/i18n";
   import UserCard from "../components/UserCard.svelte";
-  import Tooltip from "../components/Tooltip.svelte";
   import Cap from "./Ranking/Cap.svelte";
   import { DEFAULT_GAME } from "../libs/config";
+  import { USER } from "../libs/sdk";
+  import PageHeader from "../components/ui/PageHeader.svelte";
+  import EmptyState from "../components/ui/EmptyState.svelte";
+  import Icon from "../components/ui/Icon.svelte";
 
   export let game: GameName = DEFAULT_GAME;
 
-  title(`Ranking`);
 
   let loadedPages: GenericRanking[][];
   let error: string | null;
@@ -33,218 +34,204 @@
       .catch((e) => error = e.message);
   })
 
-  let hoveringUser = "";
-  let hoverLoading = false;
+  // Highlight the signed-in player's row.
+  let myUsername = ""
+  if (USER.isLoggedIn()) USER.me().then(m => myUsername = m.username).catch(() => {})
+
+  const formatRating = (rating: number) => game == 'ongeki' ? (rating / 1000).toFixed(3)
+    : game === 'chu3' ? (rating / 100).toFixed(2) : rating.toLocaleString()
+
+  // Hover preview card (mouse only), shown after a short delay.
+  let hoveringUser = ""
+  let hoverPos = { x: 0, y: 0 }
+  let hoverTimer: ReturnType<typeof setTimeout>
+  const canHover = matchMedia("(hover: hover) and (pointer: fine)").matches
+
+  function hoverStart(e: PointerEvent, username: string) {
+    if (!canHover || e.pointerType !== "mouse" || !username) return
+    clearTimeout(hoverTimer)
+    const x = e.clientX, y = e.clientY
+    hoverTimer = setTimeout(() => {
+      hoverPos = { x: Math.min(x + 16, window.innerWidth - 320), y: Math.min(y + 16, window.innerHeight - 110) }
+      hoveringUser = username
+    }, 350)
+  }
+
+  function hoverEnd() {
+    clearTimeout(hoverTimer)
+    hoveringUser = ""
+  }
 </script>
 
-<main class="content leaderboard">
-  <div class="outer-title-options">
-    <h2>{t("Leaderboard.Title")}</h2>
-    <nav>
+<svelte:window on:scroll={hoverEnd} />
+
+<main class="page leaderboard">
+  <PageHeader eyebrow="Leaderboard" title={t("Leaderboard.Title")}>
+    <nav class="segmented" aria-label="游戏">
       {#each Object.entries(GAME_TITLE) as [k, v]}
-        <a href="/ranking/{k}" class:active={k === game}>{v}</a>
+        <a href="/ranking/{k}" class:active={k === game} aria-current={k === game ? "page" : undefined}>{v}</a>
       {/each}
     </nav>
-  </div>
+  </PageHeader>
 
   {#if loadedPages}
-    <div class="leaderboard-container">
-      <div class="lb-user" on:mouseenter={() => hoveringUser = ""} role="heading" aria-level="2">
-        <span class="rank">{t("Leaderboard.Rank")}</span>
-        <span class="name"></span>
-        <span class="rating">{t("Leaderboard.Rating")}</span>
-        <span class="accuracy">{t("Leaderboard.Accuracy")}</span>
-        <span class="fc">{t("Leaderboard.FC")}</span>
-        <span class="ap">{t("Leaderboard.AP")}</span>
-      </div>
-      <Cap bind:loadedPages bind:earliestPage {game} addOffset={-1} />
-      {#each loadedPages.flat() as user, i (user.rank)}
-        <div class="lb-user" class:alternate={i % 2 === 1} role="listitem"
-          on:mouseover={() => hoveringUser = user.username} on:focus={() => {}}>
-
-          <span class="rank">#{user.rank}</span>
-          <span class="name">
-            {#if user.username !== ""}
-              <a href="/u/{user.username}/{game}" class:registered={!(/user\d+/.test(user.username))}>{user.name}</a>
-            {:else}
-              <span>{user.name}</span>
-            {/if}
-          </span>
-          {#if game == 'ongeki'}
-            <span class="rating">{
-              (user.rating / 1000).toFixed(3)
-            }</span>
-          {:else}
-            <span class="rating">{
-              game === 'chu3' ?
-                (user.rating / 100).toFixed(2) :
-                user.rating.toLocaleString()
-            }</span>
-          {/if}
-          
-          <span class="accuracy">{(+user.accuracy).toFixed(2)}%</span>
-          <span class="fc">{user.fullCombo}</span>
-          <span class="ap">{user.allPerfect}</span>
+    {#if loadedPages.flat().length === 0}
+      <EmptyState icon="solar:ranking-bold-duotone" title="暂无排行数据" description="这个游戏还没有玩家上榜。" />
+    {:else}
+      <div class="card card-flush board" role="table" aria-label={t("Leaderboard.Title")}>
+        <div class="lb-row lb-head" role="row">
+          <span class="rank" role="columnheader">{t("Leaderboard.Rank")}</span>
+          <span class="name" role="columnheader">玩家</span>
+          <span class="rating" role="columnheader">{t("Leaderboard.Rating")}</span>
+          <span class="accuracy" role="columnheader">{t("Leaderboard.Accuracy")}</span>
+          <span class="fc" role="columnheader">{t("Leaderboard.FC")}</span>
+          <span class="ap" role="columnheader">{t("Leaderboard.AP")}</span>
         </div>
-      {/each}
-    <Cap bind:loadedPages bind:earliestPage {game} addOffset={1} />
-    </div>
+        <Cap bind:loadedPages bind:earliestPage {game} addOffset={-1} />
+        {#each loadedPages.flat() as user (user.rank)}
+          <div class="lb-row" role="row" class:me={!!myUsername && user.username === myUsername}>
+            <span class="rank" role="cell">
+              {#if user.rank <= 3}<span class="medal medal-{user.rank}">{user.rank}</span>{:else}<span class="num">#{user.rank}</span>{/if}
+            </span>
+            <span class="name" role="cell">
+              {#if user.username !== ""}
+                <a href="/u/{user.username}/{game}" class:registered={!(/user\d+/.test(user.username))}
+                   on:pointerenter={(e) => hoverStart(e, user.username)} on:pointerleave={hoverEnd}>{user.name}</a>
+              {:else}
+                <span>{user.name}</span>
+              {/if}
+              {#if !!myUsername && user.username === myUsername}<span class="badge primary">我</span>{/if}
+            </span>
+            <span class="rating num" role="cell">{formatRating(user.rating)}</span>
+            <span class="accuracy num" role="cell">{(+user.accuracy).toFixed(2)}%</span>
+            <span class="fc num" role="cell">{user.fullCombo}</span>
+            <span class="ap num" role="cell">{user.allPerfect}</span>
+          </div>
+        {/each}
+        <Cap bind:loadedPages bind:earliestPage {game} addOffset={1} />
+      </div>
+    {/if}
 
-    <Tooltip triggeredBy=".name" loading={hoverLoading}>
-      <UserCard username={hoveringUser} {game} setLoading={l => hoverLoading = l} />
-    </Tooltip>
+    {#if hoveringUser}
+      <div class="hover-card" style:left="{hoverPos.x}px" style:top="{hoverPos.y}px" role="tooltip">
+        <UserCard username={hoveringUser} {game} />
+      </div>
+    {/if}
+  {:else if error}
+    <div class="alert alert-danger"><Icon icon="solar:danger-triangle-bold-duotone" /><p>{error}</p></div>
   {:else}
-    <p>{error}</p>
+    <div class="card card-flush board" aria-hidden="true">
+      {#each Array(10) as _}<div class="lb-row"><span class="skeleton" style="height:18px;width:100%"></span></div>{/each}
+    </div>
   {/if}
 </main>
 
 <style lang="sass">
   @use "../vars"
 
-  .leaderboard-container
-    display: flex
-    flex-direction: column
+  .board
+    overflow: visible
 
-  .outer-title-options
-    display: flex
+  .lb-row
+    display: grid
+    grid-template-columns: 72px minmax(0, 1fr) 110px 100px 64px 64px
     align-items: center
-    justify-content: space-between
-    gap: 18px
-    margin-bottom: 22px
-    padding: 10px 12px
-    border: 1px solid rgba(255, 255, 255, 0.78)
-    border-radius: 16px
-    background: rgba(255, 255, 255, 0.52)
-    box-shadow: 0 12px 32px rgba(43, 72, 76, 0.08)
-    backdrop-filter: blur(18px)
-
-    h2
-      flex: 0 0 auto
-      margin: 0 4px
-      font-size: 1.35rem
-
-    nav
-      display: flex
-      flex: 1 1 auto
-      justify-content: flex-end
-      gap: 5px
-      min-width: 0
-
-      a
-        flex: 0 0 auto
-        padding: 8px 13px
-        border: 1px solid transparent
-        border-radius: 10px
-        color: vars.$c-sub
-        font-size: 0.82rem
-        font-weight: 700
-        white-space: nowrap
-
-        &:hover
-          color: vars.$c-main
-          background: rgba(7, 143, 136, 0.08)
-
-        &.active
-          color: vars.$c-main
-          border-color: rgba(7, 143, 136, 0.18)
-          background: vars.$c-main-soft
-          box-shadow: 0 5px 14px rgba(7, 143, 136, 0.12)
-
-    :global(:root[data-theme="dark"]) &
-      border-color: rgba(214, 250, 245, 0.14)
-      background: rgba(21, 36, 38, 0.76)
-      box-shadow: 0 16px 42px rgba(0, 0, 0, 0.18)
-
-      nav a
-        color: #b5e3de
-
-        &:hover
-          color: #e6f3f1
-          background: rgba(86, 211, 198, 0.12)
-
-        &.active
-          color: #e6f3f1
-          border-color: rgba(86, 211, 198, 0.26)
-          background: rgba(7, 143, 136, 0.32)
-
-    @media (max-width: vars.$w-mobile)
-      align-items: stretch
-      flex-direction: column
-      gap: 8px
-      padding: 12px
-
-      nav
-        justify-content: flex-start
-        overflow-x: auto
-        padding-bottom: 2px
-
-        &::-webkit-scrollbar
-          display: none
-
-        scrollbar-width: none
-
-  .lb-user
-    display: flex
-    align-items: center
-    justify-content: space-between
-    width: 100%
     gap: 12px
-    border-radius: vars.$border-radius
-    padding: 6px 12px
-    box-sizing: border-box
+    min-height: 52px
+    padding: 6px 20px
+    border-bottom: 1px solid var(--border)
 
-    > *:not(.name)
-      text-align: center
+    &:last-of-type
+      border-bottom: 0
 
-    .name
-      min-width: 100px
-      flex: 1
+    &:not(.lb-head):hover
+      background: var(--surface-hover)
 
-      > a
-        color: unset
+    &.me
+      background: var(--primary-soft)
+      box-shadow: inset 3px 0 0 var(--primary)
 
-      .registered
-        background: vars.$grad-special
-        color: transparent
-        -webkit-background-clip: text
-        background-clip: text
+    > :not(.name)
+      text-align: right
 
-    .accuracy, .rating
-      width: 15%
-      min-width: 45px
+    .rank
+      text-align: left
 
-    .rating
-      font-weight: bold
-      color: vars.$c-darker
-      font-variant-numeric: tabular-nums
+  .lb-head
+    position: sticky
+    top: var(--nav-height)
+    z-index: 2
+    min-height: 42px
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0
+    color: var(--text-2)
+    background: var(--surface-2)
+    font-size: 0.78rem
+    font-weight: 600
+
+  .medal
+    display: inline-grid
+    place-items: center
+    width: 28px
+    height: 28px
+    border-radius: 50%
+    color: #fff
+    font-size: 0.82rem
+    font-weight: 700
+
+    &.medal-1
+      background: linear-gradient(135deg, #f5c542, #d99a0b)
+    &.medal-2
+      background: linear-gradient(135deg, #c3ccd4, #8d99a5)
+    &.medal-3
+      background: linear-gradient(135deg, #e3a06d, #b86a32)
+
+  .name
+    display: flex
+    align-items: center
+    gap: 8px
+    min-width: 0
+
+    a, > span:first-child
+      overflow: hidden
+      color: var(--text)
+      font-weight: 600
+      text-overflow: ellipsis
       white-space: nowrap
-      flex-shrink: 0
 
-      :global(:root[data-theme="dark"]) &
-        color: #66d8cb
+    .registered
+      background: vars.$grad-special
+      -webkit-background-clip: text
+      background-clip: text
+      color: transparent
 
-    .fc, .ap
-      width: 5%
-      min-width: 20px
+  .rating
+    color: var(--primary)
+    font-weight: 700
 
-    @media (max-width: vars.$w-mobile)
+  .accuracy, .fc, .ap
+    color: var(--text-2)
+    font-size: 0.88rem
+
+  .hover-card
+    position: fixed
+    z-index: 110
+    padding: 12px 14px
+    border: 1px solid var(--border)
+    border-radius: var(--radius)
+    background: var(--surface)
+    box-shadow: var(--shadow-lg)
+    pointer-events: none
+
+  @media (max-width: vars.$w-mobile)
+    .lb-row
+      grid-template-columns: 44px minmax(0, 1fr) 84px 40px 40px
+      gap: 8px
+      padding: 6px 12px
       font-size: 0.9rem
 
-      .accuracy
-        display: none
-      .modern-rating
-        display: none
-      .legacy-rating
-        /* this is officially the worst css i've ever written dear god */
-        white-space: nowrap
-        overflow: hidden
-        text-overflow: clip
-        min-width: 3.5em !important
+    .accuracy
+      display: none
 
-    &.alternate
-      background-color: vars.$ov-light
-
-      :global(:root[data-theme="dark"]) &
-        background-color: rgba(255, 255, 255, 0.12)
-
+    .lb-head
+      top: var(--nav-height)
 </style>

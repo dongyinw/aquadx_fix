@@ -1,41 +1,65 @@
 <script lang="ts">
-  import { fade } from "svelte/transition";
-  import { t } from "../../libs/i18n";
+  import Dialog from "./Dialog.svelte"
+  import Icon from "./Icon.svelte"
+  import { t } from "../../libs/i18n"
+  import { createEventDispatcher } from "svelte"
 
-  export let error: string;
+  export let error: unknown
+
+  const dispatch = createEventDispatcher<{ close: void }>()
+  let dismissed = false
+  let last: unknown
+  $: if (error !== last) { last = error; dismissed = false }
+  $: message = error instanceof Error ? error.message : String(error ?? "")
+
+  function close() {
+    dismissed = true
+    dispatch("close")
+  }
 </script>
 
-<div class="overlay" transition:fade>
-  <div>
-    <h2 class="error">{t('status.error')}</h2>
-    <span class="detail">{error}</span>
-    <div class="actions">
-      <button on:click={() => location.reload()} class="error">
-        {t('action.refresh')}
-      </button>
-      <button on:click={() => location.href = "/home"} class="error">
-        {t('action.home')}
-      </button>
+{#if !dismissed}
+  <Dialog size="sm" showClose={false} on:close={close}>
+    <div class="error-body">
+      <span class="error-icon"><Icon icon="solar:danger-triangle-bold-duotone" /></span>
+      <h2>{t("status.error")}</h2>
+      <p>{message}</p>
     </div>
-  </div>
-</div>
+    <svelte:fragment slot="footer">
+      <button type="button" class="btn-ghost" on:click={close}>{t("action.close")}</button>
+      <a class="btn" href="/home">{t("action.home")}</a>
+      <button type="button" class="btn-primary" data-autofocus on:click={() => location.reload()}>
+        <Icon icon="solar:refresh-bold" />{t("action.refresh")}
+      </button>
+    </svelte:fragment>
+  </Dialog>
+{/if}
 
 <style lang="sass">
-  .actions
-    display: flex
-    gap: 0.5em
+  .error-body
+    display: grid
+    justify-items: center
+    gap: 6px
+    padding-top: 8px
+    text-align: center
 
-    button
-      width: 100%
+    h2
+      margin: 4px 0 0
+      font-size: 1.1rem
 
-  .detail
-    white-space: pre-line
-    line-height: 1.2
+    p
+      margin: 0
+      color: var(--text-2)
+      white-space: pre-line
+      overflow-wrap: anywhere
 
-  .hint
-    font-size: 0.875em
-
-  .overlay > div
-    min-width: 15rem
-    max-width: 25rem
+  .error-icon
+    display: grid
+    place-items: center
+    width: 52px
+    height: 52px
+    border-radius: 50%
+    color: var(--danger)
+    background: var(--danger-soft)
+    font-size: 1.7rem
 </style>

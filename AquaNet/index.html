@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>MikuNet</title>
 
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png?v=mikunet-20261010">
@@ -13,7 +13,18 @@
     <link rel="shortcut icon" href="/assets/icons/favicon.ico?v=mikunet-20261010">
     <meta name="msapplication-TileColor" content="#ffffff">
     <meta name="msapplication-config" content="/assets/icons/browserconfig.xml?v=mikunet-20261010">
-    <meta name="theme-color" content="#ffffff">
+    <meta name="theme-color" content="#f5f8f8">
+    <meta name="color-scheme" content="light dark">
+    <script>
+      // Apply the saved theme before first paint to avoid a light/dark flash.
+      (function () {
+        try {
+          var pref = localStorage.getItem("mikunet-theme") || "system";
+          var dark = pref === "dark" || (pref === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+        } catch (e) {}
+      })();
+    </script>
 
     <script src="/assets/vendor/dayjs/dayjs.min.js"></script>
 

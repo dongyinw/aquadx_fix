@@ -2,6 +2,11 @@
 <script lang="ts">
   import StatusOverlays from "../components/StatusOverlays.svelte"
   import Icon from "../components/ui/Icon.svelte"
+  import PageHeader from "../components/ui/PageHeader.svelte"
+  import EmptyState from "../components/ui/EmptyState.svelte"
+  import Spinner from "../components/ui/Spinner.svelte"
+  import { confirmDialog } from "../libs/confirm"
+  import { toast } from "../libs/toast"
   import { ADMIN, USER } from "../libs/sdk"
   import type { AdminAnalytics } from "../libs/sdk"
   import type {
@@ -65,9 +70,11 @@
   }
 
   const fail = (e: unknown) => {
-    error = e instanceof Error ? e.message : String(e)
+    toast.error(e instanceof Error ? e.message : String(e))
     notice = ""
   }
+  // Mirror success notices into toasts.
+  $: if (notice) { toast.success(notice); notice = "" }
 
   const isSelf = (user: AdminUserDetail["user"]) => user.username.toLowerCase() === me?.username.toLowerCase()
 
@@ -343,7 +350,7 @@
   }
 
   async function deleteKeychip(keychipId: string) {
-    if (!userDetail || !confirm(`确定删除 keychip ${keychipId} 吗？`)) return
+    if (!userDetail || !await confirmDialog({ title: "删除 keychip", message: `确定删除 keychip ${keychipId} 吗？`, confirmText: "删除", danger: true })) return
     try {
       await ADMIN.deleteKeychip(keychipId)
       await openUser(selectedUser!)
@@ -354,7 +361,7 @@
   }
 
   async function deleteUser() {
-    if (!userDetail || !confirm(`确定永久删除用户 ${userDetail.user.computedName} 及其游戏数据吗？`)) return
+    if (!userDetail || !await confirmDialog({ title: "删除用户", message: `确定永久删除用户 ${userDetail.user.computedName} 及其游戏数据吗？此操作无法撤销。`, confirmText: "永久删除", danger: true })) return
     try {
       await ADMIN.deleteUser(userDetail.user.auId)
       selectedUser = null
@@ -367,7 +374,7 @@
   }
 
   async function deleteCard() {
-    if (!cardDetail || cardDetail.card.isGhost || !confirm(`确定删除卡片 ${cardDetail.card.luid} 吗？`)) return
+    if (!cardDetail || cardDetail.card.isGhost || !await confirmDialog({ title: "删除卡片", message: `确定删除卡片 ${cardDetail.card.luid} 吗？`, confirmText: "删除", danger: true })) return
     try {
       await ADMIN.deleteCard(cardDetail.card.id)
       selectedCard = null
@@ -394,140 +401,170 @@
     }
     search()
   }).catch(e => {
-    fail(e)
+    error = e instanceof Error ? e.message : String(e)
     loading = false
   })
+
+  $: trendMaxPlayers = analytics ? Math.max(1, ...analytics.trend.map(item => item.players)) : 1
+  $: trendMaxGuests = analytics ? Math.max(1, ...analytics.trend.map(item => item.guestPlayers)) : 1
 </script>
 
-<main class="content admin-page">
-  <header class="page-header">
-    <div>
-      <span class="eyebrow">MIKUNET CONSOLE</span>
-      <h1>用户管理</h1>
-      <p>账号、卡片与连接权限</p>
+<main class="page page-wide admin-page">
+  <PageHeader eyebrow="Console" title="用户管理" description="账号、卡片与连接权限">
+    <div class="segmented" role="tablist" aria-label="管理视图">
+      <button type="button" role="tab" aria-selected={view === "users"} on:click={() => switchView("users")}><Icon icon="solar:user-id-bold-duotone" />用户</button>
+      <button type="button" role="tab" aria-selected={view === "cards"} on:click={() => switchView("cards")}><Icon icon="solar:card-bold-duotone" />卡片</button>
     </div>
-    <div class="header-actions">
-      <div class="view-switch" role="tablist" aria-label="管理视图">
-        <button class:active={view === "users"} on:click={() => switchView("users")}>
-          <Icon icon="solar:user-id-bold-duotone" /> 用户
-        </button>
-        <button class:active={view === "cards"} on:click={() => switchView("cards")}>
-          <Icon icon="solar:card-bold-duotone" /> 卡片
-        </button>
-      </div>
-      <button class="icon" title="刷新列表" aria-label="刷新列表" on:click={search}>
-        <Icon icon="line-md:rotate-270" />
-      </button>
-    </div>
-  </header>
+    <button class="btn-icon" type="button" title="刷新列表" aria-label="刷新列表" on:click={search} disabled={loading}>
+      {#if loading}<Spinner />{:else}<Icon icon="solar:refresh-bold" />{/if}
+    </button>
+  </PageHeader>
+
+  {#if error && !me?.isAdmin}
+    <EmptyState icon="solar:lock-keyhole-minimalistic-bold-duotone" title={error}>
+      <a class="btn" href="/home">返回首页</a>
+    </EmptyState>
+  {/if}
 
   {#if me?.isAdmin}
-      {#if me?.isAdmin}
-        <section class="analytics-panel panel">
-          <div class="section-heading"><div><h3>游玩数据趋势</h3><span>舞萌 DX 游玩记录 · 达成率按成绩平均值计算</span></div>
-            <div class="analytics-tools">
-              <select bind:value={analyticsPeriod} on:change={loadAnalytics} aria-label="统计时间范围">
-                <option value="1">近 1 日</option><option value="7">近 7 日</option><option value="30">近 30 日</option><option value="custom">自定义</option>
-              </select>
-              {#if analyticsPeriod === "custom"}<input type="date" bind:value={analyticsFrom} /><span>至</span><input type="date" bind:value={analyticsTo} /><button class="filter-submit" on:click={loadAnalytics}>查询</button>{/if}
+    <section class="card analytics">
+      <div class="card-header">
+        <div><h2>游玩数据趋势</h2><p>舞萌 DX 游玩记录 · 达成率按成绩平均值计算</p></div>
+        <div class="analytics-tools">
+          <select bind:value={analyticsPeriod} on:change={loadAnalytics} aria-label="统计时间范围">
+            <option value="1">近 1 日</option><option value="7">近 7 日</option><option value="30">近 30 日</option><option value="custom">自定义</option>
+          </select>
+          {#if analyticsPeriod === "custom"}
+            <input type="date" bind:value={analyticsFrom} aria-label="开始日期" /><span class="subtle">至</span><input type="date" bind:value={analyticsTo} aria-label="结束日期" />
+            <button class="btn-primary" type="button" on:click={loadAnalytics}>查询</button>
+          {/if}
+        </div>
+      </div>
+      {#if analyticsError}
+        <div class="alert alert-danger"><Icon icon="solar:danger-triangle-bold-duotone" /><p>{analyticsError}</p></div>
+      {:else if analyticsLoading && !analytics}
+        <div class="kpis">{#each [1, 2, 3, 4] as _}<span class="skeleton" style="height:76px;border-radius:12px"></span>{/each}</div>
+      {:else if analytics}
+        <div class="kpis">
+          <div><small>游玩人数</small><strong class="num">{analytics.players}</strong></div>
+          <div><small>游客账户人数</small><strong class="num">{analytics.guestPlayers}</strong></div>
+          <div><small>游玩曲目总数</small><strong class="num">{analytics.totalPlays}</strong></div>
+          <div><small>游玩总达成率</small><strong class="num">{analytics.achievementRate.toFixed(2)}%</strong></div>
+        </div>
+        <div class="trend-chart" role="img" aria-label="每日游玩人数和游客人数趋势">
+          {#each analytics.trend as point (point.date)}
+            <div class="trend-day" title={`${point.date} · 游玩 ${point.plays} 次 · 玩家 ${point.players} · 游客 ${point.guestPlayers}`}>
+              <div class="trend-bars">
+                <i style={`height:${Math.max(3, point.players / trendMaxPlayers * 100)}%`}></i>
+                <i class="guest-bar" style={`height:${Math.max(2, point.guestPlayers / trendMaxGuests * 100)}%`}></i>
+              </div>
+              <small class="num">{point.date.slice(5)}</small>
+            </div>
+          {:else}
+            <p class="subtle">所选期间暂无游玩记录</p>
+          {/each}
+        </div>
+        <div class="legend"><span><i></i>游玩人数</span><span><i class="guest-dot"></i>游客人数</span></div>
+        <details class="ranking-details">
+          <summary>热门曲目排行（{analytics.ranking.length}）<Icon icon="line-md:chevron-small-down" /></summary>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>排名</th><th>曲目 ID</th><th class="num">游玩次数</th><th class="num">平均达成率</th></tr></thead>
+              <tbody>
+                {#each analytics.ranking as song}
+                  <tr><td>{song.rank}</td><td class="mono">{song.musicId}</td><td class="num">{song.plays}</td><td class="num">{song.averageAchievement.toFixed(2)}%</td></tr>
+                {:else}
+                  <tr><td colspan="4" class="subtle">暂无曲目记录</td></tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      {/if}
+    </section>
+
+    <section class="workspace">
+      <aside class="card sidebar">
+        <form class="search" on:submit|preventDefault={search} role="search">
+          <Icon icon="solar:magnifer-bold-duotone" />
+          <input type="search" bind:value={query} placeholder={view === "users" ? "用户名、邮箱或 AU ID" : "卡号、LUID 或用户名"} aria-label="搜索" />
+          <button class="btn-primary btn-sm" type="submit">搜索</button>
+        </form>
+        <details class="filters" open={!!(regFrom || regTo)}>
+          <summary><Icon icon="solar:filter-bold-duotone" />按注册时间筛选{#if regFrom || regTo}<span class="badge primary">已启用</span>{/if}</summary>
+          <div class="date-filters">
+            <label class="field"><span class="field-label">从</span><input type="date" bind:value={regFrom} /></label>
+            <label class="field"><span class="field-label">到</span><input type="date" bind:value={regTo} /></label>
+            <div class="filter-actions">
+              <button class="btn-sm" type="button" on:click={searchAllTime}>全部时间</button>
+              <button class="btn-soft btn-sm" type="button" on:click={search}>应用筛选</button>
             </div>
           </div>
-          {#if analyticsError}<p class="analytics-error">{analyticsError}</p>{:else if analyticsLoading && !analytics}<p class="empty">正在读取统计数据…</p>{:else if analytics}
-            <div class="analytics-kpis">
-              <div><small>游玩人数</small><strong>{analytics.players}</strong></div><div><small>游客账户人数</small><strong>{analytics.guestPlayers}</strong></div>
-              <div><small>游玩曲目总数</small><strong>{analytics.totalPlays}</strong></div><div><small>游玩总达成率</small><strong>{analytics.achievementRate.toFixed(2)}%</strong></div>
-            </div>
-            <div class="trend-chart" role="img" aria-label="每日游玩人数和游客人数趋势">
-              {#each analytics.trend as point (point.date)}<div class="trend-day" title={`${point.date} · 游玩 ${point.plays} 次 · 玩家 ${point.players} · 游客 ${point.guestPlayers}`}>
-                <div class="trend-bars"><i style={`height:${Math.max(3, point.players / Math.max(1, ...analytics.trend.map(item => item.players)) * 100)}%`}></i><i class="guest-bar" style={`height:${Math.max(2, point.guestPlayers / Math.max(1, ...analytics.trend.map(item => item.guestPlayers)) * 100)}%`}></i></div><small>{point.date.slice(5)}</small>
-              </div>{:else}<p class="empty">所选期间暂无游玩记录</p>{/each}
-            </div>
-            <div class="analytics-legend"><span><i></i>游玩人数</span><span><i class="guest-dot"></i>游客人数</span></div>
-            <div class="table-scroll"><table><thead><tr><th>排名</th><th>曲目 ID</th><th>游玩次数</th><th>平均达成率</th></tr></thead><tbody>{#each analytics.ranking as song}<tr><td>{song.rank}</td><td>{song.musicId}</td><td>{song.plays}</td><td>{song.averageAchievement.toFixed(2)}%</td></tr>{:else}<tr><td colspan="4">暂无曲目记录</td></tr>{/each}</tbody></table></div>
-          {/if}
-        </section>
-      {/if}
-    <section class="workspace">
-      <aside class="sidebar panel">
-        <form class="search" on:submit|preventDefault={search}>
-          <Icon icon="line-md:search" />
-          <input bind:value={query} placeholder={view === "users" ? "输入部分用户名、邮箱或 AU ID" : "输入部分卡号、LUID 或用户名"} aria-label="搜索" />
-          {#if query}<button class="clear" type="button" title="清除搜索" aria-label="清除搜索" on:click={() => { query = ""; search() }}><Icon icon="line-md:close" /></button>{/if}
-          <button class="search-submit" type="submit">搜索</button>
-        </form>
-        <div class="date-filters">
-          <label>注册时间从<input type="date" bind:value={regFrom} /></label>
-          <label>到<input type="date" bind:value={regTo} /></label>
-          <button class="filter-submit" type="button" on:click={search}><Icon icon="solar:filter-bold-duotone" />筛选</button>
-        </div>
-        <div class="search-hint"><span>支持模糊搜索；日期留空查询全部时间</span><button type="button" on:click={searchAllTime}>全部时间</button></div>
-        <div class="list-meta"><span>{view === "users" ? "Net 用户" : "卡片账户"}</span><strong>{view === "users" ? users.length : cards.length}</strong></div>
+        </details>
+        <div class="list-meta"><span>{view === "users" ? "Net 用户" : "卡片账户"}</span><span class="badge">{view === "users" ? users.length : cards.length}</span></div>
 
-        {#if view === "users"}
-          <div class="result-list">
+        <div class="result-list">
+          {#if view === "users"}
             {#each users as user (user.auId)}
-              <button class="result-row" class:selected={selectedUser?.auId === user.auId} on:click={() => openUser(user)}>
+              <button class="result-row" class:selected={selectedUser?.auId === user.auId} type="button" on:click={() => openUser(user)}>
                 <span class="result-icon"><Icon icon="solar:user-circle-bold-duotone" /></span>
                 <span class="result-copy">
-                  <strong>{user.displayName || user.username}</strong>
-                  <small>#{user.auId} · {user.username}</small>
-                  <small>{user.email}</small>
-                  <small>注册 {formatTime(user.regTime)}</small>
+                  <strong class="truncate">{user.displayName || user.username}{#if user.isAdmin}<span class="badge primary admin-badge">ADMIN</span>{/if}</strong>
+                  <small class="truncate">#{user.auId} · {user.username}</small>
+                  <small class="truncate">{user.email}</small>
+                  <small class="truncate">注册 {formatTime(user.regTime)}</small>
                 </span>
-                {#if user.isAdmin}<span class="status-dot admin-dot" title="管理员"></span>{/if}
               </button>
             {:else}
-              <div class="empty">没有匹配的用户</div>
+              <EmptyState compact icon="solar:user-id-bold-duotone" title={loading ? "正在搜索…" : "没有匹配的用户"} />
             {/each}
-          </div>
-        {:else}
-          <div class="result-list">
+          {:else}
             {#each cards as card (card.id)}
-              <button class="result-row" class:selected={selectedCard?.id === card.id} on:click={() => openCard(card)}>
+              <button class="result-row" class:selected={selectedCard?.id === card.id} type="button" on:click={() => openCard(card)}>
                 <span class="result-icon card-icon"><Icon icon="solar:card-bold-duotone" /></span>
                 <span class="result-copy">
-                  <strong>{card.luid}</strong>
-                  <small>卡片 #{card.id} · ext {card.extId}</small>
-                  <small>{card.owner?.displayName || card.owner?.username || "未绑定用户"}</small>
-                  <small>注册 {formatTime(card.registerTime)}</small>
+                  <strong class="truncate mono">{card.luid}</strong>
+                  <small class="truncate">卡片 #{card.id} · ext {card.extId}</small>
+                  <small class="truncate">{card.owner?.displayName || card.owner?.username || "未绑定用户"}</small>
+                  <small class="truncate">注册 {formatTime(card.registerTime)}</small>
                 </span>
-                <span class:danger={card.status === "DELETED"} class="mini-status">{card.status === "NORMAL" ? gameBanLabel(card.mai2) : card.status}</span>
+                <span class="badge" class:danger={card.status === "DELETED" || card.mai2?.banState === 2} class:success={card.status === "NORMAL" && card.mai2?.banState === 0}>{card.status === "NORMAL" ? gameBanLabel(card.mai2) : card.status}</span>
               </button>
             {:else}
-              <div class="empty">没有匹配的卡片</div>
+              <EmptyState compact icon="solar:card-bold-duotone" title={loading ? "正在搜索…" : "没有匹配的卡片"} />
             {/each}
-          </div>
-        {/if}
+          {/if}
+        </div>
       </aside>
 
       <section class="details">
         {#if view === "users" && userDetail}
-          <div class="detail-title">
-            <div>
+          <div class="card detail-head">
+            <div class="detail-title">
               <span class="eyebrow">AU ID {userDetail.user.auId}</span>
-              <h2>{userDetail.user.computedName}</h2>
-              <span class="muted">{userDetail.user.email} · @{userDetail.user.username}</span>
-            </div>
-            <div class="title-actions">
-              <div class="flags">
-                {#if userDetail.user.isAdmin}<span class="tag accent">ADMIN</span>{/if}
-                {#if userDetail.mai2}<span class="tag">MAI2</span>{/if}
+              <h2 class="truncate">{userDetail.user.computedName}</h2>
+              <span class="muted truncate">{userDetail.user.email} · @{userDetail.user.username}</span>
+              <div class="row tags">
+                {#if userDetail.user.isAdmin}<span class="badge primary">ADMIN</span>{/if}
+                {#if userDetail.mai2}<span class="badge">MAI2</span>{/if}
+                {#if userDetail.chu3}<span class="badge">CHU3</span>{/if}
+                {#if userDetail.ongeki}<span class="badge">ONGEKI</span>{/if}
               </div>
-              <button class="icon danger" title="删除用户" aria-label="删除用户" on:click={deleteUser}><Icon icon="tabler:trash-x-filled" /></button>
             </div>
+            <button class="btn-danger" type="button" on:click={deleteUser}><Icon icon="solar:trash-bin-trash-bold-duotone" />删除用户</button>
           </div>
 
-          <section class="stat-strip">
-            <div><small>注册时间</small><strong>{formatTime(userDetail.user.regTime)}</strong></div>
-            <div><small>最近登录</small><strong>{formatTime(userDetail.user.lastLogin)}</strong></div>
-            <div><small>卡片</small><strong>{userDetail.cards.length}</strong></div>
-            <div><small>Keychip</small><strong>{userDetail.keychips.length}</strong></div>
-          </section>
+          <dl class="stat-strip">
+            <div><dt>注册时间</dt><dd>{formatTime(userDetail.user.regTime)}</dd></div>
+            <div><dt>最近登录</dt><dd>{formatTime(userDetail.user.lastLogin)}</dd></div>
+            <div><dt>卡片</dt><dd class="num">{userDetail.cards.length}</dd></div>
+            <div><dt>Keychip</dt><dd class="num">{userDetail.keychips.length}</dd></div>
+          </dl>
 
-          <section class="panel">
-            <div class="section-heading"><h3>账号设置</h3><span>资料与权限</span></div>
-            <div class="form-grid">
-              <label>修改字段
+          <section class="card">
+            <div class="card-header"><div><h3>账号设置</h3><p>资料与权限</p></div></div>
+            <form class="form-grid" on:submit|preventDefault={saveProfile}>
+              <label class="field"><span class="field-label">修改字段</span>
                 <select bind:value={profileField} on:change={syncProfileValue}>
                   <option value="displayName">显示名称</option>
                   <option value="profileLocation">所在地</option>
@@ -536,366 +573,392 @@
                   <option value="region">区域代码</option>
                 </select>
               </label>
-              <label>字段值<input bind:value={profileValue} /></label>
-              <button on:click={saveProfile}><Icon icon="solar:check-circle-bold" />保存资料</button>
-            </div>
-            <div class="toggle-grid">
-              <label><input type="checkbox" checked={userDetail.user.emailConfirmed} on:change={(e) => setBoolean("emailConfirmed", e)} /> 邮箱已验证</label>
-              <label><input type="checkbox" checked={userDetail.user.canModifyKeychips} on:change={(e) => setBoolean("canModifyKeychips", e)} /> 允许用户管理 keychip</label>
-              <label title={isSelf(userDetail.user) ? "不能取消当前登录账号的管理员权限" : "管理员权限"}><input type="checkbox" checked={userDetail.user.isAdmin} disabled={isSelf(userDetail.user)} on:change={(e) => setBoolean("isAdmin", e)} /> 管理员权限{#if isSelf(userDetail.user)}<small class="self-admin-lock">当前账号</small>{/if}</label>
+              <label class="field"><span class="field-label">字段值</span><input bind:value={profileValue} /></label>
+              <button class="btn-primary" type="submit"><Icon icon="solar:check-circle-bold" />保存资料</button>
+            </form>
+            <div class="setting-group toggles">
+              <div class="setting-row">
+                <label class="setting-text" for="adm-email"><span class="name">邮箱已验证</span></label>
+                <input id="adm-email" type="checkbox" class="switch" checked={userDetail.user.emailConfirmed} on:change={(e) => setBoolean("emailConfirmed", e)} />
+              </div>
+              <div class="setting-row">
+                <label class="setting-text" for="adm-keychip"><span class="name">允许用户管理 keychip</span></label>
+                <input id="adm-keychip" type="checkbox" class="switch" checked={userDetail.user.canModifyKeychips} on:change={(e) => setBoolean("canModifyKeychips", e)} />
+              </div>
+              <div class="setting-row">
+                <label class="setting-text" for="adm-admin">
+                  <span class="name">管理员权限</span>
+                  {#if isSelf(userDetail.user)}<span class="desc">不能取消当前登录账号的管理员权限</span>{/if}
+                </label>
+                <input id="adm-admin" type="checkbox" class="switch" checked={userDetail.user.isAdmin} disabled={isSelf(userDetail.user)} on:change={(e) => setBoolean("isAdmin", e)} />
+              </div>
             </div>
           </section>
 
-          <section class="panel">
-            <div class="section-heading"><h3>重置用户密码</h3><span>重置后该用户需要重新登录</span></div>
+          <section class="card">
+            <div class="card-header"><div><h3>重置用户密码</h3><p>重置后该用户需要重新登录</p></div></div>
             <form class="form-grid" on:submit|preventDefault={resetUserPassword}>
-              <label>新密码<input type="password" bind:value={newPassword} autocomplete="new-password" minlength="8" required disabled={passwordResetting} placeholder="至少 8 个字符" /></label>
-              <label>确认新密码<input type="password" bind:value={confirmPassword} autocomplete="new-password" minlength="8" required disabled={passwordResetting} /></label>
-              <button type="submit" disabled={passwordResetting}><Icon icon="solar:lock-password-bold-duotone" />{passwordResetting ? "正在重置…" : "重置密码"}</button>
+              <label class="field"><span class="field-label">新密码</span><input type="password" bind:value={newPassword} autocomplete="new-password" minlength="8" required disabled={passwordResetting} placeholder="至少 8 个字符" /></label>
+              <label class="field"><span class="field-label">确认新密码</span><input type="password" bind:value={confirmPassword} autocomplete="new-password" minlength="8" required disabled={passwordResetting} aria-invalid={!!confirmPassword && confirmPassword !== newPassword} /></label>
+              <button class="btn-primary" type="submit" disabled={passwordResetting}>{#if passwordResetting}<Spinner />{:else}<Icon icon="solar:lock-password-bold-duotone" />{/if}{passwordResetting ? "正在重置…" : "重置密码"}</button>
             </form>
           </section>
 
-          <section class="panel game-profile-panel">
-            <div class="section-heading"><div><h3>游戏档案管理</h3><span>支持舞萌、中二和音击</span></div><div class="game-switcher">{#each Object.keys(gameLabels) as game}<button class:active={selectedGame === game} disabled={!gameProfile(game as ManagedGame)} on:click={() => changeGame(game as ManagedGame)}>{gameLabels[game as ManagedGame]}</button>{/each}</div></div>
+          <section class="card">
+            <div class="card-header">
+              <div><h3>游戏档案管理</h3><p>支持舞萌、中二和音击</p></div>
+              <div class="segmented">
+                {#each Object.keys(gameLabels) as game}
+                  <button type="button" class:active={selectedGame === game} disabled={!gameProfile(game as ManagedGame)} on:click={() => changeGame(game as ManagedGame)}>{gameLabels[game as ManagedGame]}</button>
+                {/each}
+              </div>
+            </div>
             {#if gameProfile(selectedGame)}
               {@const currentProfile = gameProfile(selectedGame)}
-              <div class="form-grid">
-                <label>修改字段<select bind:value={gameField} on:change={syncGameProfileValue}>{#each gameFields[selectedGame] as field}<option value={field}>{field === "userName" ? "游戏名称" : field === "banState" ? "banState" : field}</option>{/each}</select></label>
-                <label>字段值{#if gameField === "banState"}<select bind:value={gameValue}><option value="0">0 · 正常</option><option value="1">1 · 限制</option><option value="2">2 · 封禁</option></select>{:else}<input bind:value={gameValue} />{/if}</label>
-                <button on:click={saveMaiProfile}><Icon icon="solar:check-circle-bold" />保存档案</button>
-              </div>
-              <div class="stats"><span>Rating {currentProfile?.playerRating ?? 0}</span><span>最高 {currentProfile?.highestRating ?? 0}</span><span>游玩 {currentProfile?.playCount ?? 0} 次</span><span>最近机台 {currentProfile?.lastClientId || "暂无"}</span></div>
-            {:else}<p class="empty">该用户还没有 {gameLabels[selectedGame]} 用户资料。</p>{/if}
+              <form class="form-grid" on:submit|preventDefault={saveMaiProfile}>
+                <label class="field"><span class="field-label">修改字段</span><select bind:value={gameField} on:change={syncGameProfileValue}>{#each gameFields[selectedGame] as field}<option value={field}>{field === "userName" ? "游戏名称" : field === "banState" ? "banState" : field}</option>{/each}</select></label>
+                <label class="field"><span class="field-label">字段值</span>{#if gameField === "banState"}<select bind:value={gameValue}><option value="0">0 · 正常</option><option value="1">1 · 限制</option><option value="2">2 · 封禁</option></select>{:else}<input bind:value={gameValue} />{/if}</label>
+                <button class="btn-primary" type="submit"><Icon icon="solar:check-circle-bold" />保存档案</button>
+              </form>
+              <div class="stats"><span class="badge">Rating {currentProfile?.playerRating ?? 0}</span><span class="badge">最高 {currentProfile?.highestRating ?? 0}</span><span class="badge">游玩 {currentProfile?.playCount ?? 0} 次</span><span class="badge">最近机台 {currentProfile?.lastClientId || "暂无"}</span></div>
+            {:else}
+              <p class="subtle">该用户还没有 {gameLabels[selectedGame]} 用户资料。</p>
+            {/if}
           </section>
 
-          <section class="panel">
-            <div class="section-heading"><h3>发放收藏品 / Ticket</h3><span>itemKind 12 为 Ticket</span></div>
+          <section class="card">
+            <div class="card-header"><div><h3>发放收藏品 / Ticket</h3><p>itemKind 12 为 Ticket</p></div></div>
             <form class="grant-grid" on:submit|preventDefault={grantItem}>
-              <label>类型<select bind:value={itemKind}><option value={1}>1 · Plate</option><option value={2}>2 · Title</option><option value={3}>3 · Icon</option><option value={11}>11 · Frame</option><option value={12}>12 · Ticket</option></select></label>
-              <label>物品 ID<input type="number" min="0" bind:value={itemId} /></label>
-              <label>数量<input type="number" min="1" max="1000000" bind:value={itemAmount} /></label>
-              <button type="submit"><Icon icon="solar:gift-bold-duotone" />发放</button>
+              <label class="field"><span class="field-label">类型</span><select bind:value={itemKind}><option value={1}>1 · Plate</option><option value={2}>2 · Title</option><option value={3}>3 · Icon</option><option value={11}>11 · Frame</option><option value={12}>12 · Ticket</option></select></label>
+              <label class="field"><span class="field-label">物品 ID</span><input type="number" min="0" bind:value={itemId} /></label>
+              <label class="field"><span class="field-label">数量</span><input type="number" min="1" max="1000000" bind:value={itemAmount} /></label>
+              <button class="btn-primary" type="submit"><Icon icon="solar:gift-bold-duotone" />发放</button>
             </form>
-            <div class="item-list">{#each userDetail.items.slice(0, 40) as item}<span class="item-chip">{item.itemKind}/{item.itemId} × {item.stock}</span>{:else}<span class="empty">暂无物品记录</span>{/each}</div>
+            <div class="item-list">{#each userDetail.items.slice(0, 40) as item}<span class="badge mono">{item.itemKind}/{item.itemId} × {item.stock}</span>{:else}<span class="subtle">暂无物品记录</span>{/each}</div>
           </section>
 
-          <section class="panel">
-            <div class="section-heading"><div><h3>关联卡片</h3><span>{userDetail.cards.length} 张卡片 · 点击查看卡片档案</span></div>{#if userDetail.cards.length > 2}<button class="collapse-toggle" on:click={() => cardsExpanded = !cardsExpanded}><Icon icon={cardsExpanded ? "line-md:chevron-small-up" : "line-md:chevron-small-down"} />{cardsExpanded ? "收起" : `展开全部 ${userDetail.cards.length} 张`}</button>{/if}</div>
+          <section class="card">
+            <div class="card-header">
+              <div><h3>关联卡片</h3><p>{userDetail.cards.length} 张卡片 · 点击查看卡片档案</p></div>
+              {#if userDetail.cards.length > 2}<button class="btn-ghost btn-sm" type="button" on:click={() => cardsExpanded = !cardsExpanded}><Icon icon={cardsExpanded ? "line-md:chevron-small-up" : "line-md:chevron-small-down"} />{cardsExpanded ? "收起" : `展开全部 ${userDetail.cards.length} 张`}</button>{/if}
+            </div>
             <div class="linked-cards">
               {#each userDetail.cards as card, index (card.id)}
-                {#if cardsExpanded || index < 2}<button class="linked-card" on:click={() => openCard(card)}><span><strong>{card.luid}</strong><small>#{card.id} · ext {card.extId}</small></span><span><small>{card.isGhost ? "Ghost" : "实体卡"}</small><small>{card.mai2?.playCount ?? 0} 次游玩</small></span><Icon icon="line-md:chevron-small-right" /></button>{/if}
-              {:else}<span class="empty">暂无关联卡片</span>{/each}
+                {#if cardsExpanded || index < 2}
+                  <button class="linked-card" type="button" on:click={() => openCard(card)}>
+                    <span class="result-copy"><strong class="mono truncate">{card.luid}</strong><small>#{card.id} · ext {card.extId}</small></span>
+                    <span class="linked-meta"><span class="badge">{card.isGhost ? "Ghost" : "实体卡"}</span><small>{card.mai2?.playCount ?? 0} 次游玩</small></span>
+                    <Icon icon="line-md:chevron-small-right" />
+                  </button>
+                {/if}
+              {:else}
+                <span class="subtle">暂无关联卡片</span>
+              {/each}
             </div>
           </section>
 
-          <section class="panel">
-            <div class="section-heading"><h3>Keychip 管理</h3><span>停用会立即清理在线会话</span></div>
-            <form class="keychip-add" on:submit|preventDefault={addKeychip}><input bind:value={newKeychip} placeholder="15 位 keychip，可带短横线" /><button type="submit">添加</button></form>
-            <div class="keychip-list">
+          <section class="card">
+            <div class="card-header"><div><h3>Keychip 管理</h3><p>停用会立即清理在线会话</p></div></div>
+            <form class="input-group" on:submit|preventDefault={addKeychip}>
+              <input class="mono" bind:value={newKeychip} placeholder="15 位 keychip，可带短横线" aria-label="新 keychip" />
+              <button class="btn-primary" type="submit" disabled={!newKeychip.trim()}><Icon icon="solar:add-circle-bold" />添加</button>
+            </form>
+            <div class="setting-group keychips">
               {#each userDetail.keychips as keychip (keychip.id)}
-                <div class="keychip-row"><code>{keychip.keychipId}</code><label class="switch"><input type="checkbox" checked={keychip.enabled} on:change={(e) => toggleKeychip(keychip.keychipId, e)} /><span>允许连接</span></label><button class="icon error" title="删除 keychip" aria-label="删除 keychip" on:click={() => deleteKeychip(keychip.keychipId)}><Icon icon="tabler:trash-x-filled" /></button></div>
-              {:else}<span class="empty">暂无 keychip</span>{/each}
+                <div class="setting-row">
+                  <code class="mono">{keychip.keychipId}</code>
+                  <div class="row">
+                    <label class="row switch-label"><span class="subtle">允许连接</span><input type="checkbox" class="switch" checked={keychip.enabled} on:change={(e) => toggleKeychip(keychip.keychipId, e)} /></label>
+                    <button class="btn-ghost btn-icon btn-sm delete" type="button" title="删除 keychip" aria-label="删除 keychip {keychip.keychipId}" on:click={() => deleteKeychip(keychip.keychipId)}><Icon icon="solar:trash-bin-trash-bold-duotone" /></button>
+                  </div>
+                </div>
+              {:else}
+                <div class="setting-row"><span class="subtle">暂无 keychip</span></div>
+              {/each}
             </div>
           </section>
         {:else if view === "cards" && cardDetail}
-          <div class="detail-title">
-            <div><span class="eyebrow">CARD ID {cardDetail.card.id}</span><h2>{cardDetail.card.luid}</h2><span class="muted">ext {cardDetail.card.extId} · {cardDetail.card.status}</span></div>
-            <div class="title-actions"><span class="tag" class:danger={cardDetail.mai2?.banState === 2}>{gameBanLabel(cardDetail.mai2)}</span><button class="icon danger" disabled={cardDetail.card.isGhost} title={cardDetail.card.isGhost ? "Ghost 卡片随用户删除" : "删除卡片"} aria-label="删除卡片" on:click={deleteCard}><Icon icon="tabler:trash-x-filled" /></button></div>
+          <div class="card detail-head">
+            <div class="detail-title">
+              <span class="eyebrow">Card ID {cardDetail.card.id}</span>
+              <h2 class="truncate mono">{cardDetail.card.luid}</h2>
+              <span class="muted">ext {cardDetail.card.extId} · {cardDetail.card.status}</span>
+              <div class="row tags"><span class="badge" class:danger={cardDetail.mai2?.banState === 2}>{gameBanLabel(cardDetail.mai2)}</span><span class="badge">{cardDetail.card.isGhost ? "Ghost 卡片" : "实体卡片"}</span></div>
+            </div>
+            <button class="btn-danger" type="button" disabled={cardDetail.card.isGhost} title={cardDetail.card.isGhost ? "Ghost 卡片随用户删除" : "删除卡片"} on:click={deleteCard}><Icon icon="solar:trash-bin-trash-bold-duotone" />删除卡片</button>
           </div>
 
-          <section class="stat-strip">
-            <div><small>注册时间</small><strong>{formatTime(cardDetail.card.registerTime)}</strong></div>
-            <div><small>最后访问</small><strong>{formatTime(cardDetail.card.accessTime)}</strong></div>
-            <div><small>游玩次数</small><strong>{cardDetail.mai2?.playCount ?? 0}</strong></div>
-            <div><small>最近机台</small><strong>{cardDetail.mai2?.lastClientId || "暂无"}</strong></div>
+          <dl class="stat-strip">
+            <div><dt>注册时间</dt><dd>{formatTime(cardDetail.card.registerTime)}</dd></div>
+            <div><dt>最后访问</dt><dd>{formatTime(cardDetail.card.accessTime)}</dd></div>
+            <div><dt>游玩次数</dt><dd class="num">{cardDetail.mai2?.playCount ?? 0}</dd></div>
+            <div><dt>最近机台</dt><dd>{cardDetail.mai2?.lastClientId || "暂无"}</dd></div>
+          </dl>
+
+          <section class="card">
+            <div class="card-header"><div><h3>卡片信息</h3></div></div>
+            <dl class="info-grid">
+              <div><dt>LUID</dt><dd class="mono">{cardDetail.card.luid}</dd></div>
+              <div><dt>ext ID</dt><dd class="mono">{cardDetail.card.extId}</dd></div>
+              <div><dt>注册时间</dt><dd>{formatTime(cardDetail.card.registerTime)}</dd></div>
+              <div><dt>最后访问</dt><dd>{formatTime(cardDetail.card.accessTime)}</dd></div>
+            </dl>
+            {#if cardDetail.user}
+              <button class="btn-soft owner-link" type="button" on:click={openCardOwner}><Icon icon="solar:user-circle-bold-duotone" />绑定用户：{cardDetail.user.displayName || cardDetail.user.username}<Icon icon="line-md:chevron-small-right" /></button>
+            {:else}<p class="subtle">未绑定 Net 用户</p>{/if}
           </section>
 
-          <section class="panel">
-            <div class="section-heading"><h3>卡片信息</h3><span>{cardDetail.card.isGhost ? "Ghost 卡片" : "实体卡片"}</span></div>
-            <div class="info-grid"><div><small>LUID</small><strong>{cardDetail.card.luid}</strong></div><div><small>ext ID</small><strong>{cardDetail.card.extId}</strong></div><div><small>注册时间</small><strong>{formatTime(cardDetail.card.registerTime)}</strong></div><div><small>最后访问</small><strong>{formatTime(cardDetail.card.accessTime)}</strong></div></div>
-            {#if cardDetail.user}<button class="owner-link" on:click={openCardOwner}><Icon icon="solar:user-circle-bold-duotone" />绑定用户：{cardDetail.user.displayName || cardDetail.user.username} <Icon icon="line-md:chevron-small-right" /></button>{:else}<p class="empty">未绑定 Net 用户</p>{/if}
-          </section>
-
-          <section class="panel">
-            <div class="section-heading"><h3>maimai2 卡片档案</h3><span>{gameBanLabel(cardDetail.mai2)}</span></div>
+          <section class="card">
+            <div class="card-header"><div><h3>maimai2 卡片档案</h3><p>{gameBanLabel(cardDetail.mai2)}</p></div></div>
             {#if cardDetail.mai2}
-              <div class="form-grid"><label>修改字段<select bind:value={cardMaiField} on:change={syncCardMaiValue}><option value="userName">游戏名称</option><option value="banState">banState</option><option value="iconId">头像</option><option value="plateId">称号框</option><option value="titleId">称号</option><option value="partnerId">搭档</option><option value="frameId">背景框</option></select></label><label>字段值{#if cardMaiField === "banState"}<select bind:value={cardMaiValue}><option value="0">0 · 正常</option><option value="1">1 · 限制</option><option value="2">2 · 封禁</option></select>{:else}<input bind:value={cardMaiValue} />{/if}</label><button on:click={saveCardMaiProfile}><Icon icon="solar:check-circle-bold" />保存档案</button></div>
-              <div class="stats"><span>Rating {cardDetail.mai2.playerRating}</span><span>最高 {cardDetail.mai2.highestRating}</span><span>最近游玩 {cardDetail.mai2.lastPlayDate || "暂无"}</span><span>机台号 {cardDetail.mai2.lastClientId || "暂无"}</span></div>
-            {:else}<p class="empty">该卡片还没有 maimai2 用户资料。</p>{/if}
+              <form class="form-grid" on:submit|preventDefault={saveCardMaiProfile}>
+                <label class="field"><span class="field-label">修改字段</span><select bind:value={cardMaiField} on:change={syncCardMaiValue}><option value="userName">游戏名称</option><option value="banState">banState</option><option value="iconId">头像</option><option value="plateId">称号框</option><option value="titleId">称号</option><option value="partnerId">搭档</option><option value="frameId">背景框</option></select></label>
+                <label class="field"><span class="field-label">字段值</span>{#if cardMaiField === "banState"}<select bind:value={cardMaiValue}><option value="0">0 · 正常</option><option value="1">1 · 限制</option><option value="2">2 · 封禁</option></select>{:else}<input bind:value={cardMaiValue} />{/if}</label>
+                <button class="btn-primary" type="submit"><Icon icon="solar:check-circle-bold" />保存档案</button>
+              </form>
+              <div class="stats"><span class="badge">Rating {cardDetail.mai2.playerRating}</span><span class="badge">最高 {cardDetail.mai2.highestRating}</span><span class="badge">最近游玩 {cardDetail.mai2.lastPlayDate || "暂无"}</span><span class="badge">机台号 {cardDetail.mai2.lastClientId || "暂无"}</span></div>
+            {:else}<p class="subtle">该卡片还没有 maimai2 用户资料。</p>{/if}
           </section>
 
-          <section class="panel">
-            <div class="section-heading"><h3>发放收藏品 / Ticket</h3><span>按当前卡片发放</span></div>
-            <form class="grant-grid" on:submit|preventDefault={grantCardItem}><label>类型<select bind:value={itemKind}><option value={1}>1 · Plate</option><option value={2}>2 · Title</option><option value={3}>3 · Icon</option><option value={11}>11 · Frame</option><option value={12}>12 · Ticket</option></select></label><label>物品 ID<input type="number" min="0" bind:value={itemId} /></label><label>数量<input type="number" min="1" max="1000000" bind:value={itemAmount} /></label><button type="submit"><Icon icon="solar:gift-bold-duotone" />发放</button></form>
-            <div class="item-list">{#each cardDetail.items.slice(0, 40) as item}<span class="item-chip">{item.itemKind}/{item.itemId} × {item.stock}</span>{:else}<span class="empty">暂无物品记录</span>{/each}</div>
+          <section class="card">
+            <div class="card-header"><div><h3>发放收藏品 / Ticket</h3><p>按当前卡片发放</p></div></div>
+            <form class="grant-grid" on:submit|preventDefault={grantCardItem}>
+              <label class="field"><span class="field-label">类型</span><select bind:value={itemKind}><option value={1}>1 · Plate</option><option value={2}>2 · Title</option><option value={3}>3 · Icon</option><option value={11}>11 · Frame</option><option value={12}>12 · Ticket</option></select></label>
+              <label class="field"><span class="field-label">物品 ID</span><input type="number" min="0" bind:value={itemId} /></label>
+              <label class="field"><span class="field-label">数量</span><input type="number" min="1" max="1000000" bind:value={itemAmount} /></label>
+              <button class="btn-primary" type="submit"><Icon icon="solar:gift-bold-duotone" />发放</button>
+            </form>
+            <div class="item-list">{#each cardDetail.items.slice(0, 40) as item}<span class="badge mono">{item.itemKind}/{item.itemId} × {item.stock}</span>{:else}<span class="subtle">暂无物品记录</span>{/each}</div>
           </section>
 
-          <section class="panel log-panel">
-            <div class="section-heading"><h3>最近游玩日志</h3><span>{cardDetail.playlogs.length} 条</span></div>
-            <div class="table-scroll"><table><thead><tr><th>时间</th><th>机台</th><th>歌曲</th><th>难度</th><th>达成率</th></tr></thead><tbody>{#each cardDetail.playlogs as playlog}<tr><td>{playlog.userPlayDate || playlog.playDate || "暂无"}</td><td>{playlog.placeId} · {playlog.placeName || "未知机台"}</td><td>{playlog.musicId}</td><td>{playlog.level}</td><td>{(playlog.achievement / 10000).toFixed(4)}%</td></tr>{:else}<tr><td colspan="5" class="empty">暂无游玩日志</td></tr>{/each}</tbody></table></div>
+          <section class="card card-flush">
+            <div class="card-header padded"><div><h3>最近游玩日志</h3><p>{cardDetail.playlogs.length} 条</p></div></div>
+            <div class="table-wrap flush">
+              <table class="data-table">
+                <thead><tr><th>时间</th><th>机台</th><th>歌曲</th><th class="num">难度</th><th class="num">达成率</th></tr></thead>
+                <tbody>
+                  {#each cardDetail.playlogs as playlog}
+                    <tr><td class="num">{playlog.userPlayDate || playlog.playDate || "暂无"}</td><td>{playlog.placeId} · {playlog.placeName || "未知机台"}</td><td class="mono">{playlog.musicId}</td><td class="num">{playlog.level}</td><td class="num">{(playlog.achievement / 10000).toFixed(4)}%</td></tr>
+                  {:else}
+                    <tr><td colspan="5" class="subtle">暂无游玩日志</td></tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
           </section>
         {:else}
-          <div class="empty-state panel"><Icon icon={view === "users" ? "solar:user-id-bold-duotone" : "solar:card-bold-duotone"} /><strong>从左侧选择{view === "users" ? "用户" : "卡片"}</strong><span>详情会显示在这里</span></div>
+          <EmptyState icon={view === "users" ? "solar:user-id-bold-duotone" : "solar:card-bold-duotone"} title={`从左侧选择${view === "users" ? "用户" : "卡片"}`} description="详情会显示在这里" />
         {/if}
       </section>
     </section>
   {/if}
 </main>
 
-<StatusOverlays {error} {loading} />
-{#if notice}<div class="notice"><Icon icon="solar:check-circle-bold" />{notice}</div>{/if}
+<StatusOverlays error={me?.isAdmin ? error : null} loading={loading && !!(selectedUser || selectedCard) && !(userDetail || cardDetail)} />
 
 <style lang="sass">
   @use "../vars"
 
-  .analytics-panel
-    margin-bottom: 20px
-  .analytics-tools, .analytics-legend
+  .analytics-tools
     display: flex
     align-items: center
-    gap: 10px
-  .analytics-tools input, .analytics-tools select
-    min-width: 120px
-  .analytics-kpis
+    gap: 8px
+    flex-wrap: wrap
+
+    select, input
+      width: auto
+      min-width: 130px
+
+  .kpis
     display: grid
     grid-template-columns: repeat(4, minmax(0, 1fr))
     gap: 12px
-    margin: 18px 0
+    margin-bottom: 16px
+
     div
-      border-radius: 12px
-      background: rgba(20, 160, 160, .08)
-      padding: 14px
       display: grid
-      gap: 7px
+      gap: 4px
+      padding: 14px
+      border-radius: var(--radius)
+      background: var(--surface-2)
+
     small
-      color: #74858a
+      color: var(--text-2)
+
     strong
-      font-size: 1.35rem
+      font-size: 1.4rem
+
   .trend-chart
-    height: 180px
     display: flex
     align-items: stretch
-    gap: 8px
+    gap: 6px
+    height: 170px
+    padding: 6px 0
     overflow-x: auto
-    padding: 10px 0
+
   .trend-day
-    min-width: 34px
-    flex: 1
     display: flex
+    flex: 1
     flex-direction: column
     align-items: center
-    justify-content: end
-    gap: 8px
+    justify-content: flex-end
+    gap: 6px
+    min-width: 30px
+
     .trend-bars
-      width: 100%
-      height: 140px
       display: flex
-      gap: 3px
-      align-items: end
+      align-items: flex-end
       justify-content: center
+      gap: 3px
+      width: 100%
+      height: 130px
+
     i
-      width: 10px
+      width: 9px
       min-height: 2px
-      border-radius: 5px 5px 0 0
-      background: #24b9ad
+      border-radius: 4px 4px 0 0
+      background: var(--primary)
+
     .guest-bar
-      background: #ed6ba6
+      background: var(--accent)
+
     small
-      font-size: .7rem
+      color: var(--text-3)
+      font-size: 0.68rem
       white-space: nowrap
-  .analytics-legend
-    margin: 8px 0 16px
-    color: #74858a
+
+  .legend
+    display: flex
+    gap: 16px
+    margin: 6px 0 12px
+    color: var(--text-2)
+    font-size: 0.82rem
+
     span
-      display: flex
+      display: inline-flex
       align-items: center
       gap: 6px
+
     i
       width: 9px
       height: 9px
       border-radius: 50%
-      background: #24b9ad
+      background: var(--primary)
+
     .guest-dot
-      background: #ed6ba6
-  .analytics-error
-    color: #c54b58
-  @media (max-width: 760px)
-    .analytics-kpis
-      grid-template-columns: repeat(2, minmax(0, 1fr))
-    .section-heading
-      align-items: flex-start
-    .analytics-tools
-      flex-wrap: wrap
+      background: var(--accent)
 
-  .admin-page
-    max-width: 1440px
-
-  .page-header, .detail-title, .section-heading, .keychip-row
-    display: flex
-    align-items: center
-    justify-content: space-between
-    gap: 16px
-
-  .page-header
-    margin-bottom: 22px
-
-    h1, h2, h3, p
-      margin: 0
-
-    h1
-      margin-top: 2px
-      font-size: clamp(1.65rem, 3vw, 2.3rem)
-
-    p
-      margin-top: 4px
-      color: vars.$c-sub
-      font-size: 0.88rem
-
-  .header-actions, .view-switch, .title-actions, .flags
-    display: flex
-    align-items: center
-    gap: 8px
-
-  .view-switch
-    padding: 4px
-    border: 1px solid rgba(255, 255, 255, 0.08)
-    border-radius: 10px
-    background: rgba(34, 51, 54, 0.06)
-
-    button
+  .ranking-details
+    summary
       display: inline-flex
       align-items: center
-      gap: 6px
-      padding: 7px 11px
-      color: vars.$c-sub
-      background: transparent
+      gap: 4px
+      margin-bottom: 10px
+      color: var(--primary)
+      font-weight: 600
+      cursor: pointer
+      list-style: none
 
-      &.active
-        color: vars.$c-main
-        background: rgba(57, 197, 187, 0.14)
-        border-color: rgba(57, 197, 187, 0.3)
+      &::-webkit-details-marker
+        display: none
+
+    .table-wrap
+      max-height: 320px
 
   .workspace
     display: grid
     grid-template-columns: minmax(280px, 340px) minmax(0, 1fr)
-    gap: 22px
     align-items: start
-
-  .panel
-    border: 1px solid rgba(255, 255, 255, 0.09)
-    border-radius: 14px
-    padding: 20px
-    background: rgba(255, 255, 255, 0.72)
-    box-shadow: 0 18px 50px rgba(43, 72, 76, 0.10)
-    backdrop-filter: blur(18px)
+    gap: 16px
 
   .sidebar
     position: sticky
-    top: 76px
+    top: calc(var(--nav-height) + 16px)
+    gap: 10px
     padding: 12px
 
   .search
+    position: relative
     display: flex
     align-items: center
-    gap: 8px
-    padding: 4px 9px
-    border: 1px solid rgba(255, 255, 255, 0.08)
-    border-radius: 10px
-    background: rgba(34, 51, 54, 0.045)
-    color: vars.$c-sub
+    gap: 6px
+
+    > :global(svg)
+      position: absolute
+      left: 10px
+      z-index: 1
+      pointer-events: none
+      color: var(--text-3)
 
     input
-      min-width: 0
       flex: 1
-      padding: 7px 0
-      border: 0
-      background: transparent
+      padding-left: 34px
 
-      &:focus
-        border: 0
-
-    .clear
+  .filters
+    summary
       display: flex
-      padding: 4px
-      border: 0
-      background: transparent
+      align-items: center
+      gap: 6px
+      min-height: 32px
+      color: var(--text-2)
+      font-size: 0.84rem
+      font-weight: 600
+      cursor: pointer
+      list-style: none
 
-    .search-submit
-      padding: 6px 9px
-      font-size: 0.75rem
-      flex-shrink: 0
-
-  .search-hint
-    display: flex
-    align-items: center
-    justify-content: space-between
-    gap: 6px
-    margin: 9px 2px 0
-    color: vars.$c-sub
-    font-size: 0.68rem
-
-    button
-      padding: 4px 6px
-      flex-shrink: 0
-      font-size: inherit
+      &::-webkit-details-marker
+        display: none
 
   .date-filters
     display: grid
-    grid-template-columns: 1fr 1fr auto
-    gap: 7px
-    margin-top: 9px
-
-    label
-      display: grid
-      gap: 4px
-      color: vars.$c-sub
-      font-size: 0.68rem
+    grid-template-columns: 1fr 1fr
+    gap: 8px
+    margin-top: 6px
 
     input
-      padding: 7px 6px
-      font-size: 0.72rem
+      min-height: 34px
+      font-size: 0.82rem
 
-  .filter-submit
-    display: inline-flex
-    align-items: center
-    align-self: end
-    gap: 4px
-    padding: 7px 9px
-    color: vars.$c-main
-    background: rgba(7, 143, 136, 0.08)
-    font-size: 0.72rem
+  .filter-actions
+    display: flex
+    grid-column: 1 / -1
+    justify-content: flex-end
+    gap: 6px
 
   .list-meta
     display: flex
+    align-items: center
     justify-content: space-between
-    padding: 16px 6px 9px
-    color: vars.$c-sub
-    font-size: 0.78rem
-
-    strong
-      color: vars.$c-main
+    padding: 4px 4px 0
+    color: var(--text-2)
+    font-size: 0.82rem
 
   .result-list
     display: grid
-    gap: 4px
-    max-height: calc(100vh - 230px)
+    gap: 2px
+    max-height: calc(100dvh - 330px)
+    min-height: 200px
     overflow-y: auto
 
   .result-row
-    display: flex
-    align-items: center
+    justify-content: flex-start
     gap: 10px
-    width: 100%
-    min-width: 0
+    height: auto
     padding: 10px
-    border: 1px solid transparent
-    border-radius: 10px
-    text-align: left
+    border-color: transparent
     background: transparent
+    box-shadow: none
+    font-weight: 400
+    text-align: left
+    white-space: normal
 
-    &:hover, &.selected
-      border-color: rgba(57, 197, 187, 0.46)
-      background: rgba(57, 197, 187, 0.10)
+    &:hover:not(:disabled)
+      border-color: transparent
+      background: var(--surface-2)
+
+    &.selected
+      border-color: color-mix(in srgb, var(--primary) 40%, transparent)
+      background: var(--primary-soft)
 
   .result-icon
     display: grid
@@ -903,369 +966,155 @@
     width: 34px
     height: 34px
     flex: 0 0 34px
-    border-radius: 10px
-    color: vars.$c-main
-    background: rgba(57, 197, 187, 0.12)
+    border-radius: var(--radius-sm)
+    color: var(--primary)
+    background: var(--primary-soft)
     font-size: 1.2rem
 
     &.card-icon
-      color: #ffd166
-      background: rgba(255, 209, 102, 0.12)
+      color: var(--warning)
+      background: var(--warning-soft)
 
   .result-copy
     display: grid
-    min-width: 0
     flex: 1
     gap: 1px
-
-    strong, small
-      overflow: hidden
-      text-overflow: ellipsis
-      white-space: nowrap
+    min-width: 0
 
     strong
-      color: vars.$c-text
       font-size: 0.9rem
 
     small
-      color: vars.$c-sub
-      font-size: 0.72rem
+      color: var(--text-2)
+      font-size: 0.75rem
 
-  .status-dot
-    width: 7px
-    height: 7px
-    flex: 0 0 7px
-    border-radius: 50%
-    background: vars.$c-good
-    box-shadow: 0 0 12px vars.$c-good
-
-  .mini-status
-    flex: 0 0 auto
-    color: vars.$c-good
-    font-size: 0.7rem
-
-    &.danger
-      color: vars.$c-error
+  .admin-badge
+    margin-left: 6px
+    vertical-align: middle
 
   .details
     display: grid
     gap: 16px
     min-width: 0
 
+  .detail-head
+    flex-direction: row
+    align-items: flex-start
+    justify-content: space-between
+    gap: 16px
+
   .detail-title
-    padding: 3px 2px
+    display: grid
+    gap: 2px
+    min-width: 0
 
     h2
-      margin: 4px 0 2px
-      overflow: hidden
-      text-overflow: ellipsis
-      white-space: nowrap
+      margin: 2px 0
+      font-size: 1.4rem
 
-  .eyebrow
-    color: vars.$c-main
-    font-size: 0.7rem
-    font-weight: 700
-    letter-spacing: 0.12em
+  .tags
+    gap: 6px
+    margin-top: 6px
 
-  .muted, .section-heading > span, .empty
-    color: vars.$c-sub
-    font-size: 0.82rem
-
-  .stat-strip
+  .stat-strip, .info-grid
     display: grid
-    grid-template-columns: repeat(4, 1fr)
-    gap: 1px
-    overflow: hidden
-    border: 1px solid rgba(255, 255, 255, 0.08)
-    border-radius: 14px
-    background: rgba(255, 255, 255, 0.70)
+    grid-template-columns: repeat(4, minmax(0, 1fr))
+    gap: 12px
+    margin: 0
 
     div
       display: grid
-      gap: 4px
+      gap: 2px
       min-width: 0
-      padding: 13px 15px
-      background: rgba(255, 255, 255, 0.44)
 
-    small
-      color: vars.$c-sub
-      font-size: 0.7rem
+    dt
+      color: var(--text-2)
+      font-size: 0.78rem
 
-    strong
+    dd
+      margin: 0
       overflow: hidden
-      color: vars.$c-text
-      font-size: 0.82rem
+      font-weight: 600
       text-overflow: ellipsis
       white-space: nowrap
 
-  .section-heading
-    margin-bottom: 16px
+  .stat-strip div
+    padding: 12px 14px
+    border: 1px solid var(--border)
+    border-radius: var(--radius)
+    background: var(--surface)
 
-    h3
-      margin: 0
-      font-size: 1.02rem
-
-  .game-switcher
-    display: flex
-    flex-wrap: wrap
-    gap: 4px
-    padding: 3px
-    border-radius: 10px
-    background: rgba(96, 114, 118, 0.07)
-
-    button
-      padding: 6px 8px
-      border: 0
-      border-radius: 8px
-      box-shadow: none
-      color: vars.$c-sub
-      background: transparent
-      font-size: 0.72rem
-
-      &.active
-        color: vars.$c-main
-        background: rgba(7, 143, 136, 0.12)
-
-      &:disabled
-        cursor: not-allowed
-        opacity: 0.4
-
-  .collapse-toggle
-    display: inline-flex
-    align-items: center
-    gap: 4px
-    padding: 6px 8px
-    color: vars.$c-main
-    background: rgba(7, 143, 136, 0.07)
-    font-size: 0.72rem
-
-  .form-grid, .grant-grid, .info-grid
-    display: grid
-    gap: 10px
+  .info-grid
+    margin-bottom: 14px
 
   .form-grid
+    display: grid
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto
     align-items: end
+    gap: 10px
 
   .grant-grid
+    display: grid
     grid-template-columns: 1.2fr 1fr 0.8fr auto
     align-items: end
+    gap: 10px
 
-  label
-    display: grid
-    gap: 5px
-    min-width: 0
-    color: vars.$c-sub
-    font-size: 0.78rem
-
-  .form-grid label, .grant-grid label
-    input, select
-      width: 100%
-
-  .toggle-grid
-    display: flex
-    flex-wrap: wrap
-    gap: 12px 18px
+  .toggles
     margin-top: 16px
 
-    label
-      display: flex
-      align-items: center
-      gap: 7px
-
-    .self-admin-lock
-      color: vars.$c-main
-      font-size: 0.68rem
-
-  .stats, .flags, .item-list
+  .stats, .item-list
     display: flex
     flex-wrap: wrap
-    gap: 8px
-
-  .stats
-    margin-top: 15px
-    color: vars.$c-sub
-    font-size: 0.78rem
-
-    span
-      padding-right: 10px
-      border-right: 1px solid rgba(255, 255, 255, 0.12)
-
-      &:last-child
-        border-right: 0
-
-  .tag, .item-chip
-    display: inline-flex
-    align-items: center
-    gap: 4px
-    padding: 4px 8px
-    border: 1px solid rgba(255, 255, 255, 0.14)
-    border-radius: 999px
-    color: vars.$c-sub
-    font-size: 0.72rem
-
-    &.accent
-      color: vars.$c-main
-      border-color: rgba(57, 197, 187, 0.4)
-
-    &.danger
-      color: vars.$c-error
-      border-color: rgba(255, 107, 129, 0.38)
-
-  .item-list
+    gap: 6px
     margin-top: 14px
-
-  .item-chip
-    color: vars.$c-sub
 
   .linked-cards
     display: grid
     gap: 6px
 
   .linked-card
-    display: flex
-    align-items: center
+    justify-content: flex-start
     gap: 12px
-    width: 100%
-    padding: 11px 12px
-    border: 1px solid rgba(255, 255, 255, 0.08)
-    border-radius: 10px
+    height: auto
+    padding: 10px 12px
+    font-weight: 400
     text-align: left
-    background: rgba(255, 255, 255, 0.42)
 
-    &:hover
-      border-color: rgba(57, 197, 187, 0.4)
-
-    > span
-      display: grid
-      min-width: 0
-      flex: 1
-      gap: 2px
-
-      &:last-of-type
-        flex: 0 0 auto
-        text-align: right
+  .linked-meta
+    display: grid
+    justify-items: end
+    gap: 2px
 
     small
-      color: vars.$c-sub
-      font-size: 0.7rem
+      color: var(--text-2)
+      font-size: 0.75rem
 
-  .keychip-add
-    display: grid
-    grid-template-columns: minmax(0, 1fr) auto
-    gap: 10px
-
-  .keychip-list
-    display: grid
+  .keychips
     margin-top: 12px
 
-  .keychip-row
-    min-height: 46px
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08)
-
-    &:last-child
-      border-bottom: 0
-
     code
-      color: vars.$c-sub
-      font-size: 0.85rem
+      font-size: 0.9rem
 
-  .switch
-    display: flex
-    align-items: center
-    gap: 7px
+  .switch-label
+    gap: 8px
+    font-size: 0.82rem
 
-  .info-grid
-    grid-template-columns: repeat(4, 1fr)
-    margin-bottom: 16px
-
-    div
-      display: grid
-      gap: 4px
-      min-width: 0
-
-    small
-      color: vars.$c-sub
-      font-size: 0.7rem
-
-    strong
-      overflow: hidden
-      text-overflow: ellipsis
-      white-space: nowrap
+  .delete:hover:not(:disabled)
+    color: var(--danger)
+    background: var(--danger-soft)
 
   .owner-link
-    display: inline-flex
-    align-items: center
-    gap: 7px
-    padding: 7px 10px
-    color: vars.$c-main
-    background: rgba(57, 197, 187, 0.08)
+    align-self: flex-start
 
-  .table-scroll
-    overflow-x: auto
+  .padded
+    padding: 20px 20px 0
 
-  table
-    width: 100%
-    border-collapse: collapse
-    font-size: 0.78rem
+  .flush
+    border: 0
+    border-top: 1px solid var(--border)
+    border-radius: 0
 
-  th, td
-    padding: 10px 8px
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08)
-    text-align: left
-    white-space: nowrap
-
-  th
-    color: vars.$c-sub
-    font-size: 0.7rem
-    font-weight: 500
-
-  td
-    color: vars.$c-text
-
-  .empty-state
-    display: grid
-    place-items: center
-    gap: 7px
-    min-height: 240px
-    color: vars.$c-sub
-
-    :global(svg)
-      color: vars.$c-main
-      font-size: 2rem
-
-  .notice
-    position: fixed
-    right: 24px
-    bottom: 24px
-    z-index: 20
-    display: flex
-    align-items: center
-    gap: 8px
-    padding: 11px 14px
-    border: 1px solid rgba(126, 230, 198, 0.35)
-    border-radius: 10px
-    background: rgba(255, 255, 255, 0.88)
-    color: vars.$c-good
-    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.24)
-    backdrop-filter: blur(14px)
-
-  .danger
-    color: vars.$c-error
-
-  button:disabled
-    cursor: not-allowed
-    opacity: 0.35
-
-  @media (max-width: vars.$w-mobile)
-    .page-header, .detail-title
-      align-items: flex-start
-      flex-direction: column
-
-    .header-actions
-      width: 100%
-      justify-content: space-between
-
+  @media (max-width: vars.$w-tablet)
     .workspace
       grid-template-columns: 1fr
 
@@ -1273,26 +1122,15 @@
       position: static
 
     .result-list
-      max-height: 270px
+      max-height: 320px
+
+  @media (max-width: vars.$w-mobile)
+    .kpis, .stat-strip, .info-grid
+      grid-template-columns: 1fr 1fr
 
     .form-grid, .grant-grid
       grid-template-columns: 1fr
 
-    .stat-strip, .info-grid
-      grid-template-columns: 1fr 1fr
-
-    .title-actions
-      width: 100%
-      justify-content: space-between
-
-    .date-filters
-      grid-template-columns: 1fr 1fr
-
-      .filter-submit
-        grid-column: 1 / -1
-        justify-content: center
-
-    .game-profile-panel .section-heading
-      align-items: flex-start
+    .detail-head
       flex-direction: column
 </style>

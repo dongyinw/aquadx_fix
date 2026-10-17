@@ -8,7 +8,8 @@
     "build": "node buildcheck.js && vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "lint": "eslint . --ext ts,tsx,svelte --max-warnings 0 --fix"
+    "lint": "eslint . --ext ts,tsx,svelte --max-warnings 0 --fix",
+    "icons": "node tools/sync-icons.mjs"
   },
   "devDependencies": {
     "@iconify/svelte": "^4.1.0",

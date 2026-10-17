@@ -3,6 +3,11 @@
   import Icon from "../components/ui/Icon.svelte"
   import type { Card, MagicalPassEntry, MagicalPassState, MikuNetUser } from "../libs/generalTypes"
   import { USER } from "../libs/sdk"
+  import PageHeader from "../components/ui/PageHeader.svelte"
+  import EmptyState from "../components/ui/EmptyState.svelte"
+  import Spinner from "../components/ui/Spinner.svelte"
+  import { confirmDialog } from "../libs/confirm"
+  import { toast } from "../libs/toast"
 
   type PassOption = {
     passTypeId: number
@@ -35,6 +40,7 @@
   let canvas: HTMLCanvasElement
   let renderId = 0
 
+  const thumb = (charaId: number) => `${assetRoot}/passchara/UI_PassChara_${charaId}.png`
   $: selectedOption = passOptions.find(option => option.charaId === selectedCharaId) ?? passOptions[0]
   $: currentPass = state?.userPassList?.[0] ?? null
   $: ticketExpiry = state?.userTicketLimitDateList?.find(item => item.itemId === 40001)?.limitDate ?? ""
@@ -90,7 +96,11 @@
 
   async function purchase() {
     if (!selectedCardId || !state?.hasProfile || purchasing) return
-    if (!window.confirm(`确认给 ${cardName(cards.find(card => card.luid === selectedCardId) as Card)} 发放${selectedOption.title}吗？`)) return
+    if (!await confirmDialog({
+      title: `发放${selectedOption.title}`,
+      message: `确认给 ${cardName(cards.find(card => card.luid === selectedCardId) as Card)} 发放${selectedOption.title}（Pass ID ${selectedOption.charaId}）吗？\n同时会获得 1 张票券 40001。`,
+      confirmText: "确认发放",
+    })) return
 
     purchasing = true
     error = ""
@@ -99,6 +109,7 @@
       const result = await USER.mai2PassPurchase(selectedCardId, selectedOption.passTypeId, selectedOption.packId, selectedOption.charaId) as MagicalPassState & { success?: boolean }
       state = { ...result, hasProfile: true }
       notice = `${selectedOption.title}已发放，同时获得 1 张票券 40001。`
+      toast.success(notice)
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     } finally {
@@ -238,393 +249,234 @@
   }
 </script>
 
-<main class="content pass-page">
-  <header class="pass-heading">
-    <div>
-      <span class="eyebrow">MAIMAI DX / MAGICAL PASS</span>
-      <h1>Magical Pass</h1>
-      <p>选择卡片购买通行证，并下载对应的 Pass 素材。</p>
-    </div>
-    <div class="heading-badge"><Icon icon="solar:ticket-bold-duotone" /><span>票券 40001</span></div>
-  </header>
+<main class="page pass-page">
+  <PageHeader eyebrow="maimai DX" title="Magical Pass" description="选择 Pass 样式并发放到账户卡，随后可下载对应的 Pass 合成素材。">
+    <span class="badge warning"><Icon icon="solar:ticket-bold-duotone" />票券 40001 · {state?.ticket?.stock ?? 0} 张</span>
+  </PageHeader>
 
   {#if error}
-    <div class="notice error"><Icon icon="solar:danger-triangle-bold-duotone" />{error}</div>
+    <div class="alert alert-danger" role="alert"><Icon icon="solar:danger-triangle-bold-duotone" /><p>{error}</p></div>
   {/if}
   {#if notice}
-    <div class="notice success"><Icon icon="solar:check-circle-bold-duotone" />{notice}</div>
+    <div class="alert alert-success" role="status"><Icon icon="solar:check-circle-bold-duotone" /><p>{notice}</p></div>
   {/if}
 
   {#if !loading && cards.length === 0}
-    <section class="empty-panel"><Icon icon="solar:card-search-bold-duotone" /><h2>还没有可用卡片</h2><p>请先绑定一张卡片，再购买 Magical Pass。</p><a href="/cards">前往卡片管理 <Icon icon="line-md:arrow-right" /></a></section>
+    <EmptyState icon="solar:card-search-bold-duotone" title="还没有可用卡片" description="请先绑定一张卡片，再购买 Magical Pass。">
+      <a class="btn btn-primary" href="/cards">前往卡片管理<Icon icon="line-md:chevron-small-right" /></a>
+    </EmptyState>
   {:else}
-    <section class="pass-layout">
-      <aside class="card-panel">
-        <div class="panel-title"><span class="eyebrow">SELECT CARD</span><h2>选择卡片</h2></div>
-        <div class="card-list">
-          {#each cards as card}
-            <button class="card-choice" class:selected={selectedCardId === card.luid} type="button" on:click={() => loadStatus(card.luid)}>
-              <span class="card-choice-icon"><Icon icon={card.isGhost ? "solar:user-circle-bold-duotone" : "solar:card-bold-duotone"} /></span>
-              <span class="card-choice-copy"><strong>{cardName(card)}</strong><small>{card.isGhost ? "账户虚拟卡" : "实体卡"}</small></span>
-              <Icon class="card-choice-arrow" icon="line-md:chevron-small-right" />
-            </button>
-          {/each}
+    <div class="pass-layout">
+      <section class="card preview">
+        <div class="card-header">
+          <div><h2>{selectedOption.title}</h2><p>{selectedOption.subtitle} · Pack {selectedOption.packId}</p></div>
+          <span class="badge primary mono">ID {selectedOption.charaId}</span>
         </div>
-        <a class="manage-link" href="/cards"><Icon icon="solar:settings-bold-duotone" />管理卡片</a>
-      </aside>
-
-      <section class="preview-panel">
-        <div class="panel-title preview-title"><div><span class="eyebrow">LOCAL ASSET PREVIEW</span><h2>{selectedOption.title}</h2></div><span class="asset-tag">ID {selectedOption.charaId}</span></div>
-        <canvas bind:this={canvas} width="840" height="720" aria-label="左侧合成后的 Magical Pass 素材预览"></canvas>
+        <canvas bind:this={canvas} width="840" height="720" aria-label="合成后的 Magical Pass 素材预览"></canvas>
         <div class="preview-actions">
-          <button class="primary-action" type="button" on:click={downloadComposite} disabled={loading || !state?.hasProfile}><Icon icon="solar:download-minimalistic-bold-duotone" />下载左侧合成图</button>
-          <small>只下载左侧画布中的合成后素材，不会下载网页界面</small>
+          <small class="subtle">仅下载上方画布中的合成素材</small>
+          <button class="btn-soft" type="button" on:click={downloadComposite} disabled={loading || !state?.hasProfile}>
+            <Icon icon="solar:download-minimalistic-bold-duotone" />下载合成图
+          </button>
         </div>
       </section>
 
-      <section class="purchase-panel">
-        <div class="panel-title"><span class="eyebrow">PASS STORE</span><h2>选择 Pass ID</h2></div>
-        <div class="pass-options">
-          {#each passOptions as option}
-            <button class="pass-option {option.accent}" class:selected={selectedCharaId === option.charaId} type="button" on:click={() => chooseType(option.charaId)}>
-              <span class="pass-option-mark"><Icon icon={option.passTypeId === 2 ? "solar:medal-star-bold-duotone" : "solar:stars-minimalistic-bold-duotone"} /></span>
-              <span><strong>{option.title}</strong><small>{option.subtitle} · Pass ID {option.charaId} · Pack {option.packId}</small></span>
-              {#if selectedCharaId === option.charaId}<Icon class="option-check" icon="solar:check-circle-bold" />{/if}
-            </button>
-          {/each}
-        </div>
+      <aside class="side">
+        <section class="card">
+          <div class="card-header"><div><h3>发放到</h3></div><a class="btn btn-ghost btn-sm" href="/cards"><Icon icon="solar:settings-bold-duotone" />管理卡片</a></div>
+          <div class="card-list" role="radiogroup" aria-label="选择卡片">
+            {#each cards as card}
+              <button class="choice" class:selected={selectedCardId === card.luid} type="button" role="radio" aria-checked={selectedCardId === card.luid} on:click={() => loadStatus(card.luid)}>
+                <span class="tile-icon tone-teal"><Icon icon={card.isGhost ? "solar:user-circle-bold-duotone" : "solar:card-bold-duotone"} /></span>
+                <span class="tile-copy"><strong>{cardName(card)}</strong><small>{card.isGhost ? "账户虚拟卡" : "实体卡"}</small></span>
+                {#if selectedCardId === card.luid}<Icon class="check" icon="solar:check-circle-bold" />{/if}
+              </button>
+            {/each}
+          </div>
+          <dl class="current-state">
+            <div><dt>当前 Pass 到期</dt><dd>{formatDate(currentPass?.endDate)}</dd></div>
+            <div><dt>40001 票券</dt><dd class="num">{state?.ticket?.stock ?? 0} 张</dd></div>
+            <div><dt>票券到期</dt><dd>{formatDate(ticketExpiry || currentPass?.endDate)}</dd></div>
+          </dl>
+        </section>
 
-        <div class="current-state">
-          <div><span>当前 Pass 到期</span><strong>{formatDate(currentPass?.endDate)}</strong></div>
-          <div><span>40001 票券</span><strong>{state?.ticket?.stock ?? 0} 张</strong></div>
-          <div><span>票券到期</span><strong>{formatDate(ticketExpiry || currentPass?.endDate)}</strong></div>
-        </div>
+        <section class="card">
+          <div class="card-header"><div><h3>选择 Pass 样式</h3><p>{passOptions.length} 种可选</p></div></div>
+          <div class="pass-options" role="radiogroup" aria-label="Pass 样式">
+            {#each passOptions as option (option.charaId)}
+              <button class="pass-option {option.accent}" class:selected={selectedCharaId === option.charaId} type="button" role="radio"
+                      aria-checked={selectedCharaId === option.charaId} title="{option.title} · Pass ID {option.charaId}" on:click={() => chooseType(option.charaId)}>
+                <img src={thumb(option.charaId)} alt="" loading="lazy" />
+                <span class="option-label"><Icon icon={option.passTypeId === 2 ? "solar:medal-star-bold-duotone" : "solar:stars-minimalistic-bold-duotone"} />{option.charaId % 1000}</span>
+              </button>
+            {/each}
+          </div>
+        </section>
 
-        {#if state && !state.hasProfile}
-          <div class="profile-warning"><Icon icon="solar:info-circle-bold-duotone" /><span>该卡片还没有舞萌 DX 用户资料，暂时无法购买 Magical Pass。</span></div>
-        {/if}
-        <button class="buy-button" type="button" on:click={purchase} disabled={loading || purchasing || !state?.hasProfile}>
-          <Icon icon={purchasing ? "line-md:loading-twotone-loop" : "solar:cart-large-2-bold-duotone"} />
-          {purchasing ? "正在发放" : `发放${selectedOption.title}`}
-        </button>
-        <p class="purchase-note">每次发放 Pass 会同步增加 1 张 40001 票券，票券有效期与本次 Pass 相同。</p>
-      </section>
-    </section>
+        <section class="card buy">
+          {#if state && !state.hasProfile}
+            <div class="alert"><Icon icon="solar:info-circle-bold-duotone" /><p>该卡片还没有舞萌 DX 用户资料，暂时无法购买 Magical Pass。</p></div>
+          {/if}
+          <button class="btn-primary btn-lg btn-block" type="button" on:click={purchase} disabled={loading || purchasing || !state?.hasProfile}>
+            {#if purchasing}<Spinner />{:else}<Icon icon="solar:cart-large-2-bold-duotone" />{/if}
+            {purchasing ? "正在发放…" : `发放${selectedOption.title}`}
+          </button>
+          <p class="subtle note">每次发放 Pass 会同步增加 1 张 40001 票券，票券有效期与本次 Pass 相同。</p>
+        </section>
+      </aside>
+    </div>
   {/if}
 </main>
 
 <style lang="sass">
   @use "../vars"
 
-  .pass-page
-    gap: 20px
-
-  .pass-heading, .panel-title, .preview-title, .preview-actions, .heading-badge, .notice, .manage-link, .buy-button, .profile-warning
-    display: flex
-    align-items: center
-
-  .pass-heading
-    justify-content: space-between
-    gap: 20px
-
-    h1
-      margin: 6px 0 4px
-      color: vars.$c-text
-
-    p
-      margin: 0
-      color: vars.$c-sub
-
-  .eyebrow
-    color: vars.$c-main
-    font-size: 0.7rem
-    font-weight: 800
-    letter-spacing: 0.13em
-
-  .heading-badge
-    gap: 7px
-    padding: 10px 13px
-    border: 1px solid rgba(255, 255, 255, 0.88)
-    border-radius: 12px
-    color: #a57816
-    background: rgba(255, 255, 255, 0.62)
-    font-size: 0.82rem
-    font-weight: 700
-
-  .notice
-    gap: 8px
-    padding: 11px 14px
-    border: 1px solid rgba(7, 143, 136, 0.16)
-    border-radius: 11px
-    color: vars.$c-main
-    background: rgba(255, 255, 255, 0.62)
-
-    &.error
-      border-color: rgba(196, 73, 94, 0.18)
-      color: vars.$c-error
-
-    &.success
-      border-color: rgba(19, 134, 111, 0.18)
-      color: vars.$c-good
-
   .pass-layout
     display: grid
-    grid-template-columns: 220px minmax(0, 1fr) 270px
-    gap: 16px
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr)
     align-items: start
+    gap: 16px
 
-  .card-panel, .preview-panel, .purchase-panel
-    min-width: 0
-    padding: 18px
-    border: 1px solid rgba(255, 255, 255, 0.82)
-    border-radius: 16px
-    background: rgba(255, 255, 255, 0.58)
-    box-shadow: 0 16px 38px rgba(43, 72, 76, 0.08)
-    backdrop-filter: blur(16px)
-
-  .panel-title
-    justify-content: space-between
-    gap: 8px
-    margin-bottom: 14px
-
-    h2
-      margin: 4px 0 0
-      color: vars.$c-text
-      font-size: 1.28rem
-
-  .card-list, .pass-options
-    display: grid
-    gap: 8px
-
-  .pass-options
-    max-height: 430px
-    overflow-y: auto
-    padding-right: 4px
-
-  .card-choice, .pass-option
-    display: flex
-    align-items: center
-    gap: 9px
-    width: 100%
-    min-width: 0
-    padding: 10px
-    border: 1px solid rgba(96, 114, 118, 0.13)
-    border-radius: 11px
-    color: vars.$c-text
-    background: rgba(255, 255, 255, 0.52)
-    text-align: left
-
-    &:hover, &.selected
-      border-color: rgba(7, 143, 136, 0.45)
-      background: rgba(217, 244, 241, 0.82)
-
-  .card-choice-icon, .pass-option-mark
-    display: grid
-    place-items: center
-    width: 32px
-    height: 32px
-    flex: 0 0 32px
-    border-radius: 9px
-    color: vars.$c-main
-    background: vars.$c-main-soft
-    font-size: 1.15rem
-
-  .card-choice-copy, .pass-option > span:nth-child(2)
-    display: grid
-    min-width: 0
-    flex: 1
-    gap: 2px
-
-    strong, small
-      overflow: hidden
-      text-overflow: ellipsis
-      white-space: nowrap
-
-    strong
-      font-size: 0.78rem
-
-    small
-      color: vars.$c-sub
-      font-size: 0.68rem
-
-  .card-choice-arrow, .option-check
-    flex: 0 0 auto
-    color: vars.$c-muted
-
-  .manage-link
-    gap: 5px
-    margin-top: 14px
-    font-size: 0.78rem
+  .preview
+    position: sticky
+    top: calc(var(--nav-height) + 16px)
 
   canvas
     display: block
     width: 100%
     height: auto
-    border-radius: 13px
-    box-shadow: 0 16px 30px rgba(43, 72, 76, 0.13)
-
-  .preview-title
-    align-items: flex-end
-
-  .asset-tag
-    padding: 4px 8px
-    border-radius: 999px
-    color: vars.$c-main
-    background: vars.$c-main-soft
-    font-size: 0.7rem
-    font-weight: 700
+    border-radius: var(--radius)
+    background: var(--surface-2)
+    box-shadow: var(--shadow-sm)
 
   .preview-actions
+    display: flex
+    align-items: center
     justify-content: space-between
     gap: 10px
-    margin-top: 13px
+    margin-top: 14px
 
     small
-      color: vars.$c-sub
-      font-size: 0.7rem
+      font-size: 0.8rem
 
-  .primary-action, .buy-button
-    justify-content: center
-    gap: 6px
-    color: #fff
-    border-color: vars.$c-main
-    background: vars.$c-main
+  .side
+    display: grid
+    gap: 16px
+    min-width: 0
 
-    &:hover
-      color: #fff
-      background: vars.$c-darker
+  .card-list
+    display: grid
+    gap: 8px
 
-  .primary-action
-    padding: 9px 12px
-    font-size: 0.8rem
+  .choice
+    justify-content: flex-start
+    gap: 12px
+    height: auto
+    min-height: 60px
+    padding: 8px 12px 8px 8px
+    border-radius: var(--radius)
+    font-weight: 400
+    text-align: left
 
-  .pass-option.gold .pass-option-mark
-    color: #a57816
-    background: rgba(229, 171, 67, 0.17)
+    &.selected
+      border-color: var(--primary)
+      background: var(--primary-soft)
 
-  .pass-option.rainbow .pass-option-mark
-    color: #b34d88
-    background: rgba(239, 135, 181, 0.17)
+    :global(.check)
+      color: var(--primary)
+      font-size: 1.2rem
+
+    .tile-icon
+      width: 38px
+      height: 38px
+      flex-basis: 38px
+      font-size: 1.2rem
 
   .current-state
     display: grid
-    gap: 9px
-    margin: 18px 0
-    padding-top: 15px
-    border-top: 1px solid rgba(96, 114, 118, 0.13)
+    gap: 8px
+    margin: 16px 0 0
+    padding-top: 14px
+    border-top: 1px solid var(--border)
 
     div
       display: flex
       justify-content: space-between
       gap: 8px
+      font-size: 0.86rem
 
-    span
-      color: vars.$c-sub
-      font-size: 0.73rem
+    dt
+      color: var(--text-2)
 
-    strong
-      color: vars.$c-text
-      font-size: 0.76rem
+    dd
+      margin: 0
+      font-weight: 600
       text-align: right
 
-  .profile-warning
-    align-items: flex-start
-    gap: 7px
-    margin: 12px 0
-    padding: 10px
-    border-radius: 10px
-    color: vars.$c-warning
-    background: rgba(229, 171, 67, 0.13)
-    font-size: 0.75rem
+  .pass-options
+    display: grid
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr))
+    gap: 8px
+    max-height: 360px
+    overflow-y: auto
+    padding: 2px
 
-  .buy-button
-    width: 100%
-    padding: 11px 12px
-    font-size: 0.84rem
+  .pass-option
+    position: relative
+    flex-direction: column
+    gap: 0
+    height: auto
+    min-height: 0
+    padding: 6px 4px 4px
+    border-radius: var(--radius)
+    overflow: hidden
 
-    &:disabled, .primary-action:disabled
-      cursor: wait
-      opacity: 0.52
+    img
+      width: 100%
+      aspect-ratio: 3 / 4
+      object-fit: cover
+      object-position: top
 
-  .purchase-note
-    margin: 10px 0 0
-    color: vars.$c-sub
-    font-size: 0.7rem
+    &.gold
+      background: linear-gradient(180deg, var(--surface), var(--warning-soft))
+
+    &.rainbow
+      background: linear-gradient(180deg, var(--surface), var(--accent-soft))
+
+    &.selected
+      border-color: var(--primary)
+      box-shadow: 0 0 0 2px var(--primary)
+
+  .option-label
+    display: inline-flex
+    align-items: center
+    gap: 3px
+    color: var(--text-2)
+    font-size: 0.72rem
+
+    .gold &
+      color: var(--warning)
+
+    .rainbow &
+      color: var(--accent)
+
+  .buy
+    gap: 12px
+
+  .note
+    margin: 0
+    font-size: 0.8rem
     line-height: 1.6
 
-  .empty-panel
-    display: flex
-    flex-direction: column
-    align-items: center
-    padding: 70px 20px
-    border: 1px solid rgba(255, 255, 255, 0.82)
-    border-radius: 16px
-    background: rgba(255, 255, 255, 0.58)
-    text-align: center
-
-    > :global(svg)
-      color: vars.$c-main
-      font-size: 3rem
-
-    h2
-      margin: 12px 0 5px
-
-    p
-      margin: 0 0 16px
-      color: vars.$c-sub
-
-    a
-      display: inline-flex
-      align-items: center
-      gap: 5px
-
-  @media (max-width: 1050px)
+  @media (max-width: vars.$w-tablet)
     .pass-layout
-      grid-template-columns: 190px minmax(0, 1fr)
+      grid-template-columns: 1fr
 
-    .purchase-panel
-      grid-column: 1 / -1
-
-    .pass-options
-      grid-template-columns: repeat(2, minmax(0, 1fr))
+    .preview
+      position: static
 
   @media (max-width: vars.$w-mobile)
-    .pass-heading
-      align-items: flex-start
-      flex-direction: column
-
-    .pass-layout
-      grid-template-columns: 1fr
-
-    .purchase-panel
-      grid-column: auto
-
-    .pass-options
-      grid-template-columns: 1fr
-
     .preview-actions
-      align-items: flex-start
-      flex-direction: column
-
-  :global(:root[data-theme="dark"])
-    .card-panel, .preview-panel, .purchase-panel, .empty-panel, .notice, .heading-badge
-      border-color: rgba(214, 250, 245, 0.14)
-      background: rgba(21, 34, 36, 0.78)
-
-    .card-choice, .pass-option
-      border-color: rgba(214, 250, 245, 0.14)
-      color: #e6f3f1
-      background: rgba(24, 38, 40, 0.72)
-
-      &:hover, &.selected
-        background: rgba(7, 143, 136, 0.18)
-
-    .panel-title h2, .current-state strong
-      color: #e6f3f1
-
-    .heading-badge
-      color: #e8bf53
-
-    .purchase-note, .current-state span, .card-choice-copy small, .pass-option small
-      color: #9fbbb9
+      flex-direction: column-reverse
+      align-items: stretch
 </style>

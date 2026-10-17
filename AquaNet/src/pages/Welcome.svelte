@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { slide } from 'svelte/transition';
+  import { fade } from 'svelte/transition';
+  import Spinner from "../components/ui/Spinner.svelte";
   import Icon from "../components/ui/Icon.svelte";
   import { USER } from "../libs/sdk";
   import { t } from "../libs/i18n"
@@ -14,9 +15,16 @@
 
   let params = new URLSearchParams(window.location.search)
 
-  let state = "home"
+  let state = "login"
   $: isSignup = state === "signup"
   let submitting = false
+  let showPassword = false
+
+  function switchState(next: string) {
+    state = next
+    error = ""
+    showPassword = false
+  }
 
   let email = ""
   let password = ""
@@ -53,14 +61,19 @@
         // Clear the query param
         window.history.replaceState({}, document.title, window.location.pathname)
       })
-      .catch(e => verifyMsg = t('welcome.verification-failed', { message: e.message }))
+      .catch(e => {
+        verifyMsg = t('welcome.verification-failed', { message: e.message })
+        submitting = false
+      })
     }
     else if (location.pathname === '/reset-password') {
       state = 'reset'
     }
   }
   async function submit(): Promise<any> {
+    if (submitting) return
     submitting = true
+    error = ""
 
     // Check if username and password are valid
     if (email === "" || password === "") {
@@ -124,7 +137,9 @@
   }
 
   async function resetPassword(): Promise<any> {
+    if (submitting) return
     submitting = true;
+    error = ""
 
     if (email === "") {
       error = t("welcome.email-missing")
@@ -157,7 +172,9 @@
   }
 
   async function changePassword(): Promise<any> {
+    if (submitting) return
     submitting = true
+    error = ""
 
     if (password === "") {
       error = t("welcome.password-missing")
@@ -180,52 +197,104 @@
 
 </script>
 
-<main id="welcome-page" class="no-margin">
-  <section class="welcome-intro">
-    <div class="brand-mark"><img src="/assets/branding/mikunet-logo.webp" alt="MikuNet" width="960" height="640" fetchpriority="high" /></div>
-    <span class="kicker">MikuNet / ONLINE SERVICE</span>
-    <h1>让每一次游玩，都有自己的位置。</h1>
-    <p>管理卡片、同步成绩，继续你的街机记录。</p>
-    {#if hasAc}<div class="ac-hint"><span>{t('welcome.login_link')}</span><strong>{previewAc}</strong></div>{/if}
-    <div class="intro-notes"><span><Icon icon="solar:shield-check-bold-duotone" />数据随时可控</span><span><Icon icon="solar:card-bold-duotone" />多卡片管理</span></div>
+<main id="welcome-page">
+  <section class="intro">
+    <img class="brand-mark" src="/assets/branding/mikunet-logo.webp" alt="MikuNet" width="960" height="640" fetchpriority="high" />
+    <h1>让每一次游玩，<br class="desktop-br" />都有自己的位置。</h1>
+    <p class="lead">管理卡片、同步成绩，继续你的街机记录。</p>
+    <ul class="features">
+      <li><span><Icon icon="solar:card-bold-duotone" /></span><div><strong>多卡片管理</strong><small>Access Code 与 FeliCa 一处绑定</small></div></li>
+      <li><span><Icon icon="solar:chart-2-bold-duotone" /></span><div><strong>成绩与排行</strong><small>Rating 趋势、B50 与服务器排名</small></div></li>
+      <li><span><Icon icon="solar:shield-check-bold-duotone" /></span><div><strong>数据随时可控</strong><small>随时导入、导出你的游戏资料</small></div></li>
+    </ul>
   </section>
 
-  <section class="auth-surface">
-    <div class="auth-heading">
-      <span class="eyebrow">{state === "signup" ? "CREATE ACCOUNT" : "WELCOME BACK"}</span>
-      <h2>{state === "home" ? "进入 MikuNet" : state === "signup" ? "创建账号" : state === "verify" ? "检查邮箱" : "登录 MikuNet"}</h2>
-    </div>
+  <section class="auth-card" aria-labelledby="auth-title">
+    {#if hasAc}
+      <div class="alert alert-info ac-hint"><Icon icon="solar:card-bold-duotone" /><div><p>{t('welcome.login_link')}</p><strong class="mono">{previewAc}</strong></div></div>
+    {/if}
 
-    {#if state === "home"}
-      <div class="auth-actions" transition:slide>
-        <button class="primary" on:click={() => state = 'login'}><Icon icon="solar:login-2-bold" />{t('welcome.btn-login')}</button>
-        <button on:click={() => state = 'signup'}><Icon icon="solar:user-plus-bold" />{t('welcome.btn-signup')}</button>
+    {#if state === "login" || state === "signup"}
+      <div class="segmented auth-tabs" role="tablist" aria-label="登录或注册">
+        <button type="button" role="tab" aria-selected={state === "login"} on:click={() => switchState('login')}>{t('welcome.btn-login')}</button>
+        <button type="button" role="tab" aria-selected={state === "signup"} on:click={() => switchState('signup')}>{t('welcome.btn-signup')}</button>
       </div>
-    {:else if state === "login" || state === "signup"}
-      <div class="login-form" transition:slide>
-        {#if error}<span class="error">{error}</span>{/if}
-        <button class="back-button" on:click={() => state = 'home'}><Icon icon="line-md:chevron-small-left" />{t('back')}</button>
-        {#if isSignup}<label>{t('username')}<input type="text" placeholder="your-name" bind:value={username}></label>{/if}
-        <label>{isSignup ? t('email') : "用户名或邮箱"}<input type={isSignup ? "email" : "text"} placeholder={isSignup ? "you@example.com" : "name@example.com"} bind:value={email}></label>
-        <label>{t('password')}<input type="password" placeholder="••••••••" bind:value={password}></label>
-        <button class="primary submit-button" on:click={submit}>{#if submitting}<Icon icon="line-md:loading-twotone-loop"/>{:else}{isSignup ? t('welcome.btn-signup') : t('welcome.btn-login')}{/if}</button>
-        {#if state === "login" && !submitting}<button class="text-button" on:click={() => state = 'submitreset'}>{t('welcome.btn-reset-password')}</button>{/if}
+      <div class="auth-heading">
+        <h2 id="auth-title">{isSignup ? "创建 MikuNet 账号" : "欢迎回来"}</h2>
+        <p>{isSignup ? "注册后需要验证邮箱才能登录。" : "使用用户名或邮箱登录你的账号。"}</p>
       </div>
+
+      <form class="auth-form" on:submit|preventDefault={submit} novalidate>
+        {#if error}<div class="alert alert-danger" role="alert" in:fade={{ duration: 120 }}><Icon icon="solar:danger-triangle-bold-duotone" /><p>{error}</p></div>{/if}
+        {#if isSignup}
+          <label class="field"><span class="field-label">{t('username')}</span>
+            <input type="text" name="username" autocomplete="username" placeholder="your-name" bind:value={username} disabled={submitting} />
+          </label>
+        {/if}
+        <label class="field"><span class="field-label">{isSignup ? t('email') : "用户名或邮箱"}</span>
+          {#if isSignup}
+            <input type="email" name="email" autocomplete="email" inputmode="email" placeholder="you@example.com" bind:value={email} disabled={submitting} />
+          {:else}
+            <input type="text" name="username" autocomplete="username" placeholder="name@example.com" bind:value={email} disabled={submitting} />
+          {/if}
+        </label>
+        <div class="field">
+          <div class="label-row">
+            <label class="field-label" for="auth-password">{t('password')}</label>
+            {#if state === "login"}<button class="btn-link forgot" type="button" on:click={() => switchState('submitreset')}>{t('welcome.btn-reset-password')}</button>{/if}
+          </div>
+          <div class="password-input">
+            {#if showPassword}
+              <input id="auth-password" type="text" autocomplete={isSignup ? "new-password" : "current-password"} bind:value={password} disabled={submitting} />
+            {:else}
+              <input id="auth-password" type="password" autocomplete={isSignup ? "new-password" : "current-password"} placeholder="••••••••" bind:value={password} disabled={submitting} />
+            {/if}
+            <button class="btn-ghost btn-icon btn-sm reveal" type="button" aria-label={showPassword ? "隐藏密码" : "显示密码"} aria-pressed={showPassword} on:click={() => showPassword = !showPassword}>
+              <Icon icon={showPassword ? "solar:eye-closed-bold-duotone" : "solar:eye-bold-duotone"} />
+            </button>
+          </div>
+        </div>
+        <button class="btn-primary btn-lg btn-block" type="submit" disabled={submitting}>
+          {#if submitting}<Spinner />{:else}<Icon icon={isSignup ? "solar:user-plus-bold" : "solar:login-2-bold"} />{/if}
+          {isSignup ? t('welcome.btn-signup') : t('welcome.btn-login')}
+        </button>
+      </form>
     {:else if state === "submitreset"}
-      <div class="login-form" transition:slide>
-        {#if error}<span class="error">{error}</span>{/if}
-        <button class="back-button" on:click={() => state = 'login'}><Icon icon="line-md:chevron-small-left" />{t('back')}</button>
-        <label>{t('email')}<input type="email" placeholder="you@example.com" bind:value={email}></label>
-        <button class="primary" on:click={resetPassword}>{#if submitting}<Icon icon="line-md:loading-twotone-loop"/>{:else}{t('welcome.btn-submit-reset-password')}{/if}</button>
+      <button class="btn-ghost btn-sm back" type="button" on:click={() => switchState('login')}><Icon icon="line-md:chevron-small-left" />{t('back')}</button>
+      <div class="auth-heading">
+        <h2 id="auth-title">重置密码</h2>
+        <p>输入注册邮箱，我们会发送一封重置链接。</p>
       </div>
+      <form class="auth-form" on:submit|preventDefault={resetPassword} novalidate>
+        {#if error}<div class="alert alert-danger" role="alert"><Icon icon="solar:danger-triangle-bold-duotone" /><p>{error}</p></div>{/if}
+        <label class="field"><span class="field-label">{t('email')}</span>
+          <input type="email" name="email" autocomplete="email" inputmode="email" placeholder="you@example.com" bind:value={email} disabled={submitting} />
+        </label>
+        <button class="btn-primary btn-lg btn-block" type="submit" disabled={submitting}>
+          {#if submitting}<Spinner />{/if}{t('welcome.btn-submit-reset-password')}
+        </button>
+      </form>
     {:else if state === "verify"}
-      <div class="message-state" transition:slide><Icon icon="solar:letter-opened-bold-duotone" /><span>{verifyMsg}</span>{#if !submitting}<button on:click={() => state = 'home'}>{t('back')}</button>{/if}</div>
-    {:else if state === "reset"}
-      <div class="login-form" transition:slide>
-        {#if error}<span class="error">{error}</span>{/if}
-        <label>{t('new-password')}<input type="password" placeholder="••••••••" bind:value={password}></label>
-        <button class="primary" on:click={changePassword}>{#if submitting}<Icon icon="line-md:loading-twotone-loop"/>{:else}{t('welcome.btn-submit-new-password')}{/if}</button>
+      <div class="message-state" role="status">
+        <span class="message-icon">{#if submitting}<Spinner size="28px" />{:else}<Icon icon="solar:letter-opened-bold-duotone" />{/if}</span>
+        <h2 id="auth-title">{submitting ? "请稍候" : "请查看提示"}</h2>
+        <p>{verifyMsg}</p>
+        {#if !submitting}<button class="btn-primary btn-block" type="button" on:click={() => switchState('login')}>{t('welcome.btn-login')}</button>{/if}
       </div>
+    {:else if state === "reset"}
+      <div class="auth-heading">
+        <h2 id="auth-title">设置新密码</h2>
+        <p>设置完成后请使用新密码重新登录。</p>
+      </div>
+      <form class="auth-form" on:submit|preventDefault={changePassword} novalidate>
+        {#if error}<div class="alert alert-danger" role="alert"><Icon icon="solar:danger-triangle-bold-duotone" /><p>{error}</p></div>{/if}
+        <label class="field"><span class="field-label">{t('new-password')}</span>
+          <input type="password" name="new-password" autocomplete="new-password" placeholder="••••••••" bind:value={password} disabled={submitting} />
+        </label>
+        <button class="btn-primary btn-lg btn-block" type="submit" disabled={submitting}>
+          {#if submitting}<Spinner />{/if}{t('welcome.btn-submit-new-password')}
+        </button>
+      </form>
     {/if}
   </section>
 </main>
@@ -235,159 +304,177 @@
 
   #welcome-page
     display: grid
-    grid-template-columns: minmax(0, 1fr) minmax(340px, 430px)
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 420px)
     align-items: center
-    gap: clamp(38px, 8vw, 120px)
+    gap: clamp(32px, 7vw, 96px)
     width: min(1120px, 100%)
-    min-height: 100vh
+    min-height: calc(100dvh - var(--nav-height))
     margin: 0 auto
-    padding: 70px 34px
-    box-sizing: border-box
+    padding: 48px 28px
 
-  .welcome-intro
-    max-width: 570px
+  .intro
+    max-width: 560px
 
   .brand-mark
-    width: min(360px, 100%)
-    margin-bottom: 24px
+    display: block
+    width: min(300px, 70%)
+    height: auto
+    margin-bottom: 20px
 
-    img
-      display: block
-      width: 100%
-      height: auto
-      object-fit: contain
-
-  .kicker, .eyebrow
-    color: vars.$c-main
-    font-size: 0.72rem
-    font-weight: 800
-    letter-spacing: 0.14em
-
-  .welcome-intro h1
-    max-width: 560px
-    margin: 12px 0 16px
-    color: vars.$c-text
-    font-size: clamp(2.2rem, 6vw, 4.8rem)
+  h1
+    margin: 0 0 14px
+    font-size: clamp(2rem, 4.6vw, 3.4rem)
+    line-height: 1.12
     letter-spacing: -0.02em
 
-  .welcome-intro p
-    max-width: 420px
+  .lead
     margin: 0
-    color: vars.$c-sub
-    font-size: 1.06rem
+    color: var(--text-2)
+    font-size: 1.08rem
 
-  .ac-hint
-    display: inline-flex
-    flex-direction: column
-    gap: 2px
-    margin-top: 28px
-    padding: 10px 13px
-    border-left: 3px solid vars.$c-main
-    border-radius: 0 10px 10px 0
-    color: vars.$c-sub
-    background: rgba(255, 255, 255, 0.48)
+  .features
+    display: grid
+    gap: 14px
+    margin: 32px 0 0
+    padding: 0
+    list-style: none
 
-    strong
-      color: vars.$c-text
-      font-size: 0.9rem
-
-  .intro-notes
-    display: flex
-    flex-wrap: wrap
-    gap: 16px
-    margin-top: 34px
-    color: vars.$c-sub
-    font-size: 0.82rem
-
-    span
-      display: inline-flex
+    li
+      display: flex
       align-items: center
-      gap: 6px
+      gap: 12px
 
-      :global(svg)
-        color: vars.$c-main
+    li > span
+      display: grid
+      place-items: center
+      width: 40px
+      height: 40px
+      flex: 0 0 40px
+      border-radius: var(--radius)
+      color: var(--primary)
+      background: var(--primary-soft)
+      font-size: 1.3rem
 
-  .auth-surface
+    div
+      display: grid
+
+    small
+      color: var(--text-2)
+      font-size: 0.85rem
+
+  .auth-card
+    display: flex
+    flex-direction: column
+    gap: 18px
     width: 100%
     padding: 28px
-    border: 1px solid rgba(255, 255, 255, 0.9)
-    border-radius: 22px
-    background: rgba(255, 255, 255, 0.70)
-    box-shadow: 0 28px 80px rgba(43, 72, 76, 0.15)
-    backdrop-filter: blur(22px)
-    box-sizing: border-box
+    border: 1px solid var(--border)
+    border-radius: var(--radius-xl)
+    background: var(--surface)
+    box-shadow: var(--shadow-lg)
+
+  .ac-hint
+    p
+      margin: 0 0 2px
+
+  .auth-tabs
+    display: flex
+
+    > button
+      flex: 1
 
   .auth-heading
-    margin-bottom: 23px
-
     h2
-      margin: 7px 0 0
-      color: vars.$c-text
-      font-size: 1.65rem
+      margin: 0
+      font-size: 1.4rem
 
-  .auth-actions, .login-form, .message-state
+    p
+      margin: 4px 0 0
+      color: var(--text-2)
+      font-size: 0.9rem
+
+  .auth-form
     display: flex
     flex-direction: column
-    gap: 10px
+    gap: 14px
 
-  .auth-actions button, .submit-button
+    .btn-lg
+      margin-top: 4px
+
+  .label-row
     display: flex
     align-items: center
-    justify-content: center
-    gap: 8px
+    justify-content: space-between
 
-  .primary
-    border-color: rgba(7, 143, 136, 0.34)
-    color: #fff
-    background: vars.$c-main
-    box-shadow: 0 9px 20px rgba(7, 143, 136, 0.18)
+  .forgot
+    font-size: 0.82rem
 
-    &:hover
-      color: #fff
-      background: vars.$c-darker
+  .password-input
+    position: relative
 
-  .back-button, .text-button
+    input
+      padding-right: 44px
+
+    .reveal
+      position: absolute
+      top: 50%
+      right: 4px
+      transform: translateY(-50%)
+
+      &:active:not(:disabled)
+        transform: translateY(-50%)
+
+  .back
     align-self: flex-start
-    padding: 4px 0
-    border: 0
-    color: vars.$c-sub
-    background: transparent
-    box-shadow: none
-
-    &:hover
-      color: vars.$c-main
-      background: transparent
-      transform: none
-
-  .login-form label
-    display: grid
-    gap: 6px
-    color: vars.$c-sub
-    font-size: 0.8rem
+    margin: -8px 0 -6px -8px
 
   .message-state
+    display: flex
+    flex-direction: column
     align-items: center
+    gap: 8px
+    padding: 12px 0 4px
     text-align: center
-    color: vars.$c-sub
 
-    :global(svg)
-      color: vars.$c-main
-      font-size: 2.4rem
+    h2
+      margin: 6px 0 0
+      font-size: 1.25rem
 
-  @media (max-width: vars.$w-mobile)
+    p
+      margin: 0 0 12px
+      color: var(--text-2)
+
+  .message-icon
+    display: grid
+    place-items: center
+    width: 60px
+    height: 60px
+    border-radius: 50%
+    color: var(--primary)
+    background: var(--primary-soft)
+    font-size: 1.9rem
+
+  @media (max-width: vars.$w-tablet)
     #welcome-page
       grid-template-columns: 1fr
-      align-content: center
-      gap: 32px
-      min-height: 100vh
-      padding: 42px 18px
+      justify-items: center
+      gap: 28px
+      padding: 28px 16px 40px
+
+    .intro
+      text-align: center
 
     .brand-mark
-      width: min(280px, 100%)
+      width: min(220px, 60%)
+      margin: 0 auto 14px
 
-    .welcome-intro h1
-      font-size: clamp(2rem, 12vw, 3.5rem)
+    .desktop-br, .features
+      display: none
 
-    .auth-surface
-      padding: 22px
+    .auth-card
+      max-width: 440px
+
+  @media (max-width: vars.$w-mobile)
+    .auth-card
+      padding: 22px 18px
 </style>

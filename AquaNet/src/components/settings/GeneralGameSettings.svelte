@@ -1,14 +1,17 @@
 <script lang="ts">
-  import { fade } from "svelte/transition";
-  import { FADE_IN, FADE_OUT } from "../../libs/config";
   import { t, ts } from "../../libs/i18n";
   import useLocalStorage from "../../libs/hooks/useLocalStorage.svelte";
   import RegionSelector from "./RegionSelector.svelte";
   import { USER } from "../../libs/sdk";
   import type { MikuNetUser } from "../../libs/generalTypes";
   import StatusOverlays from "../StatusOverlays.svelte";
+  import Icon from "../ui/Icon.svelte";
+  import { toast, errorMessage } from "../../libs/toast";
 
   const rounding = useLocalStorage("rounding", true);
+  // Local mirror so the switch reflects the stored value reactively.
+  let roundingValue = rounding.value;
+  $: rounding.value = roundingValue;
 
   let me: MikuNetUser;
   let submitting = "";
@@ -25,68 +28,49 @@
     submitting = field
 
     USER.setting(field, value).then(() => {
-    }).catch(e => error = e.message).finally(() => submitting = "")
+      toast.success(t("settings.profile.save") + " ✓")
+    }).catch(e => toast.error(errorMessage(e))).finally(() => submitting = "")
   }
 </script>
 
 {#if !loading}
-  <div class="fields">
-    <blockquote class="info">
-      {ts("settings.siteNotice")}
-    </blockquote>
-    <div class="field">
-      <div class="bool">
-        <input id="rounding" type="checkbox" bind:checked={rounding.value}/>
-        <label for="rounding">
-          <span class="name">{ts(`settings.fields.rounding.name`)}</span>
-          <span class="desc">{ts(`settings.fields.rounding.desc`)}</span>
-        </label>
-      </div>
-    </div>
-    <div class="field m-t">
-      <div class="bool">
-          <input id="displayCandidates" type="checkbox" bind:checked={me.displayCandidates}
-            on:change={() => submit('displayCandidates', me.displayCandidates.toString())}/>
-          <label for="displayCandidates">
+  <div class="general">
+    <div class="setting-section">
+      <h3>网站显示</h3>
+      <div class="alert alert-info"><Icon icon="solar:info-circle-bold-duotone" /><p>{ts("settings.siteNotice")}</p></div>
+      <div class="setting-group">
+        <div class="setting-row">
+          <label class="setting-text" for="rounding">
+            <span class="name">{ts(`settings.fields.rounding.name`)}</span>
+            <span class="desc">{ts(`settings.fields.rounding.desc`)}</span>
+          </label>
+          <input id="rounding" type="checkbox" class="switch" bind:checked={roundingValue}/>
+        </div>
+        <div class="setting-row">
+          <label class="setting-text" for="displayCandidates">
             <span class="name">{ts(`settings.fields.displayCandidates.name`)}</span>
             <span class="desc">{ts(`settings.fields.displayCandidates.desc`)}</span>
           </label>
+          <input id="displayCandidates" type="checkbox" class="switch" bind:checked={me.displayCandidates} disabled={submitting === 'displayCandidates'}
+            on:change={() => submit('displayCandidates', me.displayCandidates.toString())}/>
+        </div>
       </div>
     </div>
-    <div class="divider"></div>
-    <blockquote class="info">
-      {ts("settings.regionNotice")}
-    </blockquote>
-    <RegionSelector/>
+
+    <div class="setting-section">
+      <h3>游戏地区</h3>
+      <div class="alert alert-info"><Icon icon="solar:info-circle-bold-duotone" /><p>{ts("settings.regionNotice")}</p></div>
+      <RegionSelector/>
+    </div>
   </div>
+{:else if !error}
+  <div class="stack" aria-hidden="true"><span class="skeleton" style="height:200px;border-radius:12px"></span></div>
 {/if}
 
-<StatusOverlays {error} {loading} />
+<StatusOverlays {error} />
 
 <style lang="sass">
-  @use "../../vars"
-
-  .fields
-    display: flex
-    flex-direction: column
-    gap: 12px
-
-  .bool
-    display: flex
-    align-items: center
-    gap: 1rem
-
-    label
-      display: flex
-      flex-direction: column
-
-      .desc
-        opacity: 0.6
-
-  .divider
-    width: 100%
-    height: 0.5px
-    background: white
-    opacity: 0.2
-    margin: 0.4rem 0
+  .general
+    display: grid
+    gap: 24px
 </style>

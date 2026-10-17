@@ -1,7 +1,6 @@
-<!-- Svelte 4.2.11 -->
-
 <script lang="ts">
-  import { slide, fade } from "svelte/transition";
+  import Icon from "../../components/ui/Icon.svelte";
+  import PageHeader from "../../components/ui/PageHeader.svelte";
   import type { MikuNetUser } from "../../libs/generalTypes";
   import { CARD, USER } from "../../libs/sdk";
   import StatusOverlays from "../../components/StatusOverlays.svelte";
@@ -13,7 +12,6 @@
   import OngekiSettings from "../../components/settings/OngekiSettings.svelte";
   import UserSettings from "../../components/settings/UserSettings.svelte";
   import type { Component } from "svelte";
-  import { EN_REF } from "../../libs/i18n/en_ref";
   import type { GameName } from "../../libs/scoring";
 
   USER.ensureLoggedIn()
@@ -33,6 +31,14 @@
 
   let userGames: GameName[] = [];
   
+  const icons: Record<string, string> = {
+    profile: "solar:user-circle-bold-duotone", global: "solar:global-bold-duotone",
+    mai2: "solar:gamepad-bold-duotone", chu3: "solar:gamepad-bold-duotone",
+    ongeki: "solar:gamepad-bold-duotone", wacca: "solar:gamepad-bold-duotone",
+  }
+  $: visibleTabs = Object.keys(pages).filter(k => k == "profile" || k == "global" || userGames.includes(k as GameName))
+  $: activePage = page || "profile"
+
   USER.me().then(m => {
     me = m
     CARD.userGames(m.username).then(cards => userGames = Object.keys(cards).filter(k => !!cards[k as GameName]) as GameName[])
@@ -42,83 +48,88 @@
   
 </script>
 
-<main class="content">
-  <div class="settings-heading">
-    <div><span class="eyebrow">ACCOUNT / SETTINGS</span><h1>{t('settings.title')}</h1><p>管理个人资料与各游戏档案。</p></div>
-    <nav class="settings-tabs">
-      {#each Object.entries(pages).filter(v => v[0] == "profile" || v[0] == "global" || userGames.includes(v[0] as GameName)) as tab}
-        <a href={`/settings/${tab[0] != "profile" ? tab[0] : ""}`} transition:slide={{axis: 'x'}} 
-          class:active={tab[0] == page || (tab[0] == "profile" && !page)} role="button" tabindex="0">
-          <span>{ts(`settings.tabs.${tab[0]}`)}</span>
+<main class="page settings-page">
+  <PageHeader eyebrow="Settings" title={t('settings.title')} description="管理个人资料、网站偏好与各游戏档案。" />
+
+  <div class="settings-layout">
+    <nav class="settings-nav" aria-label={t('settings.title')}>
+      {#each visibleTabs as tab (tab)}
+        <a href={`/settings/${tab != "profile" ? tab : ""}`} class:active={tab == activePage} aria-current={tab == activePage ? "page" : undefined}>
+          <Icon icon={icons[tab]} /><span>{ts(`settings.tabs.${tab}`)}</span>
         </a>
       {/each}
     </nav>
+
+    <section class="settings-content card">
+      <h2 class="content-title">{t('settings.page-title', {page: ts(`settings.tabs.${activePage}`)})}</h2>
+      {#if pages[page]}
+        <svelte:component this={pages[page]} />
+      {/if}
+    </section>
   </div>
-
-  <h2 class="header">
-    {t('settings.page-title', {page: ts(`settings.tabs.${page}`)})}
-  </h2>
-
-  {#if pages[page]}
-    <svelte:component this={pages[page]} />
-  {/if}
 </main>
 <StatusOverlays {error} />
+
 <style lang="sass">
   @use "../../vars"
 
-  .settings-heading
-    display: flex
-    align-items: flex-end
-    justify-content: space-between
+  .settings-layout
+    display: grid
+    grid-template-columns: 220px minmax(0, 1fr)
+    align-items: start
     gap: 20px
 
-    h1
-      margin: 6px 0 4px
-
-    p
-      margin: 0
-      color: vars.$c-sub
-      font-size: 0.84rem
-
-  .eyebrow
-    color: vars.$c-main
-    font-size: 0.7rem
-    font-weight: 800
-    letter-spacing: 0.14em
-
-  .settings-tabs
-    display: flex
-    flex-wrap: wrap
-    gap: 5px
-    padding: 4px
-    border: 1px solid rgba(96, 114, 118, 0.13)
-    border-radius: 13px
-    background: rgba(255, 255, 255, 0.42)
+  .settings-nav
+    position: sticky
+    top: calc(var(--nav-height) + 16px)
+    display: grid
+    gap: 2px
 
     a
-      padding: 8px 11px
-      border-radius: 9px
-      color: vars.$c-sub
-      font-size: 0.78rem
-      font-weight: 700
+      display: flex
+      align-items: center
+      gap: 10px
+      min-height: 42px
+      padding: 0 12px
+      border-radius: var(--radius-sm)
+      color: var(--text-2)
+      font-weight: 500
+      text-decoration: none
 
-      &:hover, &.active
-        color: vars.$c-main
-        background: vars.$c-main-soft
+      :global(svg)
+        font-size: 1.2rem
 
-  h2.header
-    margin: 12px 0 0
-    color: vars.$c-text
-    font-size: 1.25rem
+      &:hover
+        color: var(--text)
+        background: var(--surface-2)
 
-  @media (max-width: vars.$w-mobile)
-    .settings-heading
-      align-items: flex-start
-      flex-direction: column
+      &.active
+        color: var(--primary-soft-text)
+        background: var(--primary-soft)
+        font-weight: 600
 
-    .settings-tabs
-      width: 100%
+  .settings-content
+    gap: 20px
+    min-height: 320px
+
+  .content-title
+    margin: 0
+    padding-bottom: 14px
+    border-bottom: 1px solid var(--border)
+
+  @media (max-width: vars.$w-tablet)
+    .settings-layout
+      grid-template-columns: 1fr
+
+    .settings-nav
+      position: static
+      display: flex
       overflow-x: auto
-      flex-wrap: nowrap
+      scrollbar-width: none
+
+      &::-webkit-scrollbar
+        display: none
+
+      a
+        flex: 0 0 auto
 </style>

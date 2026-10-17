@@ -7,20 +7,18 @@
   export let disabled: boolean = false
 
   export let validate: (value: string) => boolean = () => true
+
+  const id = `tr-${Math.random().toString(36).slice(2, 8)}`
+  $: invalid = !!value && !validate(value)
 </script>
 
-<div class="field" style="flex: {flex}">
-  <label for={desc}>{desc}</label>
-  <input type="text" placeholder={placeholder} bind:value={value} id="{desc}" on:change
-    class:error={value && !validate(value)} {disabled}/>
-</div>
+<label class="field" style="flex: {flex}" for={id}>
+  <span class="field-label">{desc}</span>
+  <input {id} type="text" placeholder={placeholder} bind:value={value} on:change
+    class:error={invalid} aria-invalid={invalid} autocomplete="off" {disabled}/>
+</label>
 
 <style lang="sass">
   .field
-    display: inline-flex
-    flex-direction: column
-    gap: 0.5rem
-
-    label
-      font-weight: bold
+    min-width: 140px
 </style>

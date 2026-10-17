@@ -1,7 +1,7 @@
 <!-- Svelte 4.2.11 -->
 
 <script lang="ts">
-  import { fade, slide } from "svelte/transition";
+  import { slide } from "svelte/transition";
   import { USER } from "../../libs/sdk";
   import type { MikuNetUser } from "../../libs/generalTypes";
   import { codeToHtml } from 'shiki'
@@ -10,6 +10,10 @@
   import DashboardTabs from "../../components/DashboardTabs.svelte";
   import { patchUserSegatools } from "../../libs/setup";
   import Icon from "../../components/ui/Icon.svelte";
+  import PageHeader from "../../components/ui/PageHeader.svelte";
+  import Spinner from "../../components/ui/Spinner.svelte";
+  import { confirmDialog } from "../../libs/confirm";
+  import { toast, errorMessage } from "../../libs/toast";
 
   let user: MikuNetUser
   let keychips: string[] = [];
@@ -31,20 +35,32 @@
     return `id=${formatKeychipDisplay(selectedKeychip)}`;
   }
 
+  let keychipText = "";
+
   async function buildKeychipCode() {
     exposeKeychip = false;
     const keychipLines = buildManualKeychipLines();
-    keychipCode = await codeToHtml(`
+    keychipText = `
 [dns]
 default=${AQUA_CONNECTION}
 
 [keychip]
 enable=1
-${keychipLines}`.trim(), {
+${keychipLines}`.trim();
+    keychipCode = await codeToHtml(keychipText, {
       lang: 'ini',
-      theme: 'rose-pine',
+      themes: { light: 'github-light', dark: 'github-dark' },
       transformers: []
     });
+  }
+
+  async function copyConfig() {
+    try {
+      await navigator.clipboard.writeText(keychipText);
+      toast.success("配置已复制到剪贴板");
+    } catch {
+      toast.error("复制失败，请先显示配置后手动选择复制");
+    }
   }
 
   async function loadKeychips() {
@@ -101,7 +117,14 @@ ${keychipLines}`.trim(), {
   }
 
   async function deleteKeychip(k: string) {
-    await USER.deleteKeychip(k);
+    if (!await confirmDialog({ title: t('setup.keychip.delete'), message: `删除后使用 ${formatKeychipDisplay(k)} 的游戏端将无法连接，确定继续吗？`, danger: true, confirmText: t('setup.keychip.delete') })) return;
+    try {
+      await USER.deleteKeychip(k);
+    } catch (e) {
+      toast.error(errorMessage(e));
+      return;
+    }
+    toast.success("Keychip 已删除");
     keychips = keychips.filter(id => id !== k);
     if (selectedKeychip === k) {
       selectedKeychip = keychips[0] ?? "";
@@ -112,309 +135,299 @@ ${keychipLines}`.trim(), {
   async function patchSegatools() {
     automaticSetupStatus = await patchUserSegatools({ keychip: formatKeychipDisplay(selectedKeychip), dns: AQUA_CONNECTION }) ? "success" : "failure";
   }
+
+  // Step progress for the side rail
+  $: step = !selectedKeychip ? 1 : automaticSetupStatus === "success" ? 3 : 2;
 </script>
 
-<main class="content setup-page">
-  <header class="page-heading">
-    <div><span class="eyebrow">CONNECTION / SETUP</span><h1>{t('home.setup')}</h1><p>为街机端准备连接信息和 Keychip，敏感内容默认保持隐藏。</p></div>
-    <span class="secure-chip"><span></span>连接配置</span>
-  </header>
+<main class="page setup-page">
+  <PageHeader eyebrow="Setup" title={t('home.setup')} description="为街机端准备连接信息和 Keychip，敏感内容默认保持隐藏。" />
   <DashboardTabs />
 
   {#if isLoading}
-    <div class="loading-panel"><span class="loader"></span><strong>{t('loading')}</strong></div>
+    <div class="setup-layout" aria-hidden="true">
+      <span class="skeleton" style="height:320px;border-radius:16px"></span>
+      <div class="stack"><span class="skeleton" style="height:200px;border-radius:16px"></span><span class="skeleton" style="height:260px;border-radius:16px"></span></div>
+    </div>
   {:else}
     <div class="setup-layout">
-      <aside class="step-rail glass-panel">
-        <span class="eyebrow">WORKFLOW</span>
+      <aside class="card step-rail">
         <h2>三步完成连接</h2>
-        <div class="rail-step active"><span>01</span><div><strong>准备 Keychip</strong><small>选择用于连接的凭证</small></div></div>
-        <div class="rail-step"><span>02</span><div><strong>写入客户端</strong><small>自动或手动配置 segatools</small></div></div>
-        <div class="rail-step"><span>03</span><div><strong>启动并检查</strong><small>确认 DNS 与版本信息</small></div></div>
-        <blockquote class="info"><Icon icon="solar:shield-check-bold-duotone" />{t('setup.keychip-warning')}</blockquote>
+        <ol>
+          <li class:done={step > 1} class:current={step === 1}><span class="step-dot">{#if step > 1}<Icon icon="solar:check-circle-bold" />{:else}1{/if}</span><div><strong>准备 Keychip</strong><small>选择用于连接的凭证</small></div></li>
+          <li class:done={step > 2} class:current={step === 2}><span class="step-dot">{#if step > 2}<Icon icon="solar:check-circle-bold" />{:else}2{/if}</span><div><strong>写入客户端</strong><small>自动或手动配置 segatools</small></div></li>
+          <li class:current={step === 3}><span class="step-dot">3</span><div><strong>启动并检查</strong><small>确认 DNS 与版本信息</small></div></li>
+        </ol>
+        <div class="alert alert-info"><Icon icon="solar:shield-check-bold-duotone" /><p>{t('setup.keychip-warning')}</p></div>
       </aside>
 
-      <section class="setup-content">
+      <div class="setup-content">
         {#if user.canModifyKeychips}
-          <section class="glass-panel setup-card">
-            <div class="card-heading"><div><span class="eyebrow">STEP 01</span><h2>{t('setup.keychip')}</h2><p>{t('setup.keychip.warning')}</p></div><Icon class="heading-icon" icon="solar:key-minimalistic-square-3-bold-duotone" /></div>
-            <div class="keychip-list">
-              {#each keychips as k}
-                <div class="keychip-item" class:selected={k === selectedKeychip}><button class="keychip-select" on:click={() => selectKeychip(k)}><span class="keychip-led"></span><code>{formatKeychipDisplay(k)}</code>{#if k === selectedKeychip}<span class="selected-mark">当前使用</span>{/if}</button><button class="icon danger" title={t('setup.keychip.delete')} aria-label={t('setup.keychip.delete')} on:click={() => deleteKeychip(k)}><Icon icon="tabler:trash-x-filled" /></button></div>
-              {:else}<div class="empty-keychip"><Icon icon="solar:key-minimalistic-square-3-bold-duotone" />还没有 Keychip</div>{/each}
+          <section class="card">
+            <div class="card-header"><div><span class="eyebrow">Step 1</span><h2>{t('setup.keychip')}</h2><p>{t('setup.keychip.warning')}</p></div></div>
+            <div class="keychip-list" role="radiogroup" aria-label={t('setup.keychip')}>
+              {#each keychips as k (k)}
+                <div class="keychip-item" class:selected={k === selectedKeychip} transition:slide={{ duration: 160 }}>
+                  <button class="keychip-select" type="button" role="radio" aria-checked={k === selectedKeychip} on:click={() => selectKeychip(k)}>
+                    <span class="radio" aria-hidden="true"></span>
+                    <code class="mono">{formatKeychipDisplay(k)}</code>
+                    {#if k === selectedKeychip}<span class="badge success">当前使用</span>{/if}
+                  </button>
+                  <button class="btn-ghost btn-icon btn-sm delete" type="button" title={t('setup.keychip.delete')} aria-label={t('setup.keychip.delete')} on:click={() => deleteKeychip(k)}>
+                    <Icon icon="solar:trash-bin-trash-bold-duotone" />
+                  </button>
+                </div>
+              {:else}
+                <div class="empty-inline"><Icon icon="solar:key-minimalistic-square-3-bold-duotone" />还没有 Keychip，请在下方添加。</div>
+              {/each}
             </div>
-            <form class="add-keychip-form" on:submit|preventDefault={addKeychip}><input type="text" placeholder={t('setup.keychip.placeholder')} maxlength="16" bind:value={newKeychip} required /><button class="primary-action" type="submit" disabled={isAdding}><Icon icon="solar:add-circle-bold" />{isAdding ? t('loading') : t('setup.keychip.add')}</button></form>
-            {#if addKeychipError}<p class="danger form-error">{addKeychipError}</p>{/if}
+            <form class="add-keychip" on:submit|preventDefault={addKeychip}>
+              <label class="field">
+                <span class="field-label">添加 Keychip</span>
+                <div class="input-group">
+                  <input type="text" class="mono" placeholder={t('setup.keychip.placeholder')} maxlength="16" autocomplete="off" autocapitalize="characters"
+                         bind:value={newKeychip} aria-invalid={!!addKeychipError} on:input={() => addKeychipError = ""} />
+                  <button class="btn-primary" type="submit" disabled={isAdding || !newKeychip.trim()}>
+                    {#if isAdding}<Spinner />{:else}<Icon icon="solar:add-circle-bold" />{/if}{t('setup.keychip.add')}
+                  </button>
+                </div>
+              </label>
+              {#if addKeychipError}<p class="field-error" role="alert">{addKeychipError}</p>{/if}
+            </form>
           </section>
         {:else}
-          <section class="glass-panel permission-card"><Icon icon="solar:lock-keyhole-minimalistic-bold-duotone" /><div><strong>连接设置由管理员托管</strong><p>当前账号没有 Keychip 管理权限。如需新增或切换凭证，请联系管理员。</p></div></section>
+          <section class="card permission-card">
+            <span class="tile-icon tone-gold"><Icon icon="solar:lock-keyhole-minimalistic-bold-duotone" /></span>
+            <div><strong>连接设置由管理员托管</strong><p>当前账号没有 Keychip 管理权限。如需新增或切换凭证，请联系管理员。</p></div>
+          </section>
         {/if}
 
-        <section class="glass-panel setup-card">
-          <div class="card-heading"><div><span class="eyebrow">STEP 02</span><h2>写入游戏端配置</h2><p>{@html t('setup.steps.one')}</p></div><Icon class="heading-icon" icon="solar:code-square-bold-duotone" /></div>
+        <section class="card">
+          <div class="card-header"><div><span class="eyebrow">Step 2</span><h2>写入游戏端配置</h2><p class="rich">{@html t('setup.steps.one')}</p></div></div>
           {#if selectedKeychip}
-            {#if !!window.showOpenFilePicker}
-              <details class="setup-option"><summary><span><Icon icon="solar:magic-stick-3-bold-duotone" />{t('setup.type.automatic')}</span><Icon class="chevron" icon="line-md:chevron-small-down" /></summary><div class="option-body">{@html t('setup.automatic')}{#if automaticSetupStatus != "none"}<blockquote class={`keychip-status ${automaticSetupStatus}`}>{t(`setup.automatic.${automaticSetupStatus}`)}</blockquote>{/if}<button class="primary-action" on:click={patchSegatools}><Icon icon="solar:folder-with-files-bold-duotone" />{t('setup.automatic.select')}</button></div></details>
-            {/if}
-            <details class="setup-option" open><summary><span><Icon icon="solar:file-terminal-bold-duotone" />{t('setup.type.manual')}</span><Icon class="chevron" icon="line-md:chevron-small-down" /></summary><div class="option-body">{@html t('setup.manual')}<div class="code-container"><div class="code" class:revealed={exposeKeychip}>{@html keychipCode}</div>{#if !exposeKeychip}<button class="reveal-btn" on:click={() => exposeKeychip = true}><Icon icon="solar:eye-bold-duotone" />{t('setup.reveal-keychip')}</button>{/if}</div></div></details>
-          {:else}<div class="empty-config"><Icon icon="solar:key-minimalistic-square-3-bold-duotone" /><strong>先添加或选择一个 Keychip</strong><span>选择凭证后，这里会生成对应的连接配置。</span></div>{/if}
+            <div class="stack">
+              {#if !!window.showOpenFilePicker}
+                <details class="disclosure">
+                  <summary><span><Icon icon="solar:magic-stick-3-bold-duotone" />{t('setup.type.automatic')}</span><Icon class="chevron" icon="line-md:chevron-small-down" /></summary>
+                  <div class="disclosure-body rich">
+                    {@html t('setup.automatic')}
+                    {#if automaticSetupStatus != "none"}<div class="alert" class:alert-success={automaticSetupStatus === "success"} class:alert-danger={automaticSetupStatus === "failure"}><Icon icon={automaticSetupStatus === "success" ? "solar:check-circle-bold-duotone" : "solar:danger-triangle-bold-duotone"} /><p>{t(`setup.automatic.${automaticSetupStatus}`)}</p></div>{/if}
+                    <button class="btn-primary" type="button" on:click={patchSegatools}><Icon icon="solar:folder-with-files-bold-duotone" />{t('setup.automatic.select')}</button>
+                  </div>
+                </details>
+              {/if}
+              <details class="disclosure" open>
+                <summary><span><Icon icon="solar:file-terminal-bold-duotone" />{t('setup.type.manual')}</span><Icon class="chevron" icon="line-md:chevron-small-down" /></summary>
+                <div class="disclosure-body rich">
+                  {@html t('setup.manual')}
+                  <div class="code-block">
+                    <div class="code-toolbar">
+                      <span class="mono">segatools.ini</span>
+                      <div class="row">
+                        <button class="btn-ghost btn-sm" type="button" on:click={() => exposeKeychip = !exposeKeychip}>
+                          <Icon icon={exposeKeychip ? "solar:eye-closed-bold-duotone" : "solar:eye-bold-duotone"} />{exposeKeychip ? "隐藏" : t('setup.reveal-keychip')}
+                        </button>
+                        <button class="btn-ghost btn-sm" type="button" on:click={copyConfig}><Icon icon="solar:copy-bold-duotone" />{t('action.copy')}</button>
+                      </div>
+                    </div>
+                    <div class="code" class:revealed={exposeKeychip}>{@html keychipCode}</div>
+                  </div>
+                </div>
+              </details>
+            </div>
+          {:else}
+            <div class="empty-inline"><Icon icon="solar:key-minimalistic-square-3-bold-duotone" /><span><strong>先添加或选择一个 Keychip</strong> · 选择凭证后，这里会生成对应的连接配置。</span></div>
+          {/if}
         </section>
 
-        <section class="glass-panel setup-card checklist-card">
-          <div class="card-heading"><div><span class="eyebrow">STEP 03</span><h2>启动前检查</h2><p>完成以下检查后再启动游戏端。</p></div><Icon class="heading-icon" icon="solar:checklist-minimalistic-bold-duotone" /></div>
-          <div class="check-row"><span>1</span><div>{@html t('setup.steps.two')}</div></div><div class="check-row"><span>2</span><div>{@html t('setup.steps.three')}</div></div>
-          <details class="troubleshooting"><summary>{t('setup.troubleshooting.header')}<Icon icon="line-md:chevron-small-down" /></summary><ul><li>{@html t('setup.troubleshooting.items.one')}</li><li>{@html t('setup.troubleshooting.items.two')}</li><li>{@html t('setup.troubleshooting.items.three')}</li></ul></details>
+        <section class="card">
+          <div class="card-header"><div><span class="eyebrow">Step 3</span><h2>启动前检查</h2><p>完成以下检查后再启动游戏端。</p></div></div>
+          <ol class="checklist rich">
+            <li>{@html t('setup.steps.two')}</li>
+            <li>{@html t('setup.steps.three')}</li>
+          </ol>
+          <details class="disclosure troubleshooting">
+            <summary><span><Icon icon="solar:info-circle-bold-duotone" />{t('setup.troubleshooting.header')}</span><Icon class="chevron" icon="line-md:chevron-small-down" /></summary>
+            <ul class="disclosure-body rich">
+              <li>{@html t('setup.troubleshooting.items.one')}</li>
+              <li>{@html t('setup.troubleshooting.items.two')}</li>
+              <li>{@html t('setup.troubleshooting.items.three')}</li>
+            </ul>
+          </details>
         </section>
-      </section>
+      </div>
     </div>
   {/if}
 </main>
 
 <style lang="sass">
   @use "../../vars"
-  .page-heading, .card-heading, .rail-step, .check-row
-    display: flex
-    align-items: center
-    gap: 14px
-
-  .page-heading
-    justify-content: space-between
-
-    h1
-      margin: 6px 0 4px
-
-    p, .card-heading p
-      margin: 0
-      color: vars.$c-sub
-      font-size: 0.86rem
-
-  .eyebrow
-    color: vars.$c-main
-    font-size: 0.7rem
-    font-weight: 800
-    letter-spacing: 0.14em
-
-  .secure-chip
-    display: inline-flex
-    align-items: center
-    gap: 7px
-    padding: 8px 11px
-    border: 1px solid rgba(19, 134, 111, 0.18)
-    border-radius: 999px
-    color: vars.$c-good
-    background: rgba(19, 134, 111, 0.08)
-    font-size: 0.76rem
-
-    span
-      width: 7px
-      height: 7px
-      border-radius: 50%
-      background: vars.$c-good
 
   .setup-layout
     display: grid
-    grid-template-columns: minmax(220px, 0.35fr) minmax(0, 1fr)
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr)
+    align-items: start
     gap: 16px
-
-  .glass-panel
-    padding: 22px
-    border: 1px solid rgba(255, 255, 255, 0.86)
-    border-radius: 18px
-    background: rgba(255, 255, 255, 0.64)
-    box-shadow: 0 18px 46px rgba(43, 72, 76, 0.08)
-    backdrop-filter: blur(18px)
 
   .step-rail
     position: sticky
-    top: 84px
-    align-self: start
+    top: calc(var(--nav-height) + 16px)
+    gap: 16px
 
     h2
-      margin: 6px 0 22px
-      font-size: 1.35rem
+      margin: 0
+      font-size: 1.05rem
 
-    blockquote.info
+    ol
+      display: grid
+      gap: 4px
+      margin: 0
+      padding: 0
+      list-style: none
+
+    li
       display: flex
-      gap: 8px
-      margin-bottom: 0
-      font-size: 0.75rem
+      align-items: flex-start
+      gap: 12px
+      padding: 10px 0
 
-  .rail-step
-    align-items: flex-start
-    padding: 13px 0
-    border-top: 1px solid rgba(96, 114, 118, 0.12)
+      div
+        display: grid
+        gap: 1px
 
-    > span
-      display: grid
-      place-items: center
-      width: 30px
-      height: 30px
-      flex: 0 0 30px
-      border-radius: 9px
-      color: vars.$c-sub
-      background: rgba(96, 114, 118, 0.10)
-      font-size: 0.72rem
-      font-weight: 800
+      strong
+        font-size: 0.9rem
 
-    div
-      display: grid
-      gap: 2px
+      small
+        color: var(--text-2)
+        font-size: 0.8rem
 
-    strong
-      color: vars.$c-text
-      font-size: 0.82rem
+  .step-dot
+    display: grid
+    place-items: center
+    width: 28px
+    height: 28px
+    flex: 0 0 28px
+    border-radius: 50%
+    color: var(--text-2)
+    background: var(--surface-2)
+    font-size: 0.8rem
+    font-weight: 700
 
-    small
-      color: vars.$c-sub
-      font-size: 0.7rem
+    .current &
+      color: var(--on-primary)
+      background: var(--primary)
 
-    &.active > span
-      color: vars.$c-main
-      background: vars.$c-main-soft
+    .done &
+      color: var(--success)
+      background: var(--success-soft)
+      font-size: 1.05rem
 
   .setup-content
     display: grid
     gap: 16px
+    min-width: 0
 
-  .setup-card
-    display: grid
-    gap: 18px
-
-  .card-heading
-    justify-content: space-between
-    align-items: flex-start
-
-    h2
-      margin: 5px 0 3px
-      font-size: 1.24rem
-
-    p
-      max-width: 680px
-
-    .heading-icon
-      flex: 0 0 auto
-      color: vars.$c-main
-      font-size: 2rem
+  .rich :global(code)
+    padding: 1px 5px
+    border-radius: 4px
+    background: var(--surface-2)
+    font-size: 0.85em
 
   .keychip-list
     display: grid
-    gap: 8px
+    gap: 6px
+    margin-bottom: 16px
 
   .keychip-item
     display: flex
     align-items: center
-    gap: 8px
-    padding: 5px
-    border: 1px solid transparent
-    border-radius: 12px
+    gap: 4px
+    padding: 4px 6px 4px 4px
+    border: 1px solid var(--border)
+    border-radius: var(--radius)
+    transition: vars.$transition
 
     &.selected
-      border-color: rgba(7, 143, 136, 0.32)
-      background: rgba(7, 143, 136, 0.07)
+      border-color: var(--primary)
+      background: var(--primary-soft)
 
   .keychip-select
-    display: flex
-    align-items: center
-    gap: 9px
-    min-width: 0
     flex: 1
-    padding: 8px
+    justify-content: flex-start
+    gap: 12px
+    min-width: 0
+    min-height: 42px
     border: 0
-    box-shadow: none
-    text-align: left
     background: transparent
+    box-shadow: none
+
+    &:hover:not(:disabled)
+      border: 0
+      background: transparent
 
     code
-      color: vars.$c-text
-      font-size: 0.9rem
+      font-size: 0.95rem
+      letter-spacing: 0.04em
 
-  .keychip-led
-    width: 8px
-    height: 8px
-    flex: 0 0 8px
+  .radio
+    width: 18px
+    height: 18px
+    flex: 0 0 18px
+    border: 2px solid var(--border-strong)
     border-radius: 50%
-    background: vars.$c-muted
 
-  .selected .keychip-led
-    background: vars.$c-good
-    box-shadow: 0 0 0 4px rgba(19, 134, 111, 0.12)
+    .selected &
+      border: 5px solid var(--primary)
 
-  .selected-mark
-    margin-left: auto
-    color: vars.$c-good
-    font-size: 0.7rem
+  .delete:hover:not(:disabled)
+    color: var(--danger)
+    background: var(--danger-soft)
 
-  .icon
-    display: inline-flex
-    align-items: center
-    justify-content: center
-    width: 34px
-    height: 34px
-    padding: 0
-    border-radius: 10px
-
-  .add-keychip-form
-    display: flex
-    gap: 9px
-
-    input
-      min-width: 0
-      flex: 1
-
-  .primary-action
-    display: inline-flex
-    align-items: center
-    justify-content: center
-    gap: 6px
-    color: #fff
-    background: vars.$c-main
-
-    &:hover
-      color: #fff
-      background: vars.$c-darker
-
-  .empty-keychip, .empty-config, .permission-card
+  .empty-inline
     display: flex
     align-items: center
     gap: 10px
     padding: 14px
-    border-radius: 12px
-    color: vars.$c-sub
-    background: rgba(96, 114, 118, 0.06)
+    border: 1px dashed var(--border-strong)
+    border-radius: var(--radius)
+    color: var(--text-2)
+    font-size: 0.88rem
 
     :global(svg)
-      color: vars.$c-main
-      font-size: 1.6rem
+      flex: 0 0 auto
+      color: var(--primary)
+      font-size: 1.4rem
+
+  .add-keychip
+    display: grid
+    gap: 6px
 
   .permission-card
-    strong
-      color: vars.$c-text
+    flex-direction: row
+    align-items: center
+    gap: 14px
 
     p
-      margin: 3px 0 0
-      color: vars.$c-sub
-      font-size: 0.78rem
+      margin: 2px 0 0
+      color: var(--text-2)
+      font-size: 0.88rem
 
-  .form-error
-    margin: 0
-    font-size: 0.76rem
-
-  .setup-option, .troubleshooting
-    overflow: hidden
-    border: 1px solid rgba(96, 114, 118, 0.13)
-    border-radius: 13px
-    background: rgba(255, 255, 255, 0.42)
+  .disclosure
+    border: 1px solid var(--border)
+    border-radius: var(--radius)
+    background: var(--surface)
 
     summary
       display: flex
       align-items: center
       justify-content: space-between
       gap: 8px
-      padding: 13px 15px
+      min-height: 48px
+      padding: 0 14px
       cursor: pointer
       list-style: none
-      color: vars.$c-text
-      font-weight: 700
+      font-weight: 600
 
       &::-webkit-details-marker
         display: none
@@ -424,113 +437,87 @@ ${keychipLines}`.trim(), {
         align-items: center
         gap: 8px
 
-      .chevron
-        color: vars.$c-muted
+        :global(svg)
+          color: var(--primary)
 
-  .option-body
+      :global(.chevron)
+        color: var(--text-3)
+        transition: transform 0.2s ease
+
+    &[open] summary :global(.chevron)
+      transform: rotate(180deg)
+
+  .disclosure-body
     display: grid
     gap: 12px
-    padding: 0 15px 15px
-    color: vars.$c-sub
+    margin: 0
+    padding: 0 14px 14px
+    color: var(--text-2)
+    font-size: 0.9rem
+
+    :global(p)
+      margin: 0
+
+    > button
+      justify-self: start
+
+  ul.disclosure-body
+    padding-left: 34px
+
+  .code-block
+    overflow: hidden
+    border: 1px solid var(--border)
+    border-radius: var(--radius)
+    background: var(--surface-2)
+
+  .code-toolbar
+    display: flex
+    align-items: center
+    justify-content: space-between
+    gap: 8px
+    padding: 4px 6px 4px 12px
+    border-bottom: 1px solid var(--border)
+    color: var(--text-3)
     font-size: 0.8rem
 
-  .code-container
-    position: relative
-    overflow: hidden
-    min-height: 120px
-    padding: 12px
-    border-radius: 12px
-    background: rgba(34, 51, 54, 0.07)
+    .row
+      gap: 2px
 
-    .code
-      overflow-x: auto
-      filter: blur(4px)
-      transition: 250ms filter
+  .code
+    padding: 12px 14px
+    overflow-x: auto
+    filter: blur(5px)
+    user-select: none
+    transition: filter 0.2s ease
 
-      &.revealed
-        filter: none
+    &.revealed
+      filter: none
+      user-select: text
 
-    .reveal-btn
-      position: absolute
-      top: 50%
-      left: 50%
-      display: inline-flex
-      align-items: center
-      gap: 6px
-      transform: translate(-50%, -50%)
-
-  :global(pre.shiki)
-    background-color: transparent !important
-
-  .checklist-card
-    gap: 10px
-
-  .check-row
-    align-items: flex-start
-    padding: 10px 0
-    color: vars.$c-sub
-    font-size: 0.82rem
-
-    > span
-      display: grid
-      place-items: center
-      width: 23px
-      height: 23px
-      flex: 0 0 23px
-      border-radius: 50%
-      color: vars.$c-main
-      background: vars.$c-main-soft
-      font-size: 0.7rem
-      font-weight: 800
-
-  .troubleshooting
-    margin-top: 8px
-
-    ul
+    :global(pre.shiki)
       margin: 0
-      padding: 0 28px 15px 34px
+      background-color: transparent !important
+      font-size: 0.88rem
 
-      li
-        margin: 0.65em 0
-        color: vars.$c-sub
-        font-size: 0.8rem
+  :global(:root[data-theme="dark"] .shiki), :global(:root[data-theme="dark"] .shiki span)
+    color: var(--shiki-dark) !important
 
-  .loading-panel
+  .checklist
     display: grid
-    place-items: center
     gap: 10px
-    min-height: 300px
-    color: vars.$c-sub
+    margin: 0 0 14px
+    padding-left: 22px
+    color: var(--text-2)
+    font-size: 0.9rem
 
-  .loader
-    width: 30px
-    height: 30px
-    border: 3px solid rgba(7, 143, 136, 0.16)
-    border-top-color: vars.$c-main
-    border-radius: 50%
-    animation: spin 0.8s linear infinite
+    li::marker
+      color: var(--primary)
+      font-weight: 700
 
-  @keyframes spin
-    to
-      transform: rotate(360deg)
-
-  @media (max-width: 820px)
+  @media (max-width: vars.$w-tablet)
     .setup-layout
       grid-template-columns: 1fr
 
     .step-rail
       position: static
-
-  @media (max-width: vars.$w-mobile)
-    .page-heading
-      align-items: flex-start
-      flex-direction: column
-
-    .glass-panel
-      padding: 17px
-
-    .add-keychip-form
-      align-items: stretch
-      flex-direction: column
 </style>
-

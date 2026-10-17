@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { fade, slide } from "svelte/transition";
+  import { fade } from "svelte/transition";
+  import Dialog from "../ui/Dialog.svelte";
+  import Icon from "../ui/Icon.svelte";
+  import Spinner from "../ui/Spinner.svelte";
   import { CHU3_MATCHINGS } from "../../libs/config.js";
   import type { ChusanMatchingOption, GameOption } from "../../libs/generalTypes.js";
   import { t, ts } from "../../libs/i18n.js";
@@ -89,169 +92,159 @@
 
 <StatusOverlays {error} {loading}/>
 
-<div class="matching">
-  <h2>{t("userbox.header.matching")}{linkedVerseAvailable ? ` & ${t("userbox.header.linkedVerse")}` : ""}</h2>
-  <blockquote class="info">
-    {t("settings.cabNotice")}
-    {#if linkedVerseAvailable}
-      {t("userbox.lv.diffnotice")}
-    {/if}
-  </blockquote>
+<div class="setting-section">
+  <h3>{t("userbox.header.matching")}{linkedVerseAvailable ? ` & ${t("userbox.header.linkedVerse")}` : ""}</h3>
+  <div class="alert alert-info">
+    <Icon icon="solar:info-circle-bold-duotone" />
+    <p>{t("settings.cabNotice")}{#if linkedVerseAvailable}&nbsp;{t("userbox.lv.diffnotice")}{/if}</p>
+  </div>
 
   {#if linkedVerseAvailable}
     <GameSettingFields game="chu3-linked-verse" />
     {#if settings["chusanLvDifficulty"]}
-      <a target="_blank" href="https://silentblue.remywiki.com/CHUNITHM:Linked_VERSE">{t(`userbox.lv.help`)}</a>
-      <div class="field">
-        <label for={`chusanLvDifficulty`}>{ts(`userbox.lv.difficulty`)}</label>
-        <div>
-          <select bind:value={settings["chusanLvDifficulty"].value} id={`chusanLvDifficulty`} on:change={() => {changed = [...changed, `chusanLvDifficulty`];}}>
-            {#each {length: 6}, i}
-              <option value={i}>{t(`userbox.lv.difficulty.${i}` as keyof typeof EN_REF)}</option>
-            {/each}
-          </select>
-          {#if changed.includes(`chusanLvDifficulty`)}
-            <button transition:slide={{axis: "x"}} disabled={!!submitting} on:click={updateLvDifficulty}>
-              {t("settings.profile.save")}
-            </button>
-          {/if}
+      <div class="setting-group">
+        <div class="setting-row stacked">
+          <label class="setting-text" for="chusanLvDifficulty">
+            <span class="name">{ts(`userbox.lv.difficulty`)}</span>
+            <a class="desc" target="_blank" rel="noopener" href="https://silentblue.remywiki.com/CHUNITHM:Linked_VERSE">{t(`userbox.lv.help`)}</a>
+          </label>
+          <div class="input-group">
+            <select bind:value={settings["chusanLvDifficulty"].value} id="chusanLvDifficulty" on:change={() => {changed = [...changed, `chusanLvDifficulty`];}}>
+              {#each {length: 6}, i}
+                <option value={i}>{t(`userbox.lv.difficulty.${i}` as keyof typeof EN_REF)}</option>
+              {/each}
+            </select>
+            {#if changed.includes(`chusanLvDifficulty`)}
+              <button class="btn-primary" type="button" transition:fade={{ duration: 120 }} disabled={!!submitting} on:click={updateLvDifficulty}>
+                {#if submitting === "chusanLvDifficulty"}<Spinner />{/if}{t("settings.profile.save")}
+              </button>
+            {/if}
+          </div>
         </div>
       </div>
     {/if}
   {/if}
 
-  <div class="matching-selector">
-    <button on:click={_ => overlay = true}>{t('userbox.matching.select')}</button>
+  <div class="setting-group">
+    <div class="setting-row">
+      <div class="setting-text">
+        <span class="name">{t('userbox.matching.select')}</span>
+        <span class="desc">{custom ? t('userbox.matching.custom.name') : (CHU3_MATCHINGS.find(o => o.matching === existingUrl)?.name ?? "—")}</span>
+      </div>
+      <button type="button" on:click={_ => overlay = true}><Icon icon="solar:server-bold-duotone" />{t('userbox.matching.select')}</button>
+    </div>
   </div>
 
   {#if custom}
     <GameSettingFields game="chu3-matching"/>
   {/if}
+</div>
 
-  <h2>{t("userbox.header.matching.symbolChat")}</h2>
-  {#await fetchSymbolData() then}
-    {#each {length: 4}, i}
-      <div class="field">
-        <label for={`chusanSymbolChat${i}`}>{ts(`userbox.matching.symbolChat`) + ` #${i + 1}`}</label>
-        <div>
-          <select bind:value={symbols[i + 1]} id={`chusanSymbolChat${i}`} on:change={() => {changed = [...changed, `chusanSymbolChat${i}`];}}>
-            <option value={null}>{ts(`userbox.matching.symbolChat.default`)}</option>
-            {#each Object.entries(allItems.symbolChat).filter((f) => parseInt(f[0]) !== 0) as [id, option]}
-              <option value={parseInt(id)}>{option?.name || `(unknown ${id})`}</option>
-            {/each}
-          </select>
-          {#if changed.includes(`chusanSymbolChat${i}`)}
-            <button transition:slide={{axis: "x"}} disabled={!!submitting} on:click={() => submitSymbol(i)}>
-              {t("settings.profile.save")}
-            </button>
-          {/if}
+<div class="setting-section">
+  <h3>{t("userbox.header.matching.symbolChat")}</h3>
+  {#await fetchSymbolData()}
+    <span class="skeleton" style="height:120px;border-radius:12px"></span>
+  {:then}
+    <div class="setting-group">
+      {#each {length: 4}, i}
+        <div class="setting-row stacked">
+          <label class="setting-text" for={`chusanSymbolChat${i}`}><span class="name">{ts(`userbox.matching.symbolChat`) + ` #${i + 1}`}</span></label>
+          <div class="input-group">
+            <select bind:value={symbols[i + 1]} id={`chusanSymbolChat${i}`} on:change={() => {changed = [...changed, `chusanSymbolChat${i}`];}}>
+              <option value={null}>{ts(`userbox.matching.symbolChat.default`)}</option>
+              {#each Object.entries(allItems.symbolChat).filter((f) => parseInt(f[0]) !== 0) as [id, option]}
+                <option value={parseInt(id)}>{option?.name || `(unknown ${id})`}</option>
+              {/each}
+            </select>
+            {#if changed.includes(`chusanSymbolChat${i}`)}
+              <button class="btn-primary" type="button" transition:fade={{ duration: 120 }} disabled={!!submitting} on:click={() => submitSymbol(i)}>
+                {#if submitting === `chusanSymbolChat${i + 1}`}<Spinner />{/if}{t("settings.profile.save")}
+              </button>
+            {/if}
+          </div>
         </div>
-      </div>
-    {/each}
+      {/each}
+    </div>
   {/await}
 </div>
 
 {#if overlay}
-<div class="overlay" transition:fade>
-  <div>
-    <div>
-      <h2>{t('userbox.header.matching')}</h2>
-      <p>{t('userbox.matching.select.sub')}</p>
-    </div>
+  <Dialog title={t('userbox.header.matching')} description={t('userbox.matching.select.sub')} size="lg" on:close={() => overlay = false}>
     <div class="options">
       <!-- Selectable options -->
       {#each CHU3_MATCHINGS as option}
-      <div class="clickable option" on:click={() => clickOption(option)}
-        role="button" tabindex="0" on:keypress={e => e.key === 'Enter' && clickOption(option)}
-        class:selected={!custom && existingUrl === option.matching}>
-
-        <span class="name">{option.name}</span>
-        <div class="links">
-          <a href={option.ui} target="_blank" rel="noopener">{t('userbox.matching.option.ui')}</a> /
-          <a href={option.guide} target="_blank" rel="noopener">{t('userbox.matching.option.guide')}</a>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="coop">
-          <span>{t('userbox.matching.option.collab')}</span>
-          <div>
-            {#each option.coop as coop}
-              <span>{coop}</span>
-            {/each}
+        <div class="option" class:selected={!custom && existingUrl === option.matching}>
+          <button class="option-main" type="button" on:click={() => clickOption(option)} aria-pressed={!custom && existingUrl === option.matching}>
+            <span class="name">{option.name}</span>
+            {#if !custom && existingUrl === option.matching}<span class="badge primary">当前</span>{/if}
+          </button>
+          <div class="links">
+            <a href={option.ui} target="_blank" rel="noopener">{t('userbox.matching.option.ui')}</a>
+            <span aria-hidden="true">·</span>
+            <a href={option.guide} target="_blank" rel="noopener">{t('userbox.matching.option.guide')}</a>
+          </div>
+          <div class="coop">
+            <span>{t('userbox.matching.option.collab')}</span>
+            <div>{#each option.coop as coop}<span class="badge">{coop}</span>{/each}</div>
           </div>
         </div>
-      </div>
       {/each}
 
       <!-- Placeholder option for "Custom" -->
-      <div class="clickable option" on:click={clickCustom}
-        role="button" tabindex="0" on:keypress={e => e.key === 'Enter' && clickCustom()}
-        class:selected={custom}>
-
-        <span class="name">{t('userbox.matching.custom.name')}</span>
-        <p class="notice custom">{t('userbox.matching.custom.sub')}</p>
+      <div class="option" class:selected={custom}>
+        <button class="option-main" type="button" on:click={clickCustom} aria-pressed={custom}>
+          <span class="name">{t('userbox.matching.custom.name')}</span>
+          {#if custom}<span class="badge primary">当前</span>{/if}
+        </button>
+        <p class="subtle">{t('userbox.matching.custom.sub')}</p>
       </div>
     </div>
-  </div>
-</div>
+  </Dialog>
 {/if}
 
 <style lang="sass">
-@use "../../vars"
+  .options
+    display: grid
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))
+    gap: 12px
 
-.matching
-  display: flex
-  flex-direction: column
-  gap: 12px
+  .option
+    display: grid
+    align-content: start
+    gap: 10px
+    padding: 14px
+    border: 1px solid var(--border)
+    border-radius: var(--radius)
 
-  h2
-    margin-bottom: 0
+    &.selected
+      border-color: var(--primary)
+      background: var(--primary-soft)
 
-p.notice
-  opacity: 0.6
-  margin: 0
+    p
+      margin: 0
+      font-size: 0.85rem
 
-  &.custom
-    font-size: 0.9rem
-
-.options
-  display: flex
-  flex-wrap: wrap
-  gap: 1rem
-
-.option
-  flex: 1
-  display: flex
-  flex-direction: column
-  align-items: center
-
-  border-radius: vars.$border-radius
-  background: vars.$ov-light
-  padding: 1rem
-  min-width: 150px
-
-  &.selected
-    border: 1px solid vars.$c-main
-
-  .divider
+  .option-main
+    justify-content: space-between
     width: 100%
-    height: 0.5px
-    background: white
-    opacity: 0.2
-    margin: 0.8rem 0
 
-  .name
-    font-size: 1.1rem
-    font-weight: bold
+    .name
+      font-size: 1rem
+      font-weight: 700
+
+  .links
+    display: flex
+    gap: 6px
+    font-size: 0.85rem
 
   .coop
-    text-align: center
+    display: grid
+    gap: 6px
+    color: var(--text-2)
+    font-size: 0.8rem
 
     div
       display: flex
-      flex-direction: column
-      font-size: 0.9rem
-      opacity: 0.6
-
+      flex-wrap: wrap
+      gap: 4px
 </style>

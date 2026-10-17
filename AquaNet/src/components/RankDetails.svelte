@@ -1,5 +1,3 @@
-<!-- Svelte 4.2.11 -->
-
 <script lang="ts">
   import { slide } from "svelte/transition";
   import { t } from "../libs/i18n";
@@ -10,55 +8,42 @@
   const detail = Object.entries(g.detailedRanks).toSorted((a, b) => +b[0] - +a[0])
 </script>
 
-<div class="rank-detail-container fw-block" transition:slide>
-  <div>
-    <h2>{t("UserHome.RankDetail.Title")}</h2>
-    <table><tbody>
-      <!-- rankDetails: { Level : { Rank : Count } } -->
-      <!-- Rows are levels, columns are ranks -->
-
-      <!-- Headers -->
-      <tr>
-        <th>{t("UserHome.RankDetail.Level")}</th>
-        {#each Object.values(g.ranks) as rankMap}<th>{rankMap.name}</th>{/each}
-      </tr>
-
-      <!-- Data -->
-      {#each detail as [level, rankMap]}
+<section class="card card-flush" transition:slide={{ duration: 180 }}>
+  <div class="head"><h3>{t("UserHome.RankDetail.Title")}</h3></div>
+  <div class="table-wrap">
+    <!-- rankDetails: { Level : { Rank : Count } }; rows are levels, columns are ranks -->
+    <table class="data-table">
+      <thead>
         <tr>
-          <td>{level}</td>
-          {#each Object.values(rankMap) as count}<td>{count}</td>{/each}
+          <th>{t("UserHome.RankDetail.Level")}</th>
+          {#each Object.values(g.ranks) as rankMap}<th class="num">{rankMap.name}</th>{/each}
         </tr>
-      {/each}
-    </tbody></table>
+      </thead>
+      <tbody>
+        {#each detail as [level, rankMap]}
+          <tr>
+            <td><strong>{level}</strong></td>
+            {#each Object.values(rankMap) as count}<td class="num" class:zero={!count}>{count}</td>{/each}
+          </tr>
+        {/each}
+      </tbody>
+    </table>
   </div>
-</div>
+</section>
 
 <style lang="sass">
-  @use "../vars"
+  .head
+    padding: 16px 20px 12px
 
-  .rank-detail-container
-    > div
-      margin: 1em auto
-      max-width: 500px
+    h3
+      margin: 0
 
-    table
-      width: 100%
-      border-collapse: collapse
-      table-layout: fixed
+  .table-wrap
+    max-height: 420px
+    border: 0
+    border-top: 1px solid var(--border)
+    border-radius: 0
 
-      th:not(:first-child)
-        background: vars.$grad-special
-        -webkit-background-clip: text
-        -webkit-text-fill-color: transparent
-        background-clip: text
-        color: vars.$c-main
-        padding: 0.5em
-
-      th, td
-        padding: 0.5em
-        text-align: center
-
-        &:first-child
-          color: vars.$c-main
+  .zero
+    color: var(--text-3)
 </style>

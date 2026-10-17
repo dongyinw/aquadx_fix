@@ -89,8 +89,13 @@
 
 <style lang="scss">
     .cap {
-        padding: .5em;
-        font-weight: 500;
+        padding: 12px;
+        color: var(--text-3);
+        font-size: 0.85rem;
         text-align: center;
+
+        p {
+            margin: 0;
+        }
     }
 </style>

@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { slide } from "svelte/transition";
   import { t, ts } from "../../libs/i18n";
   import TransferServer from "./TransferServer.svelte";
-  import { DATA_HOST } from "../../libs/config";
+  import Icon from "../../components/ui/Icon.svelte";
+  import PageHeader from "../../components/ui/PageHeader.svelte";
+  import Spinner from "../../components/ui/Spinner.svelte";
+  import { toast } from "../../libs/toast";
   import type { ConfirmProps } from "../../libs/generalTypes";
   import StatusOverlays from "../../components/StatusOverlays.svelte";
 
@@ -52,7 +54,7 @@
       title: t('trans.confirm.untested.title'),
       message: t('trans.confirm.untested.msg')
     }
-    if (loading) return alert(t('trans.alert.in-progress'))
+    if (loading) return toast.info(t('trans.alert.in-progress'))
     console.log("Starting transfer...")
     loading = true
 
@@ -69,72 +71,63 @@
   }
 
   defaultGame()
+
+  // Picking a game fills in its default game code and version.
+  function selectTab(i: number) {
+    tab = i
+    defaultGame()
+    onChange()
+  }
 </script>
 
 <StatusOverlays bind:confirm={confirm} {error} />
 
-<main class="content">
-  <div class="outer-title-options">
-    <h2>{t('trans.title')}</h2>
-    <nav>
+<main class="page page-narrow">
+  <PageHeader eyebrow="MikuTrans" title={t('trans.title')}>
+    <div class="segmented" role="tablist" aria-label={t('trans.field.game')}>
       {#each tabs as tabName, i}
-        <div transition:slide={{axis: 'x'}} class:active={tab === i}
-             on:click={() => tab = i} on:keydown={e => e.key === 'Enter' && (tab = i)}
-             role="button" tabindex="0">
-          {ts(`settings.tabs.${tabName}`)}
-        </div>
+        <button type="button" role="tab" aria-selected={tab === i} on:click={() => selectTab(i)}>{ts(`settings.tabs.${tabName}`)}</button>
       {/each}
-    </nav>
-  </div>
+    </div>
+  </PageHeader>
 
-  <div class="prompt">
-    {@html t("trans.prompt-html")}
-  </div>
+  <div class="alert alert-info prompt"><Icon icon="solar:info-circle-bold-duotone" /><div>{@html t("trans.prompt-html")}</div></div>
 
   <TransferServer bind:src={src} bind:gameInfo={gameInfo} on:change={onChange}
     bind:tested={srcTested} bind:this={srcEl} bind:exportedData={srcExportedData} />
 
-  <div class="arrow" class:disabled={!(srcTested && dstTested)}>
-    <button class="arrow-btn" on:click={startTransfer}>
-      <img src="{DATA_HOST}/d/DownArrow.png" alt="arrow">
+  <div class="transfer-action">
+    <span class="line" aria-hidden="true"></span>
+    <button class="btn-primary btn-lg" type="button" on:click={startTransfer} disabled={loading} aria-describedby="transfer-hint">
+      {#if loading}<Spinner />{:else}<Icon icon="solar:alt-arrow-down-bold" />{/if}
+      开始迁移
     </button>
+    <small id="transfer-hint" class="subtle">{srcTested && dstTested ? "两端连接均已测试通过" : "请先测试源服务器和目标服务器的连接"}</small>
+    <span class="line" aria-hidden="true"></span>
   </div>
 
   <TransferServer bind:src={dst} bind:gameInfo={gameInfo} on:change={onChange}
     bind:tested={dstTested} bind:this={dstEl} isSrc={false} />
 </main>
 
-
 <style lang="sass">
-  .arrow
-    width: 100%
+  .prompt
+    :global(p)
+      margin: 0 0 4px
+
+  .transfer-action
     display: flex
-    justify-content: center
-    margin-top: -40px
-    margin-bottom: -40px
-    z-index: 1
+    flex-direction: column
+    align-items: center
+    gap: 8px
+    margin: -8px 0
 
-    &.disabled
-      filter: grayscale(1)
+    .line
+      width: 2px
+      height: 18px
+      border-radius: 2px
+      background: var(--border-strong)
 
-    .arrow-btn
-      background: none
-      border: none
-      padding: 0
-      cursor: pointer
-
-      &:disabled
-        cursor: not-allowed
-
-    // CSS animation to let the image opacity breathe
-    img
-      animation: breathe 1s infinite alternate
-
-  @keyframes breathe
-    0%
-      opacity: 0.5
-    100%
-      opacity: 1
+    small
+      font-size: 0.8rem
 </style>
-
-

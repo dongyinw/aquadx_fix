@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { slide, fade } from "svelte/transition";
-  import { FADE_IN, FADE_OUT, DATA_HOST } from "../../libs/config";
+  import { DATA_HOST } from "../../libs/config";
+  import Spinner from "../ui/Spinner.svelte";
   import { t } from "../../libs/i18n.js";
   import Icon from "../ui/Icon.svelte";
   import StatusOverlays from "../StatusOverlays.svelte";
@@ -208,108 +208,101 @@
 </script>
 
 {#if !loading}
-<div class="fields">
-  <InputField bind:field={userNameField}
-    callback={() => GAME.changeName('mai2', userNameField.value)}/>
-  {#if userIsUsingPreset}
-    <blockquote class="info">
-      {t('settings.options.all.preset-warning')}
-    </blockquote>
-  {/if}
-  <div class="fields-ranges">
-    <!-- TODO: determine min & max -->
-    <UserOptionSlider
-      game="mai2" type="noteSpeed"
-      minValue={0} maxValue={37}
-      defaultValue={userOptions["noteSpeed"]}
-      getTextFunction={(value: number) => value >= 37 ? "SONIC" : `${(value / 4) + 1}`}
-    />
-    <UserOptionSlider
-      game="mai2" type="touchSpeed"
-      minValue={0} maxValue={37}
-      defaultValue={userOptions["touchSpeed"]}
-      getTextFunction={(value: number) => value >= 37 ? "SONIC" : `${(value / 4) + 1}`}
-    />
-    <UserOptionSlider
-      game="mai2" type="slideSpeed"
-      minValue={0} maxValue={20}
-      defaultValue={userOptions["slideSpeed"]}
-      getTextFunction={(value: number) => value == 10 ? "Normal" : `${value > 10 ? "Late" : "Fast"} ${(Math.abs(value - 10) / 10).toFixed(1)}`}
-    />
-    <UserOptionSlider
-      game="mai2" type="headPhoneVolume"
-      minValue={0} maxValue={19}
-      defaultValue={userOptions["headPhoneVolume"]}
-      getTextFunction={(value: number) => `${((value / 19) * 100).toFixed(0)}%`}
-    />
-    <UserOptionSlider
-      game="mai2" type="trackSkip"
-      minValue={0} maxValue={11}
-      defaultValue={userOptions["trackSkip"]}
-      getTextFunction={(value: number) => [
-        t('settings.options.all.none'),
-        t('settings.options.all.push'),
-        `S`, `SS`, `SSS`,
-        t('settings.options.all.personal-best'),
-        t('settings.options.all.rival-score'),
-        `${t('settings.options.all.life')} 300`,
-        `${t('settings.options.all.life')} 100`,
-        `${t('settings.options.all.life')} 50`,
-        `${t('settings.options.all.life')} 10`,
-        `${t('settings.options.all.life')} 1`
-      ][value]}
-    />
+<div class="game-settings">
+  <div class="setting-group">
+    <InputField bind:field={userNameField}
+      callback={() => GAME.changeName('mai2', userNameField.value).then(() => true)}/>
   </div>
+
+  <div class="setting-section">
+    <h3>游戏选项</h3>
+    {#if userIsUsingPreset}
+      <div class="alert alert-info"><Icon icon="solar:info-circle-bold-duotone" /><p>{t('settings.options.all.preset-warning')}</p></div>
+    {/if}
+    <div class="option-grid">
+      <!-- TODO: determine min & max -->
+      <UserOptionSlider
+        game="mai2" type="noteSpeed"
+        minValue={0} maxValue={37}
+        defaultValue={userOptions["noteSpeed"]}
+        getTextFunction={(value: number) => value >= 37 ? "SONIC" : `${(value / 4) + 1}`}
+      />
+      <UserOptionSlider
+        game="mai2" type="touchSpeed"
+        minValue={0} maxValue={37}
+        defaultValue={userOptions["touchSpeed"]}
+        getTextFunction={(value: number) => value >= 37 ? "SONIC" : `${(value / 4) + 1}`}
+      />
+      <UserOptionSlider
+        game="mai2" type="slideSpeed"
+        minValue={0} maxValue={20}
+        defaultValue={userOptions["slideSpeed"]}
+        getTextFunction={(value: number) => value == 10 ? "Normal" : `${value > 10 ? "Late" : "Fast"} ${(Math.abs(value - 10) / 10).toFixed(1)}`}
+      />
+      <UserOptionSlider
+        game="mai2" type="headPhoneVolume"
+        minValue={0} maxValue={19}
+        defaultValue={userOptions["headPhoneVolume"]}
+        getTextFunction={(value: number) => `${((value / 19) * 100).toFixed(0)}%`}
+      />
+      <UserOptionSlider
+        game="mai2" type="trackSkip"
+        minValue={0} maxValue={11}
+        defaultValue={userOptions["trackSkip"]}
+        getTextFunction={(value: number) => [
+          t('settings.options.all.none'),
+          t('settings.options.all.push'),
+          `S`, `SS`, `SSS`,
+          t('settings.options.all.personal-best'),
+          t('settings.options.all.rival-score'),
+          `${t('settings.options.all.life')} 300`,
+          `${t('settings.options.all.life')} 100`,
+          `${t('settings.options.all.life')} 50`,
+          `${t('settings.options.all.life')} 10`,
+          `${t('settings.options.all.life')} 1`
+        ][value]}
+      />
+    </div>
+  </div>
+
   <GameSettingFields game="mai2"/>
-  <button class="exportButton" on:click={exportData}>
-    <Icon icon="bxs:file-export"/>
-    {t('settings.export')}
-  </button>
-  <button class="exportBatchManualButton" on:click={exportBatchManual}>
-    <Icon icon="bxs:file-export"/>
-    {t('settings.batchManualExport')}
-  </button>
+
+  <div class="setting-section">
+    <h3>数据导出</h3>
+    <div class="export-actions">
+      <button type="button" on:click={exportData} disabled={!!submitting}>
+        {#if submitting === "export"}<Spinner />{:else}<Icon icon="bxs:file-export"/>{/if}
+        {t('settings.export')}
+      </button>
+      <button type="button" on:click={exportBatchManual} disabled={!!submitting}>
+        {#if submitting === "batchExport"}<Spinner />{:else}<Icon icon="bxs:file-export"/>{/if}
+        {t('settings.batchManualExport')}
+      </button>
+    </div>
+  </div>
 </div>
+{:else if !error}
+  <div class="stack" aria-hidden="true"><span class="skeleton" style="height:80px;border-radius:12px"></span><span class="skeleton" style="height:260px;border-radius:12px"></span></div>
 {/if}
 
-<StatusOverlays {error} loading={!userNameField || !!submitting || loading}/>
+<StatusOverlays {error} />
 
 <style lang="sass">
-  .fields
-    display: flex
-    flex-direction: column
-    gap: 12px
+  .game-settings
+    display: grid
+    gap: 24px
 
-  .field
-    display: flex
-    flex-direction: column
+  .option-grid
+    display: grid
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr))
+    gap: 10px
 
-    label
-      max-width: max-content
-
-    > div:not(.bool)
-      display: flex
-      align-items: center
-      gap: 1rem
-      margin-top: 0.5rem
-
-      > input
-        flex: 1
-
-  .fields-ranges
+  .export-actions
     display: flex
     flex-wrap: wrap
-    margin: 0.5rem 0
-    gap: 0 1rem
-    justify-content: center
+    gap: 8px
 
-    :global(.field)
-      flex: calc(50% - 1rem)
-      width: 50%
-
-  .exportButton
-    display: flex
-    justify-content: center
-    align-items: center
-    gap: 5px
+    button
+      white-space: normal
+      text-align: left
 </style>

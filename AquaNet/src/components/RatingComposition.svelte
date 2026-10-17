@@ -1,6 +1,5 @@
-<!-- Svelte 4.2.11 -->
-
 <script lang="ts">
+  import { slide } from "svelte/transition";
   import RatingCompSong from "./RatingCompSong.svelte";
   import { parseComposition, type GameName } from "../libs/scoring";
   import { type MusicMeta } from "../libs/generalTypes";
@@ -18,88 +17,61 @@
 
   if (top) split = split?.toSorted((a, b) => b.score - a.score).slice(0, top)
 
-  let mustResize = split && split.length > 12
+  const PREVIEW = 9
+  let mustResize = split && split.length > PREVIEW
   let expanded = false
+  let collapsed = false
+
+  $: visible = split ? (mustResize && !expanded ? split.slice(0, PREVIEW) : split) : []
+  $: total = split?.reduce((sum, p) => sum + (Number(p.ratingChange) || 0), 0) ?? 0
 </script>
 
 {#if split && split.length > 0 && comp}
-  <div class="rating-composition-container" class:must-resize={mustResize}>
-    <div class="rating-heading">
-      <h2>{title}</h2>
-    </div>
-    <div class="rating-composition" class:expanded={expanded}>
-      {#each split as p}
-        <div>
-          <RatingCompSong {p} {game}/>
-        </div>
-      {/each}
-    </div>
-    {#if mustResize}
-      <button
-        class="rating-toggle"
-        type="button"
-        aria-label={expanded ? t("UserHome.RatingComposition.ShowLess") : t("UserHome.RatingComposition.ShowMore")}
-        aria-expanded={expanded}
-        on:click={() => expanded = !expanded}
-      >
-        <span>{expanded ? t("UserHome.RatingComposition.ShowLess") : t("UserHome.RatingComposition.ShowMore")}</span>
-        <Icon icon={expanded ? "line-md:chevron-small-up" : "line-md:chevron-small-down"} aria-hidden="true" />
+  <section class="section rating-composition">
+    <div class="section-header">
+      <button class="heading-toggle btn-ghost" type="button" aria-expanded={!collapsed} on:click={() => collapsed = !collapsed}>
+        <h2>{title}</h2>
+        <span class="badge">{split.length}</span>
+        {#if game === "mai2" && total > 0}<span class="badge primary num">Σ {Number.isInteger(total) ? total : total.toFixed(2)}</span>{/if}
+        <Icon class="chevron" icon={collapsed ? "line-md:chevron-small-down" : "line-md:chevron-small-up"} />
       </button>
+    </div>
+    {#if !collapsed}
+      <div class="song-grid" transition:slide={{ duration: 180 }}>
+        {#each visible as p}
+          <RatingCompSong {p} {game}/>
+        {/each}
+      </div>
+      {#if mustResize}
+        <button class="toggle" type="button" aria-expanded={expanded} on:click={() => expanded = !expanded}>
+          <Icon icon={expanded ? "line-md:chevron-small-up" : "line-md:chevron-small-down"} />
+          {expanded ? t("UserHome.RatingComposition.ShowLess") : `${t("UserHome.RatingComposition.ShowMore")} (${split.length - PREVIEW})`}
+        </button>
+      {/if}
     {/if}
-  </div>
+  </section>
 {/if}
 
 <style lang="sass">
-  @use "../vars"
-
-  .rating-composition
-    display: grid
-    // 3 columns
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr))
-    gap: vars.$gap
-
-    overflow: hidden
-    transition: max-height 250ms
-
-  .rating-composition-container
-    position: relative
-
-  .rating-heading
-    display: flex
-    align-items: center
-    gap: 0.2rem
+  .heading-toggle
+    gap: 10px
+    min-height: 36px
+    margin-left: -8px
+    padding: 0 8px
+    color: var(--text)
 
     h2
-      margin: 20px 0
+      margin: 0
+      font-size: 1.2rem
 
-  .rating-toggle
-    display: flex
-    align-items: center
-    justify-content: center
-    gap: 0.35rem
-    min-height: 2.25rem
-    margin: vars.$gap auto 0
-    padding: 0.35rem 0.9rem
-    border: 1px solid rgba(vars.$c-main, 0.45)
-    border-radius: vars.$border-radius
-    color: vars.$c-main
-    background: rgba(vars.$c-main, 0.08)
-    cursor: pointer
-    transition: background-color 150ms, border-color 150ms
+    :global(.chevron)
+      color: var(--text-3)
 
-    &:hover, &:focus-visible
-      border-color: vars.$c-main
-      background: vars.$c-main-soft
+  .song-grid
+    display: grid
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr))
+    gap: 10px
 
-    :global(svg)
-      font-size: 1.1rem
-
-  .rating-composition-container.must-resize
-    .rating-composition
-      max-height: 250px
-
-      &.expanded
-        max-height: 3000px
-        
-    
+  .toggle
+    align-self: center
 </style>

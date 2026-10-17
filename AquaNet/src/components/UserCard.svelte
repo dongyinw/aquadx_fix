@@ -1,56 +1,70 @@
-<!-- Svelte 4.2.11 -->
+<!-- Compact player preview used by the leaderboard hover card. Summaries are cached per player. -->
+<script context="module" lang="ts">
+  import type { GenericGameSummary } from "../libs/generalTypes";
+  const cache = new Map<string, Promise<GenericGameSummary>>()
+</script>
 
 <script lang="ts">
-  import type { GenericGameSummary } from "../libs/generalTypes";
   import { GAME } from "../libs/sdk";
   import type { GameName } from "../libs/scoring";
-  import { pfp, pfpNotFound } from "../libs/ui";
+  import { pfp } from "../libs/ui";
+  import Spinner from "./ui/Spinner.svelte";
 
   export let username: string
   export let game: GameName
-  export let setLoading: (loading: boolean) => void = () => {}
 
-  let data: GenericGameSummary
-  let error = ""
-
-  setLoading(true)
-  GAME.userSummary(username, game).then(d => data = d).catch(e => error = e).finally(() => setLoading(false))
+  $: key = `${game}:${username}`
+  $: if (!cache.has(key)) {
+    const request = GAME.userSummary(username, game)
+    request.catch(() => cache.delete(key))
+    cache.set(key, request)
+  }
+  $: summary = cache.get(key)!
 </script>
 
-{#if !data}
-  <div>Loading...</div>
-{:else if error}
-  <div>Error: {error}</div>
-{:else}
+{#await summary}
+  <div class="user-card loading"><Spinner /><span>@{username}</span></div>
+{:then data}
   <div class="user-card">
-    <img use:pfp={data.aquaUser} alt="Profile" />
+    <img use:pfp={data.aquaUser} alt="" />
     <div class="details">
-      <span class="in-game-name">{data.name}</span>
-      <span class="username">@{username}</span>
+      <strong class="truncate">{data.aquaUser?.displayName || data.name}</strong>
+      <span class="truncate">{data.name} · @{username}</span>
+      <span class="truncate">{data.lastVersion ?? ""}</span>
     </div>
   </div>
-{/if}
+{:catch e}
+  <div class="user-card error">{e?.message ?? e}</div>
+{/await}
 
 <style lang="sass">
-@use "../vars"
-
-.user-card
-  display: flex
-  align-items: center
-  gap: vars.$gap
-
-  .details
+  .user-card
     display: flex
-    flex-direction: column
-    justify-content: center
+    align-items: center
+    gap: 12px
+    min-width: 220px
+    max-width: 300px
 
-    .username
-      font-size: 0.8em
+    &.loading
+      color: var(--text-2)
+
+    &.error
+      color: var(--danger)
+      font-size: 0.85rem
 
   img
-    width: 50px
-    height: 50px
+    width: 46px
+    height: 46px
+    flex: 0 0 46px
     border-radius: 50%
     object-fit: cover
-    object-position: center
+    background: var(--surface-2)
+
+  .details
+    display: grid
+    min-width: 0
+
+    span
+      color: var(--text-2)
+      font-size: 0.8rem
 </style>

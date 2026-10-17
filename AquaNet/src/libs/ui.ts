@@ -19,7 +19,7 @@ import { AQUA_HOST, DEFAULT_PFP } from "./config"
 import type { MikuNetUser } from "./generalTypes"
 
 export function title(t: string) {
-  document.title = `MikuNet - ${t}`
+  document.title = `${t} · MikuNet`
 }
 
 export function registerChart() {
@@ -81,7 +81,7 @@ const dayTemplate = (DateHelper: any) => {
   }
 }
 
-export function renderCal(el: HTMLElement, d: { date: any, value: any }[]): Promise<any> {
+export function renderCal(el: HTMLElement, d: { date: any, value: any }[], options: { dark?: boolean, tooltip?: (count: number | null, date: string) => string } = {}): Promise<any> {
   const cal = new CalHeatmap()
   cal.addTemplates(dayTemplate)
   return cal.paint({
@@ -99,16 +99,17 @@ export function renderCal(el: HTMLElement, d: { date: any, value: any }[]): Prom
     scale: {
       color: {
         type: 'linear',
-        range: [ '#14432a', '#4dd05a' ],
+        range: options.dark ? [ '#123b37', '#3cc5ba' ] : [ '#c6ece8', '#0a8079' ],
         domain: [ 0, d.reduce((a, b) => Math.max(a, b.value), 0) ]
       },
     },
     date: { start: moment().subtract(1, 'year').add(1, 'month').toDate() },
-    theme: 'dark',
+    theme: options.dark ? 'dark' : 'light',
   }, [
     [ CalTooltip, {
-      text: (_: Date, v: number, d: any) =>
-        `${v ?? 'No'} songs played on ${d.format('MMMM D, YYYY')}`
+      text: (_: Date, v: number, d: any) => options.tooltip
+        ? options.tooltip(v ?? null, d.format('YYYY-MM-DD'))
+        : `${v ?? 'No'} songs played on ${d.format('MMMM D, YYYY')}`
     } ]
   ])
 }
@@ -144,7 +145,9 @@ export const CHARTJS_OPT: ChartOptions<'line'> = {
         title: (tooltipItems) => {
           const date = tooltipItems[0].parsed.x
           const diff = now.diff(date, 'days')
-          return diff ? `${diff} days ago` : 'Today'
+          return navigator.language.startsWith('zh')
+            ? (diff ? `${diff} 天前` : '今天')
+            : (diff ? `${diff} days ago` : 'Today')
         }
       }
     }
@@ -157,60 +160,93 @@ export const removeImg = (e: Event) => (e.target as HTMLImageElement).style.disp
 
 
 /**
- * use:tooltip
+ * use:tooltip — small text bubble shown on hover and keyboard focus.
  */
 export function tooltip(element: HTMLElement, params: { text: string, dom: HTMLElement } | string | HTMLElement) {
-  // Create div if not exists
-  if (!document.querySelector('.aqua-tooltip')) {
-    const div = document.createElement('div')
+  let div = document.querySelector<HTMLDivElement>('.aqua-tooltip')
+  if (!div) {
+    div = document.createElement('div')
     div.classList.add('aqua-tooltip')
-
-    // Initially hidden
+    div.setAttribute('role', 'tooltip')
     div.style.display = 'none'
-
     document.body.appendChild(div)
   }
+  const tip = div
+  let current = params
+  let visible = false
 
-  let isFocus = false
-  let div: HTMLDivElement = document.querySelector('.aqua-tooltip')!
-  const p: string = typeof params === 'string' ? params
-    : 'dom' in params ? params.dom.outerHTML
-    : params.outerHTML
-
-  function updatePosition(event: MouseEvent) {
-    div.style.top = `${event.pageY + 10}px`
-    div.style.left = `${event.pageX - div.clientWidth / 2 + 5}px`
+  function fill() {
+    if (typeof current === 'string') tip.textContent = current
+    else tip.innerHTML = 'dom' in current ? current.dom.outerHTML : current.outerHTML
   }
 
-  function mouseOver(event: MouseEvent) {
-    if (isFocus) return
-    div.innerHTML = p
-    div.style.display = ''
-    updatePosition(event)
-    isFocus = true
+  function place(x: number, y: number) {
+    const margin = 8
+    const w = tip.offsetWidth, h = tip.offsetHeight
+    let left = Math.min(Math.max(margin, x - w / 2), window.innerWidth - w - margin)
+    let top = y + 14
+    if (top + h > window.innerHeight - margin) top = y - h - 14
+    tip.style.left = `${left}px`
+    tip.style.top = `${Math.max(margin, top)}px`
   }
 
-  function mouseLeave() {
-    isFocus = false
-    div.style.display = 'none'
+  function show(x: number, y: number) {
+    fill()
+    tip.style.display = ''
+    visible = true
+    place(x, y)
   }
 
-  element.addEventListener('mouseover', mouseOver)
-  element.addEventListener('mouseleave', mouseLeave)
-  element.addEventListener('mousemove', updatePosition)
+  function hide() {
+    if (!visible) return
+    visible = false
+    tip.style.display = 'none'
+  }
+
+  const onEnter = (e: PointerEvent) => { if (e.pointerType === 'mouse') show(e.clientX, e.clientY) }
+  const onMove = (e: PointerEvent) => { if (visible) place(e.clientX, e.clientY) }
+  const onFocus = () => {
+    if (!element.matches(':focus-visible')) return
+    const r = element.getBoundingClientRect()
+    show(r.left + r.width / 2, r.bottom - 6)
+  }
+
+  element.addEventListener('pointerenter', onEnter)
+  element.addEventListener('pointermove', onMove)
+  element.addEventListener('pointerleave', hide)
+  element.addEventListener('focus', onFocus)
+  element.addEventListener('blur', hide)
+  window.addEventListener('scroll', hide, { passive: true })
 
   return {
+    update(next: typeof params) {
+      current = next
+      if (visible) fill()
+    },
     destroy() {
-      element.removeEventListener('mouseover', mouseOver)
-      element.removeEventListener('mouseleave', mouseLeave)
-      element.removeEventListener('mousemove', updatePosition)
+      hide()
+      element.removeEventListener('pointerenter', onEnter)
+      element.removeEventListener('pointermove', onMove)
+      element.removeEventListener('pointerleave', hide)
+      element.removeEventListener('focus', onFocus)
+      element.removeEventListener('blur', hide)
+      window.removeEventListener('scroll', hide)
     }
   }
 }
 
+export const pfpUrl = (me?: MikuNetUser) =>
+  me?.profilePicture ? `${AQUA_HOST}/uploads/net/portrait/${me.profilePicture}` : DEFAULT_PFP
+
 export function pfp(node: HTMLImageElement, me?: MikuNetUser) {
-  node.src = me?.profilePicture ? `${AQUA_HOST}/uploads/net/portrait/${me.profilePicture}` : DEFAULT_PFP
+  node.src = pfpUrl(me)
   node.onerror = e => pfpNotFound(e as Event)
+  return {
+    update(next?: MikuNetUser) {
+      const src = pfpUrl(next)
+      if (node.getAttribute('src') !== src) node.src = src
+    }
+  }
 }
 
 export function download(data: string, filename: string) {

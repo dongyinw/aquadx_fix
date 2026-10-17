@@ -1,16 +1,23 @@
-<!-- Svelte 4.2.11 -->
-
+<!-- Shared page status: confirm dialog (legacy ConfirmProps), fatal error dialog and loading state. -->
 <script lang="ts">
-  import { fade } from 'svelte/transition'
-  import type { ConfirmProps } from "../libs/generalTypes";
+  import type { ConfirmProps } from "../libs/generalTypes"
   import { t } from "../libs/i18n"
-  import Loading from './ui/Loading.svelte';
-  import Error from './ui/Error.svelte';
+  import Loading from "./ui/Loading.svelte"
+  import Error from "./ui/Error.svelte"
+  import Dialog from "./ui/Dialog.svelte"
 
-  // Props
   export let confirm: ConfirmProps | null = null
   export let error: string | null = null
   export let loading: boolean = false
+
+  // After a dismissed error the page usually never finishes loading; don't trap the user behind the spinner.
+  let suppressLoading = false
+  $: if (!loading) suppressLoading = false
+
+  function closeError() {
+    error = null
+    suppressLoading = true
+  }
 
   function doConfirm(fn?: () => void) {
     confirm = null
@@ -19,34 +26,29 @@
 </script>
 
 {#if confirm}
-  <div class="overlay" transition:fade>
-    <div>
-      <h2>{confirm.title}</h2>
-      <span>{confirm.message}</span>
-
-      <div class="actions">
-        {#if confirm.cancel}
-          <button on:click={() => doConfirm(confirm?.cancel)}>{t('action.cancel')}</button>
-        {/if}
-        <button on:click={() => doConfirm(confirm?.confirm)} class:error={confirm.dangerous}>{t('action.confirm')}</button>
-      </div>
-    </div>
-  </div>
+  <Dialog title={confirm.title} size="sm" on:close={() => doConfirm(confirm?.cancel)}>
+    <p class="confirm-message">{confirm.message}</p>
+    <svelte:fragment slot="footer">
+      {#if confirm.cancel}
+        <button type="button" on:click={() => doConfirm(confirm?.cancel)}>{t("action.cancel")}</button>
+      {/if}
+      <button type="button" class={confirm.dangerous ? "btn-danger-solid" : "btn-primary"} data-autofocus
+              on:click={() => doConfirm(confirm?.confirm)}>{t("action.confirm")}</button>
+    </svelte:fragment>
+  </Dialog>
 {/if}
 
 {#if error}
-  <Error {error}/>
+  <Error {error} on:close={closeError} />
 {/if}
 
-{#if loading && !error}
-  <Loading/>
+{#if loading && !error && !suppressLoading}
+  <Loading />
 {/if}
 
 <style lang="sass">
-  .actions
-    display: flex
-    gap: 16px
-
-    button
-      width: 100%
+  .confirm-message
+    margin: 0
+    color: var(--text-2)
+    white-space: pre-line
 </style>

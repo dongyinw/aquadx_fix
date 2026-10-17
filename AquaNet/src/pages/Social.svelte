@@ -3,6 +3,11 @@
   import Icon from "../components/ui/Icon.svelte";
   import { SOCIAL, USER } from "../libs/sdk";
   import type { Card, MikuNetUser } from "../libs/generalTypes";
+  import PageHeader from "../components/ui/PageHeader.svelte";
+  import EmptyState from "../components/ui/EmptyState.svelte";
+  import Spinner from "../components/ui/Spinner.svelte";
+  import { toast } from "../libs/toast";
+  import { confirmDialog } from "../libs/confirm";
 
   type Player = {
     id: number;
@@ -30,8 +35,7 @@
   let busy = true;
   let loaded = false;
   let error = "";
-  let message = "";
-  let noticeTimer: ReturnType<typeof setTimeout>;
+  let tab: "friends" | "incoming" | "outgoing" | "rivals" = "friends";
 
   const formatFriendCode = (code: string) => code ? "MN-" + (code.match(/.{1,4}/g)?.join("-") ?? code) : "加载中";
   const unwrap = <T,>(value: any): T => value?.data ?? value;
@@ -84,9 +88,7 @@
   }
 
   function notify(text: string, failed = false) {
-    message = `${failed ? "! " : "✓ "}${text}`;
-    clearTimeout(noticeTimer);
-    noticeTimer = setTimeout(() => message = "", 3200);
+    failed ? toast.error(text) : toast.success(text);
   }
 
   async function copyFriendCode() {
@@ -121,7 +123,7 @@
       notify(success);
       await reload();
     } catch (e) {
-      error = (e as Error).message || String(e);
+      notify((e as Error).message || String(e), true);
     } finally {
       busy = false;
     }
@@ -158,7 +160,7 @@
   }
 
   async function remove(player: Player) {
-    if (!window.confirm(`确定移除好友「${playerName(player)}」吗？`)) return;
+    if (!await confirmDialog({ title: "移除好友", message: `确定移除好友「${playerName(player)}」吗？`, confirmText: "移除", danger: true })) return;
     await run(() => SOCIAL.remove(selectedCardId, player.id), "好友已移除。");
   }
 
@@ -175,23 +177,20 @@
   }
 
   function fmtDate(value?: string) { return value?.replace("T", " ").slice(0, 16) || "—"; }
+
+  $: tabs = [
+    { id: "friends", label: "好友", icon: "solar:users-group-two-rounded-bold-duotone", count: state.friends.length },
+    { id: "incoming", label: "收到的申请", icon: "solar:inbox-in-bold-duotone", count: state.incomingRequests.length },
+    { id: "outgoing", label: "已发送", icon: "solar:plain-bold-duotone", count: state.outgoingRequests.length },
+    { id: "rivals", label: "劲敌", icon: "solar:cup-star-bold-duotone", count: state.rivals.length },
+  ] as const
 </script>
 
-<svelte:head>
-  <title>MikuNet 好友与劲敌</title>
-  <meta name="description" content="管理舞萌好友申请和游戏劲敌" />
-</svelte:head>
-
-<main class="content social-page">
-  <header class="page-head">
-    <div>
-      <span class="eyebrow">MAIMAI DX SOCIAL</span>
-      <h1>好友与劲敌</h1>
-      <p>网页申请需要对方接受；游戏内双人确认后会立即互加。</p>
-    </div>
-    {#if cards.length}
-      <label class="card-picker">
-        <span>游戏卡片</span>
+<main class="page page-narrow social-page">
+  <PageHeader eyebrow="maimai DX" title="好友与劲敌" description="网页申请需要对方接受；游戏内双人确认后会立即互加。">
+    {#if cards.length > 1}
+      <label class="field card-picker">
+        <span class="field-label">游戏卡片</span>
         <select value={selectedCardId} on:change={changeCard} disabled={busy}>
           {#each cards as card (card.luid)}
             <option value={card.luid}>{card.isGhost ? "主账号" : "实体卡"} · {card.luid.slice(-8)}</option>
@@ -199,348 +198,289 @@
         </select>
       </label>
     {/if}
-  </header>
+  </PageHeader>
 
-  {#if message}<div class="toast" role="status">{message}</div>{/if}
-  {#if error}<div class="notice error"><Icon icon="solar:danger-triangle-bold-duotone" /><span>{error}</span></div>{/if}
-  {#if busy && !loaded}<div class="notice" role="status">正在读取好友资料…</div>{/if}
-  {#if !busy && !loaded && error}<button class="primary-button" on:click={initialize}>重新读取好友资料</button>{/if}
+  {#if error}
+    <div class="alert alert-danger" role="alert">
+      <Icon icon="solar:danger-triangle-bold-duotone" />
+      <p>{error}</p>
+      {#if !busy && !loaded}<button class="btn-sm" type="button" on:click={initialize}>重新读取</button>{/if}
+    </div>
+  {/if}
+
+  {#if busy && !loaded && !error}
+    <div class="stack" aria-hidden="true">
+      <span class="skeleton" style="height:150px;border-radius:16px"></span>
+      <span class="skeleton" style="height:44px;width:60%"></span>
+      {#each [1, 2, 3] as _}<span class="skeleton" style="height:64px;border-radius:12px"></span>{/each}
+    </div>
+  {/if}
 
   {#if loaded}
-  <section class="search-section">
-    <div class="section-heading"><div><span class="eyebrow">FIND PLAYER</span><h2>添加好友</h2></div></div>
-    <div class="friend-code-panel">
-      <div>
-        <span class="friend-code-label">我的好友码</span>
-        <strong class="friend-code-value">{formatFriendCode(state.friendCode)}</strong>
-      </div>
-      <button class="primary-button" disabled={busy || !state.friendCode} on:click={copyFriendCode}>复制好友码</button>
-    </div>
-    <form class="search-form" on:submit|preventDefault={search}>
-      <label class="search-input"><Icon icon="solar:magnifer-bold-duotone" /><input bind:value={searchName} maxlength="64" placeholder="输入 MikuNet 用户名或好友码（MN-XXXX-XXXX-XXXX-XXXX）" autocomplete="off" /></label>
-      <button class="primary-button" disabled={busy || !searchName.trim()}><Icon icon="solar:magnifer-bold-duotone" />搜索</button>
-    </form>
-    {#if searchResult}
-      <article class="player-row search-result">
-        <div class="player-icon"><Icon icon="solar:user-rounded-bold-duotone" /></div>
-        <div class="player-info"><strong>{playerName(searchResult)}</strong><span>@{searchResult.username || "未知账号"} · Rating {searchResult.rating ?? 0}</span></div>
-        <div class="row-actions">
-          {#if searchResult.direction === "friend"}
-            <span class="status accepted"><Icon icon="solar:check-circle-bold-duotone" />已是好友</span>
-          {:else if searchResult.direction === "incoming"}
-            <button class="primary-button" disabled={busy} on:click={() => decide(searchResult!, true)}><Icon icon="solar:check-circle-bold-duotone" />接受申请</button>
-          {:else if searchResult.direction === "outgoing"}
-            <span class="status pending">等待对方接受</span><button class="icon-button danger-icon" title="取消申请" aria-label="取消好友申请" disabled={busy} on:click={() => cancelRequest(searchResult!)}><Icon icon="solar:close-circle-bold-duotone" /></button>
-          {:else}
-            <button class="primary-button" disabled={busy} on:click={() => request(searchResult!)}><Icon icon="solar:user-plus-rounded-bold-duotone" />发送申请</button>
-          {/if}
-          {#if searchResult.direction === "friend" || !searchResult.direction}
-            <button class:active={searchResult.isRival} class="icon-button rival-toggle" title={searchResult.isRival ? "取消劲敌" : "设为劲敌"} aria-label={searchResult.isRival ? "取消劲敌" : "设为劲敌"} disabled={busy} on:click={() => toggleRival(searchResult!)}><Icon icon="solar:cup-star-bold-duotone" /></button>
-          {/if}
+    <section class="card add-panel">
+      <div class="friend-code">
+        <div>
+          <span class="field-label">我的好友码</span>
+          <strong class="mono">{formatFriendCode(state.friendCode)}</strong>
         </div>
-      </article>
-    {/if}
-  </section>
-
-  <section class="social-section">
-    <div class="section-heading"><div><span class="eyebrow">OUTGOING</span><h2>已发送申请</h2></div><span class="total">{state.outgoingRequests.length} 项</span></div>
-    {#if state.outgoingRequests.length}
-      <div class="player-list">
-        {#each state.outgoingRequests as player (player.id)}
-          <article class="player-row"><div class="player-icon"><Icon icon="solar:user-rounded-bold-duotone" /></div><div class="player-info"><strong>{playerName(player)}</strong><span>@{player.username || "未知账号"} · Rating {player.rating ?? 0}</span></div><div class="row-actions"><span class="status pending">等待对方接受</span><button class="icon-button danger-icon" title="取消申请" aria-label="取消对 {playerName(player)} 的申请" disabled={busy} on:click={() => cancelRequest(player)}><Icon icon="solar:close-circle-bold-duotone" /></button></div></article>
-        {/each}
+        <button type="button" disabled={busy || !state.friendCode} on:click={copyFriendCode}><Icon icon="solar:copy-bold-duotone" />复制</button>
       </div>
-    {:else}<div class="notice">没有等待处理的已发送申请。</div>{/if}
-  </section>
+      <form class="search-form" on:submit|preventDefault={search} role="search">
+        <label class="search-input">
+          <Icon icon="solar:magnifer-bold-duotone" />
+          <span class="visually-hidden">搜索玩家</span>
+          <input type="search" bind:value={searchName} maxlength="64" placeholder="输入 MikuNet 用户名或好友码（MN-XXXX-XXXX-XXXX-XXXX）" autocomplete="off" />
+        </label>
+        <button class="btn-primary" type="submit" disabled={busy || !searchName.trim()}>{#if busy}<Spinner />{/if}搜索</button>
+      </form>
+      {#if searchResult}
+        <article class="player-row search-result">
+          <div class="avatar"><Icon icon="solar:user-rounded-bold-duotone" /></div>
+          <div class="player-info"><strong class="truncate">{playerName(searchResult)}</strong><span class="truncate">@{searchResult.username || "未知账号"} · Rating {searchResult.rating ?? 0}</span></div>
+          <div class="row-actions">
+            {#if searchResult.direction === "friend"}
+              <span class="badge success"><Icon icon="solar:check-circle-bold-duotone" />已是好友</span>
+            {:else if searchResult.direction === "incoming"}
+              <button class="btn-primary btn-sm" type="button" disabled={busy} on:click={() => decide(searchResult!, true)}><Icon icon="solar:check-circle-bold-duotone" />接受申请</button>
+            {:else if searchResult.direction === "outgoing"}
+              <span class="badge warning">等待对方接受</span>
+              <button class="btn-ghost btn-sm" type="button" disabled={busy} on:click={() => cancelRequest(searchResult!)}>取消申请</button>
+            {:else}
+              <button class="btn-primary btn-sm" type="button" disabled={busy} on:click={() => request(searchResult!)}><Icon icon="solar:user-plus-rounded-bold-duotone" />发送申请</button>
+            {/if}
+            {#if searchResult.direction === "friend" || !searchResult.direction}
+              <button class="btn-icon btn-sm rival-toggle" class:active={searchResult.isRival} type="button" disabled={busy}
+                      title={searchResult.isRival ? "取消劲敌" : "设为劲敌"} aria-label={searchResult.isRival ? "取消劲敌" : "设为劲敌"} aria-pressed={!!searchResult.isRival}
+                      on:click={() => toggleRival(searchResult!)}><Icon icon="solar:cup-star-bold-duotone" /></button>
+            {/if}
+          </div>
+        </article>
+      {/if}
+    </section>
 
-  <section class="social-section">
-    <div class="section-heading"><div><span class="eyebrow">INCOMING</span><h2>好友申请</h2></div><span class="total">{state.incomingRequests.length} 项</span></div>
-    {#if state.incomingRequests.length}
-      <div class="player-list">
-        {#each state.incomingRequests as player (player.id)}
-          <article class="player-row"><div class="player-icon"><Icon icon="solar:user-rounded-bold-duotone" /></div><div class="player-info"><strong>{playerName(player)}</strong><span>@{player.username || "未知账号"} · Rating {player.rating ?? 0}</span></div><time>{fmtDate(player.lastPlayDate)}</time><div class="row-actions"><button class="primary-button" disabled={busy} on:click={() => decide(player, true)}><Icon icon="solar:check-circle-bold-duotone" />接受</button><button class="icon-button danger-icon" title="拒绝申请" aria-label="拒绝 {playerName(player)} 的申请" disabled={busy} on:click={() => decide(player, false)}><Icon icon="solar:close-circle-bold-duotone" /></button></div></article>
-        {/each}
-      </div>
-    {:else}<div class="notice">没有待处理的好友申请。</div>{/if}
-  </section>
+    <div class="tabs" role="tablist" aria-label="好友分类">
+      {#each tabs as item}
+        <button type="button" role="tab" aria-selected={tab === item.id} on:click={() => tab = item.id}>
+          <Icon icon={item.icon} />{item.label}
+          {#if item.id === "rivals"}<span class="count">{item.count}/{rivalLimit}</span>
+          {:else}<span class="count" class:attention={item.id === "incoming" && item.count > 0}>{item.count}</span>{/if}
+        </button>
+      {/each}
+    </div>
 
-  <section class="social-section">
-    <div class="section-heading"><div><span class="eyebrow">FRIENDS</span><h2>好友</h2></div><span class="total">{state.friends.length} 人</span></div>
-    {#if state.friends.length}
-      <div class="player-list">
-        {#each state.friends as player (player.id)}
-          <article class="player-row"><div class="player-icon"><Icon icon="solar:user-rounded-bold-duotone" /></div><div class="player-info"><strong>{playerName(player)}</strong><span>@{player.username || "未知账号"} · Rating {player.rating ?? 0}</span></div><time>{fmtDate(player.lastPlayDate)}</time><div class="row-actions"><button class:active={player.isRival} class="icon-button rival-toggle" title={player.isRival ? "取消劲敌" : "设为劲敌"} aria-label={player.isRival ? "取消劲敌" : "设为劲敌"} disabled={busy} on:click={() => toggleRival(player)}><Icon icon="solar:cup-star-bold-duotone" /></button><button class="icon-button danger-icon" title="移除好友" aria-label="移除 {playerName(player)}" disabled={busy} on:click={() => remove(player)}><Icon icon="solar:user-cross-rounded-bold-duotone" /></button></div></article>
-        {/each}
-      </div>
-    {:else}<div class="notice">还没有好友。游戏内与其他玩家双人确认，或发送网页好友申请即可添加。</div>{/if}
-  </section>
-
-  <section class="social-section rivals-section">
-    <div class="section-heading"><div><span class="eyebrow">RIVALS</span><h2>劲敌</h2></div><span class="total">{state.rivals.length} / {rivalLimit}</span></div>
-    {#if state.rivals.length}
-      <div class="player-list">
-        {#each state.rivals as player (player.id)}
-          <article class="player-row"><div class="player-icon rival-icon"><Icon icon="solar:cup-star-bold-duotone" /></div><div class="player-info"><strong>{playerName(player)}</strong><span>@{player.username || "未知账号"} · Rating {player.rating ?? 0}</span></div><button class="icon-button danger-icon" title="取消劲敌" aria-label="取消 {playerName(player)} 的劲敌" disabled={busy} on:click={() => toggleRival(player, true)}><Icon icon="solar:close-circle-bold-duotone" /></button></article>
-        {/each}
-      </div>
-    {:else}<div class="notice">尚未设置劲敌。可从搜索结果或好友列表中添加。</div>{/if}
-  </section>
+    <section class="tab-panel" role="tabpanel">
+      {#if tab === "friends"}
+        {#if state.friends.length}
+          <div class="card card-flush player-list">
+            {#each state.friends as player (player.id)}
+              <article class="player-row">
+                <div class="avatar"><Icon icon="solar:user-rounded-bold-duotone" /></div>
+                <div class="player-info"><strong class="truncate">{playerName(player)}</strong><span class="truncate">@{player.username || "未知账号"} · Rating {player.rating ?? 0}</span></div>
+                <time class="subtle">{fmtDate(player.lastPlayDate)}</time>
+                <div class="row-actions">
+                  <button class="btn-icon btn-sm rival-toggle" class:active={player.isRival} type="button" disabled={busy}
+                          title={player.isRival ? "取消劲敌" : "设为劲敌"} aria-label={player.isRival ? "取消劲敌" : "设为劲敌"} aria-pressed={!!player.isRival}
+                          on:click={() => toggleRival(player)}><Icon icon="solar:cup-star-bold-duotone" /></button>
+                  <button class="btn-ghost btn-icon btn-sm remove" type="button" disabled={busy} title="移除好友" aria-label="移除 {playerName(player)}"
+                          on:click={() => remove(player)}><Icon icon="solar:user-cross-rounded-bold-duotone" /></button>
+                </div>
+              </article>
+            {/each}
+          </div>
+        {:else}
+          <EmptyState icon="solar:users-group-two-rounded-bold-duotone" title="还没有好友" description="游戏内与其他玩家双人确认，或通过上方搜索发送网页好友申请即可添加。" />
+        {/if}
+      {:else if tab === "incoming"}
+        {#if state.incomingRequests.length}
+          <div class="card card-flush player-list">
+            {#each state.incomingRequests as player (player.id)}
+              <article class="player-row">
+                <div class="avatar"><Icon icon="solar:user-rounded-bold-duotone" /></div>
+                <div class="player-info"><strong class="truncate">{playerName(player)}</strong><span class="truncate">@{player.username || "未知账号"} · Rating {player.rating ?? 0}</span></div>
+                <time class="subtle">{fmtDate(player.lastPlayDate)}</time>
+                <div class="row-actions">
+                  <button class="btn-primary btn-sm" type="button" disabled={busy} on:click={() => decide(player, true)}><Icon icon="solar:check-circle-bold-duotone" />接受</button>
+                  <button class="btn-ghost btn-sm" type="button" disabled={busy} aria-label="拒绝 {playerName(player)} 的申请" on:click={() => decide(player, false)}>拒绝</button>
+                </div>
+              </article>
+            {/each}
+          </div>
+        {:else}
+          <EmptyState icon="solar:inbox-in-bold-duotone" title="没有待处理的好友申请" />
+        {/if}
+      {:else if tab === "outgoing"}
+        {#if state.outgoingRequests.length}
+          <div class="card card-flush player-list">
+            {#each state.outgoingRequests as player (player.id)}
+              <article class="player-row">
+                <div class="avatar"><Icon icon="solar:user-rounded-bold-duotone" /></div>
+                <div class="player-info"><strong class="truncate">{playerName(player)}</strong><span class="truncate">@{player.username || "未知账号"} · Rating {player.rating ?? 0}</span></div>
+                <div class="row-actions">
+                  <span class="badge warning">等待对方接受</span>
+                  <button class="btn-ghost btn-sm" type="button" disabled={busy} aria-label="取消对 {playerName(player)} 的申请" on:click={() => cancelRequest(player)}>取消</button>
+                </div>
+              </article>
+            {/each}
+          </div>
+        {:else}
+          <EmptyState icon="solar:plain-bold-duotone" title="没有等待处理的已发送申请" />
+        {/if}
+      {:else}
+        {#if state.rivals.length}
+          <div class="card card-flush player-list">
+            {#each state.rivals as player (player.id)}
+              <article class="player-row">
+                <div class="avatar rival"><Icon icon="solar:cup-star-bold-duotone" /></div>
+                <div class="player-info"><strong class="truncate">{playerName(player)}</strong><span class="truncate">@{player.username || "未知账号"} · Rating {player.rating ?? 0}</span></div>
+                <div class="row-actions">
+                  <button class="btn-ghost btn-sm" type="button" disabled={busy} aria-label="取消 {playerName(player)} 的劲敌" on:click={() => toggleRival(player, true)}>取消劲敌</button>
+                </div>
+              </article>
+            {/each}
+          </div>
+        {:else}
+          <EmptyState icon="solar:cup-star-bold-duotone" title="尚未设置劲敌" description="可从搜索结果或好友列表中点击奖杯图标添加，最多 {rivalLimit} 名。" />
+        {/if}
+      {/if}
+    </section>
   {/if}
 </main>
 
 <style lang="sass">
-  @use "../vars" as v
+  @use "../vars"
 
-  .social-page
-    max-width: 1180px
-    margin: 0 auto
-    padding-bottom: 56px
-    color: v.$c-text
+  .card-picker
+    min-width: 220px
 
-  .page-head, .section-heading, .player-row, .search-form, .row-actions
+  .add-panel
+    gap: 16px
+
+  .friend-code
     display: flex
     align-items: center
     justify-content: space-between
-    gap: 16px
+    gap: 12px
+    padding-bottom: 16px
+    border-bottom: 1px solid var(--border)
 
-  .page-head
-    margin: 26px 0 22px
-    h1
-      margin: 4px 0
-      font-size: 2rem
-    p
-      margin: 0
-      color: v.$c-sub
+    div
+      display: grid
+      gap: 2px
 
-  .eyebrow
-    color: v.$c-main
-    font-size: .7rem
-    font-weight: 800
-
-  .card-picker
-    display: grid
-    gap: 5px
-    min-width: 220px
-    color: v.$c-sub
-    font-size: .8rem
-    select
-      width: 100%
-      border: 1px solid #c8d8d8
-      border-radius: 6px
-      padding: 10px 12px
-      color: v.$c-text
-      background: #fff
-      font: inherit
-
-  .search-section, .social-section
-    margin-top: 24px
-
-  .section-heading
-    margin-bottom: 12px
-    h2
-      margin: 3px 0
-      font-size: 1.2rem
-
-  .total
-    color: v.$c-muted
-    font-size: .86rem
+    strong
+      color: var(--primary)
+      font-size: 1.15rem
+      letter-spacing: 0.04em
 
   .search-form
-    justify-content: flex-start
-    max-width: 680px
-    margin-bottom: 12px
+    display: flex
+    gap: 8px
 
   .search-input
-    display: flex
-    align-items: center
-    gap: 10px
+    position: relative
     flex: 1
     min-width: 0
-    border: 1px solid #c8d8d8
-    border-radius: 6px
-    background: white
-    padding: 0 12px
-    color: v.$c-muted
+
+    > :global(svg)
+      position: absolute
+      top: 50%
+      left: 12px
+      z-index: 1
+      pointer-events: none
+      color: var(--text-3)
+      transform: translateY(-50%)
+
     input
-      width: 100%
-      min-width: 0
-      height: 42px
-      border: 0
-      outline: none
-      color: v.$c-text
-      background: transparent
-      font: inherit
-
-  .player-list
-    border-top: 1px solid #d5e3e2
-
-  .player-row
-    min-height: 68px
-    justify-content: flex-start
-    border-bottom: 1px solid #d5e3e2
-    padding: 9px 4px
+      padding-left: 38px
 
   .search-result
-    border: 1px solid #cce4e1
-    border-radius: 6px
-    background: rgba(255, 255, 255, .76)
-    padding: 10px 12px
+    border: 1px solid var(--border)
+    border-radius: var(--radius)
+    background: var(--surface-2)
 
-  .player-icon
+  .tabs .count.attention
+    color: #fff
+    background: var(--danger)
+
+  .player-list
+    display: grid
+
+  .player-row
+    display: flex
+    align-items: center
+    gap: 12px
+    min-height: 64px
+    padding: 10px 16px
+    border-bottom: 1px solid var(--border)
+
+    &:last-child
+      border-bottom: 0
+
+  .avatar
     display: grid
     place-items: center
-    flex: 0 0 42px
-    width: 42px
-    aspect-ratio: 1
-    border-radius: 6px
-    color: v.$c-main
-    background: v.$c-main-soft
-    font-size: 1.35rem
+    width: 40px
+    height: 40px
+    flex: 0 0 40px
+    border-radius: 50%
+    color: var(--primary)
+    background: var(--primary-soft)
+    font-size: 1.25rem
 
-  .rival-icon
-    color: #a87813
-    background: #fff1cb
+    &.rival
+      color: var(--warning)
+      background: var(--warning-soft)
 
   .player-info
     display: grid
     flex: 1
     min-width: 0
-    gap: 4px
-    strong, span
-      overflow: hidden
-      text-overflow: ellipsis
-      white-space: nowrap
+
     span
-      color: v.$c-muted
-      font-size: .82rem
+      color: var(--text-2)
+      font-size: 0.82rem
 
   time
-    color: v.$c-muted
-    font-size: .78rem
+    font-size: 0.8rem
     white-space: nowrap
 
   .row-actions
-    justify-content: flex-end
-
-  .friend-code-panel
     display: flex
-    align-items: center
-    justify-content: space-between
-    gap: 12px
-    margin-bottom: 16px
-    padding: 0 0 14px
-    border-bottom: 1px solid #d5e3e2
-
-  .friend-code-label
-    display: block
-    margin-bottom: 4px
-    color: v.$c-muted
-    font-size: .78rem
-
-  .friend-code-value
-    display: block
-    color: v.$c-main
-    font: 700 1.1rem ui-monospace, SFMono-Regular, Consolas, monospace
-
-  .primary-button, .icon-button
-    display: inline-flex
-    align-items: center
-    justify-content: center
-    gap: 7px
-    border: 1px solid transparent
-    border-radius: 6px
-    cursor: pointer
-    font: inherit
-    transition: background .16s ease, color .16s ease, border-color .16s ease
-    &:disabled
-      cursor: not-allowed
-      opacity: .55
-
-  .primary-button
-    min-height: 40px
-    padding: 0 14px
-    color: white
-    background: v.$c-main
-    &:hover:not(:disabled)
-      background: v.$c-darker
-
-  .icon-button
-    width: 38px
-    height: 38px
-    color: v.$c-sub
-    background: rgba(255, 255, 255, .72)
-    border-color: #d5e3e2
-    font-size: 1.15rem
-    :global(svg)
-      display: none
-    &.danger-icon::before
-      content: "×"
-    &.rival-toggle::before
-      content: "★"
-    &:hover:not(:disabled)
-      color: v.$c-main
-      border-color: v.$c-main
-
-  .danger-icon
-    color: v.$c-error
-    &:hover:not(:disabled)
-      color: white
-      background: v.$c-error
-      border-color: v.$c-error
-
-  .rival-toggle
-    color: #a87813
-    &.active
-      color: #fff
-      background: #c39029
-      border-color: #c39029
-
-  .status
-    display: inline-flex
     align-items: center
     gap: 6px
-    color: v.$c-muted
-    font-size: .85rem
-    white-space: nowrap
-    &.accepted
-      color: v.$c-good
-    &.pending
-      color: v.$c-warning
+    flex: 0 0 auto
 
-  .notice, .toast
-    display: flex
-    align-items: center
-    gap: 9px
-    border-radius: 6px
-    padding: 13px 15px
-    color: v.$c-sub
-    background: rgba(255, 255, 255, .62)
-  .notice.error
-    color: v.$c-error
-    background: #fff1f2
-  .toast
-    margin: 10px 0
-    color: v.$c-main
+  .rival-toggle
+    color: var(--warning)
 
-  @media (max-width: 640px)
-    .page-head
-      align-items: flex-start
-      flex-direction: column
+    &.active
+      border-color: var(--warning)
+      color: #fff
+      background: var(--warning)
+
+      &:hover:not(:disabled)
+        color: #fff
+        background: color-mix(in srgb, var(--warning) 85%, #000)
+
+  .remove:hover:not(:disabled)
+    color: var(--danger)
+    background: var(--danger-soft)
+
+  @media (max-width: vars.$w-mobile)
     .card-picker
       width: 100%
+
     .player-row
       flex-wrap: wrap
-      column-gap: 10px
-    .player-info
-      flex-basis: calc(100% - 60px)
-    .player-row time
-      display: none
+
+      time
+        display: none
+
     .row-actions
       width: 100%
       justify-content: flex-end
-      margin-left: 52px
-    .search-form
-      align-items: stretch
-    .search-form .primary-button
-      flex: 0 0 auto
+      padding-left: 52px
+
+    .friend-code
+      flex-wrap: wrap
 </style>

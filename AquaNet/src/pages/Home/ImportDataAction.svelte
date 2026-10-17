@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { fade } from "svelte/transition"
   import { t } from "../../libs/i18n";
-  import ActionCard from "../../components/ActionCard.svelte";
+  import Dialog from "../../components/ui/Dialog.svelte";
+  import Spinner from "../../components/ui/Spinner.svelte";
   import StatusOverlays from "../../components/StatusOverlays.svelte";
   import { CARD, GAME, USER } from "../../libs/sdk";
   import Icon from "../../components/ui/Icon.svelte";
@@ -46,7 +46,7 @@
           newName: data.userData.userName,
           newRating: data.userData.playerRating
         };
-        if (!await new Promise(resolve => confirmAction = resolve)) {
+        if (!await new Promise<boolean>(resolve => confirmAction = resolve)) {
           return;
         }
         conflict = null;
@@ -60,6 +60,8 @@
     } finally {
       conflict = null;
       load = false;
+      // Allow picking the same file again after a failure.
+      if (fileInput) fileInput.value = "";
     }
   }
 
@@ -78,88 +80,80 @@
   }
 </script>
 
-<ActionCard color="209, 124, 102" icon="bxs:file-import" on:click={() => fileInput.click()}>
-    <h3>{t('home.import')}</h3>
-    <span>{t('home.import-description')}</span>
-    <input type="file" accept=".json" bind:this={fileInput} style="display: none"
-      on:change={startImport}/>
-</ActionCard>
+<button class="tile" type="button" on:click={() => fileInput.click()} disabled={load}>
+  <span class="tile-icon tone-pink">{#if load}<Spinner />{:else}<Icon icon="bxs:file-import" />{/if}</span>
+  <span class="tile-copy"><strong>{t('home.import')}</strong><small>{t('home.import-description')}</small></span>
+  <Icon class="arrow" icon="solar:cloud-upload-bold-duotone" />
+</button>
+<input type="file" accept=".json,application/json" bind:this={fileInput} hidden on:change={startImport}/>
 
-<StatusOverlays {error} loading={load}/>
+<StatusOverlays {error} loading={load && !conflict}/>
 
 {#if conflict}
-    <div class="overlay" transition:fade>
-        <div>
-            <h2>{t('home.import.data-conflict')}</h2>
-            <p></p>
-            <div class="conflict-cards">
-                <div class="old card">
-                    <span class="type">{t('home.linkcard.account-card')}</span>
-                    <span>{t('home.linkcard.name')}: {conflict.oldName}</span>
-                    <span>{t('home.linkcard.rating')}: {conflict.oldRating}</span>
-                    <div class="trash">
-                        <Icon icon="ph:trash-duotone"/>
-                    </div>
-                </div>
-                <div class="icon">
-                    <Icon icon="icon-park-outline:down"/>
-                </div>
-                <div class="new card">
-                    <span class="type">{t('home.import.new-data')}</span>
-                    <span>{t('home.linkcard.name')}: {conflict.newName}</span>
-                    <span>{t('home.linkcard.rating')}: {conflict.newRating}</span>
-                </div>
-            </div>
-            <p></p>
-            <div class="buttons">
-                <button on:click={() => confirmAction(false)}>{t('action.cancel')}</button>
-                <button class="error" on:click={() => confirmAction(true)}>{t('action.confirm')}</button>
-            </div>
-        </div>
+  <Dialog title={t('home.import.data-conflict')} persistent>
+    <p class="muted conflict-hint">导入的数据会覆盖账号中现有的游戏资料，此操作无法撤销。</p>
+    <div class="conflict">
+      <div class="side old">
+        <span class="badge danger"><Icon icon="ph:trash-duotone"/>{t('home.linkcard.account-card')}</span>
+        <dl><dt>{t('home.linkcard.name')}</dt><dd>{conflict.oldName}</dd><dt>{t('home.linkcard.rating')}</dt><dd class="num">{conflict.oldRating}</dd></dl>
+      </div>
+      <span class="arrow" aria-hidden="true"><Icon icon="icon-park-outline:down"/></span>
+      <div class="side new">
+        <span class="badge success">{t('home.import.new-data')}</span>
+        <dl><dt>{t('home.linkcard.name')}</dt><dd>{conflict.newName}</dd><dt>{t('home.linkcard.rating')}</dt><dd class="num">{conflict.newRating}</dd></dl>
+      </div>
     </div>
+    <svelte:fragment slot="footer">
+      <button type="button" on:click={() => confirmAction(false)}>{t('action.cancel')}</button>
+      <button type="button" class="btn-danger-solid" on:click={() => confirmAction(true)}>{t('action.confirm')}</button>
+    </svelte:fragment>
+  </Dialog>
 {/if}
 
 <style lang="sass">
-  @use "../../vars"
-  h3
-    font-size: 1.3rem
+  .conflict-hint
+    margin: 0 0 14px
+    font-size: 0.9rem
+
+  .conflict
+    display: grid
+    gap: 6px
+
+  .side
+    display: grid
+    gap: 10px
+    padding: 14px
+    border: 1px solid var(--border)
+    border-radius: var(--radius)
+
+    &.old
+      border-color: color-mix(in srgb, var(--danger) 35%, transparent)
+      background: var(--danger-soft)
+
+    &.new
+      border-color: color-mix(in srgb, var(--success) 35%, transparent)
+      background: var(--success-soft)
+
+    .badge
+      justify-self: start
+
+  dl
+    display: grid
+    grid-template-columns: auto 1fr
+    gap: 4px 14px
     margin: 0
+    font-size: 0.9rem
 
-  .conflict-cards
-    display: grid
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr))
-    gap: 0.5rem
-    align-items: center
+  dt
+    color: var(--text-2)
 
-    span:not(.type)
-      font-size: 0.8rem
+  dd
+    margin: 0
+    font-weight: 600
 
-    .old
-      background: #ff6b6b20
-      border: 1px solid vars.$c-error
-      color: #ffffff99
-      position: relative
-
-      .trash
-        display: flex
-        position: absolute
-        bottom: 0.5rem
-        right: 0.5rem
-        color: vars.$c-error
-        opacity: 0.6
-        font-size: 2rem
-
-    .new
-      background: #646cff20
-      border: 1px solid vars.$c-darker
-
-  .buttons
-    display: grid
-    grid-template-columns: 1fr 1fr
-    gap: 1rem
-
-  .icon
+  .arrow
     display: flex
     justify-content: center
-    font-size: 2rem
+    color: var(--text-3)
+    font-size: 1.4rem
 </style>

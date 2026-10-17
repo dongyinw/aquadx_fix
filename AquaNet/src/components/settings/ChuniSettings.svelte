@@ -1,5 +1,3 @@
-<!-- Svelte 4.2.11 -->
-
 <script lang="ts">
   import {
     type MikuNetUser,
@@ -9,8 +7,10 @@
   } from "../../libs/generalTypes";
   import { DATA, USER, USERBOX, GAME, SETTING } from "../../libs/sdk";
   import { t, ts } from "../../libs/i18n";
-  import { FADE_IN, FADE_OUT, USERBOX_DEFAULT_URL } from "../../libs/config";
-  import { fade, slide } from "svelte/transition";
+  import { USERBOX_DEFAULT_URL } from "../../libs/config";
+  import { fade } from "svelte/transition";
+  import Dialog from "../ui/Dialog.svelte";
+  import Spinner from "../ui/Spinner.svelte";
   import StatusOverlays from "../StatusOverlays.svelte";
   import Icon from "../ui/Icon.svelte";
   import GameSettingFields from "./GameSettingFields.svelte";
@@ -89,10 +89,6 @@
       loading = false
       error = t("userbox.error.nodata")
     }) as typeof allItems
-
-    console.log("User Items", userItems)
-    console.log("All items", allItems)
-    console.log("Userbox", userbox)
 
     userOptions = await SETTING.optionGet('chu3').catch(_ => {
       loading = false
@@ -316,362 +312,331 @@
 
 </script>
 
-<StatusOverlays {error} loading={loading || !!submitting} />
+<StatusOverlays {error} loading={loading} />
 {#if !loading && !error}
-<div>
-  <div class="general-options">
-    <GameSettingFields game="chu3"/>
+<div class="game-settings">
+  <GameSettingFields game="chu3"/>
 
+  <div class="setting-group">
     <InputField bind:field={userNameField}
-      callback={() => USERBOX.setUserBox({ field: "userName", value: userNameField.value })}/>
+      callback={() => USERBOX.setUserBox({ field: "userName", value: userNameField.value }).then(() => true)}/>
+  </div>
 
-    <!-- User Options -->
+  <div class="setting-section">
+    <h3>游戏选项</h3>
     {#if userIsUsingPreset}
-      <blockquote class="info">
-        {t('settings.options.all.preset-warning')}
-      </blockquote>
+      <div class="alert alert-info"><Icon icon="solar:info-circle-bold-duotone" /><p>{t('settings.options.all.preset-warning')}</p></div>
     {/if}
-    <div class="fields-ranges">
-      <UserOptionSlider 
-        game="chu3" type="headphone" 
-        minValue={0} maxValue={60} 
-        defaultValue={userOptions["headphone"]} 
-        getTextFunction={(value: number) => `${((value / 60) * 100).toFixed(0)}%`} 
+    <div class="option-grid">
+      <UserOptionSlider
+        game="chu3" type="headphone"
+        minValue={0} maxValue={60}
+        defaultValue={userOptions["headphone"]}
+        getTextFunction={(value: number) => `${((value / 60) * 100).toFixed(0)}%`}
        />
-      <UserOptionSlider 
-        game="chu3" type="trackSkip" 
-        minValue={0} maxValue={7} 
-        defaultValue={userOptions["trackSkip"]} 
-        getTextFunction={(value: number) => [t('settings.options.all.none'), `S`, `S+`, `SS`, `SS+`, `SSS`, `SSS+`, t('settings.options.all.personal-best')][value]} 
+      <UserOptionSlider
+        game="chu3" type="trackSkip"
+        minValue={0} maxValue={7}
+        defaultValue={userOptions["trackSkip"]}
+        getTextFunction={(value: number) => [t('settings.options.all.none'), `S`, `S+`, `SS`, `SS+`, `SSS`, `SSS+`, t('settings.options.all.personal-best')][value]}
       />
-      <UserOptionSlider 
-        game="chu3" type="speed" 
-        minValue={0} maxValue={61} 
-        defaultValue={userOptions["speed"]} 
-        getTextFunction={(value: number) => value >= 61 ? "SONIC" : value < 55 ? `${(value / 4) + 1}` : `${value - 40}`} 
+      <UserOptionSlider
+        game="chu3" type="speed"
+        minValue={0} maxValue={61}
+        defaultValue={userOptions["speed"]}
+        getTextFunction={(value: number) => value >= 61 ? "SONIC" : value < 55 ? `${(value / 4) + 1}` : `${value - 40}`}
       />
-      <UserOptionSlider 
-        game="chu3" type="speed_120" 
-        minValue={0} maxValue={61} 
-        defaultValue={userOptions["speed_120"]} 
-        getTextFunction={(value: number) => value >= 61 ? "SONIC" : value < 55 ? `${(value / 4) + 1}` : `${value - 40}`} 
+      <UserOptionSlider
+        game="chu3" type="speed_120"
+        minValue={0} maxValue={61}
+        defaultValue={userOptions["speed_120"]}
+        getTextFunction={(value: number) => value >= 61 ? "SONIC" : value < 55 ? `${(value / 4) + 1}` : `${value - 40}`}
       />
     </div>
   </div>
-  <h2>{t("userbox.header.userbox")}</h2>
-  {#if !USERBOX_ENABLED.value || !USERBOX_INSTALLED}
-    <div class="fields">
-      {#each userItems as { iKey, ubKey, items }, i}
-        {#if items.length > 0}
-          <div class="field">
-            <label for={ubKey}>{ts(`userbox.${ubKey}`)}</label>
-            <div>
-              <select bind:value={userbox[ubKey]} id={ubKey} on:change={() => changed = [...changed, ubKey]}>
-                {#each items as option}
-                  <option value={option.itemId}>{allItems[iKey][option.itemId]?.name || `(unknown ${option.itemId})`}</option>
-                {/each}
-              </select>
-              {#if changed.includes(ubKey)}
-                <button transition:slide={{axis: "x"}} on:click={() => submit(ubKey)} disabled={!!submitting}>
-                  {t("settings.profile.save")}
-                </button>
-              {/if}
-            </div>
-          </div>
-        {/if}
-      {/each}
-    </div>
-  {:else}
-    <div class="chuni-userbox-container">
-      <ChuniUserplateComponent chuniIsUserbox={true} on:click={() => userboxSelected = "nameplateId"} chuniCharacter={userbox.characterId} chuniLevel={userbox.level.toString()} chuniRating={userbox.playerRating / 100}
-        chuniNameplate={userbox.nameplateId} chuniName={userbox.userName} chuniTrophyName={allItems.trophy[userbox.trophyId].name}></ChuniUserplateComponent>
-      <ChuniPenguinComponent chuniWear={userbox.avatarWear} chuniHead={userbox.avatarHead} chuniBack={userbox.avatarBack}
-        chuniFront={userbox.avatarFront} chuniFace={userbox.avatarFace} chuniItem={userbox.avatarItem}
-        chuniSkin={userbox.avatarSkin}></ChuniPenguinComponent>
-    </div>
-    <div class="chuni-userbox-row">
-      {#each avatarKinds as avatarKind}
-        {#await DDSreader?.getFile(`avatarAccessoryThumbnail:${userbox[`avatar${avatarKind}`].toString().padStart(8, "0")}`) then imageURL}
-          <button on:click={() => userboxSelected = `avatar${avatarKind}`}>
-            <img src={imageURL} class={userboxSelected == `avatar${avatarKind}` ? "focused" : ""} alt={allItems.avatarAccessory[userbox[`avatar${avatarKind}`]].name} title={allItems.avatarAccessory[userbox[`avatar${avatarKind}`]].name}>
-          </button>
-        {/await}
-      {/each}
-    </div>
-    <div class="chuni-userbox">
-      {#if userboxSelected == "nameplateId"}
-        {#each userItems.find(f => f.ubKey == "nameplateId")?.items ?? [] as item}
-          {#await DDSreader?.getFile(`nameplate:${item.itemId.toString().padStart(8, "0")}`) then imageURL}
-            <button class="nameplate" on:click={() => {userbox[userboxSelected] = item.itemId; submit(userboxSelected)}}>
-              <img src={imageURL} alt={allItems.namePlate[item.itemId].name} title={allItems.namePlate[item.itemId].name}>
-            </button>
-          {/await}
-        {/each}
-      {:else}
-        {#each userItems.find(f => f.ubKey == userboxSelected)?.items ?? [] as item}
-          {#await DDSreader?.getFile(`avatarAccessoryThumbnail:${item.itemId.toString().padStart(8, "0")}`) then imageURL}
-            <button on:click={() => {userbox[userboxSelected] = item.itemId; submit(userboxSelected)}}>
-              <img src={imageURL} alt={allItems.avatarAccessory[item.itemId].name} title={allItems.avatarAccessory[item.itemId].name}>
-            </button>
-          {/await}
-        {/each}
-      {/if}
-    </div>
-    <div class="fields">
-      {#each userItems.filter(i => userboxNewOptions.includes(i.iKey)) as { iKey, ubKey, items }, i}
-        {#if items.length > 0}
-          <div class="field">
-            <label for={ubKey}>{ts(`userbox.${ubKey}`)}</label>
-            <div>
-              <select bind:value={userbox[ubKey]} id={ubKey} on:change={() => changed = [...changed, ubKey]}>
-                {#each items as option}
-                  <option value={option.itemId}>{allItems[iKey][option.itemId]?.name || `(unknown ${option.itemId})`}</option>
-                {/each}
-              </select>
-              {#if changed.includes(ubKey)}
-                <button transition:slide={{axis: "x"}} on:click={() => submit(ubKey)} disabled={!!submitting}>
-                  {t("settings.profile.save")}
-                </button>
-              {/if}
-            </div>
-          </div>
-        {/if}
-      {/each}
-    </div>
-  {/if}
 
-  {#if USERBOX_INSTALLED}
-    <!-- god this is a mess but idgaf atp -->
-    <div class="field boolean" style:margin-top="1em">
-      <input type="checkbox" bind:checked={USERBOX_ENABLED.value} id="newUserbox">
-      <label for="newUserbox">
-        <span class="name">{t("userbox.new.activate")}</span>
-        <span class="desc">{t(`userbox.new.activate_desc`)}</span>
-      </label>
+  <div class="setting-section">
+    <h3>{t("userbox.header.userbox")}</h3>
+    {#if !USERBOX_ENABLED.value || !USERBOX_INSTALLED}
+      <div class="setting-group">
+        {#each userItems as { iKey, ubKey, items }}
+          {#if items.length > 0}
+            <div class="setting-row stacked">
+              <label class="setting-text" for={ubKey}><span class="name">{ts(`userbox.${ubKey}`)}</span></label>
+              <div class="input-group">
+                <select bind:value={userbox[ubKey]} id={ubKey} on:change={() => changed = [...changed, ubKey]}>
+                  {#each items as option}
+                    <option value={option.itemId}>{allItems[iKey][option.itemId]?.name || `(unknown ${option.itemId})`}</option>
+                  {/each}
+                </select>
+                {#if changed.includes(ubKey)}
+                  <button class="btn-primary" type="button" transition:fade={{ duration: 120 }} on:click={() => submit(ubKey)} disabled={!!submitting}>
+                    {#if submitting === ubKey}<Spinner />{/if}{t("settings.profile.save")}
+                  </button>
+                {/if}
+              </div>
+            </div>
+          {/if}
+        {/each}
+      </div>
+    {:else}
+      <div class="chuni-userbox-container">
+        <ChuniUserplateComponent chuniIsUserbox={true} on:click={() => userboxSelected = "nameplateId"} chuniCharacter={userbox.characterId} chuniLevel={userbox.level.toString()} chuniRating={userbox.playerRating / 100}
+          chuniNameplate={userbox.nameplateId} chuniName={userbox.userName} chuniTrophyName={allItems.trophy[userbox.trophyId].name}></ChuniUserplateComponent>
+        <ChuniPenguinComponent chuniWear={userbox.avatarWear} chuniHead={userbox.avatarHead} chuniBack={userbox.avatarBack}
+          chuniFront={userbox.avatarFront} chuniFace={userbox.avatarFace} chuniItem={userbox.avatarItem}
+          chuniSkin={userbox.avatarSkin}></ChuniPenguinComponent>
+      </div>
+      <div class="chuni-userbox-row" role="tablist" aria-label={t("userbox.header.userbox")}>
+        {#each avatarKinds as avatarKind}
+          {#await DDSreader?.getFile(`avatarAccessoryThumbnail:${userbox[`avatar${avatarKind}`].toString().padStart(8, "0")}`) then imageURL}
+            <button type="button" role="tab" aria-selected={userboxSelected == `avatar${avatarKind}`} class:focused={userboxSelected == `avatar${avatarKind}`} on:click={() => userboxSelected = `avatar${avatarKind}`}>
+              <img src={imageURL} alt={allItems.avatarAccessory[userbox[`avatar${avatarKind}`]].name} title={allItems.avatarAccessory[userbox[`avatar${avatarKind}`]].name}>
+            </button>
+          {/await}
+        {/each}
+      </div>
+      <div class="chuni-userbox">
+        {#if userboxSelected == "nameplateId"}
+          {#each userItems.find(f => f.ubKey == "nameplateId")?.items ?? [] as item}
+            {#await DDSreader?.getFile(`nameplate:${item.itemId.toString().padStart(8, "0")}`) then imageURL}
+              <button type="button" class="nameplate" class:current={userbox[userboxSelected] === item.itemId} on:click={() => {userbox[userboxSelected] = item.itemId; submit(userboxSelected)}}>
+                <img src={imageURL} alt={allItems.namePlate[item.itemId].name} title={allItems.namePlate[item.itemId].name}>
+              </button>
+            {/await}
+          {/each}
+        {:else}
+          {#each userItems.find(f => f.ubKey == userboxSelected)?.items ?? [] as item}
+            {#await DDSreader?.getFile(`avatarAccessoryThumbnail:${item.itemId.toString().padStart(8, "0")}`) then imageURL}
+              <button type="button" class:current={userbox[userboxSelected] === item.itemId} on:click={() => {userbox[userboxSelected] = item.itemId; submit(userboxSelected)}}>
+                <img src={imageURL} alt={allItems.avatarAccessory[item.itemId].name} title={allItems.avatarAccessory[item.itemId].name}>
+              </button>
+            {/await}
+          {/each}
+        {/if}
+      </div>
+      <div class="setting-group">
+        {#each userItems.filter(i => userboxNewOptions.includes(i.iKey)) as { iKey, ubKey, items }}
+          {#if items.length > 0}
+            <div class="setting-row stacked">
+              <label class="setting-text" for={ubKey}><span class="name">{ts(`userbox.${ubKey}`)}</span></label>
+              <div class="input-group">
+                <select bind:value={userbox[ubKey]} id={ubKey} on:change={() => changed = [...changed, ubKey]}>
+                  {#each items as option}
+                    <option value={option.itemId}>{allItems[iKey][option.itemId]?.name || `(unknown ${option.itemId})`}</option>
+                  {/each}
+                </select>
+                {#if changed.includes(ubKey)}
+                  <button class="btn-primary" type="button" transition:fade={{ duration: 120 }} on:click={() => submit(ubKey)} disabled={!!submitting}>
+                    {#if submitting === ubKey}<Spinner />{/if}{t("settings.profile.save")}
+                  </button>
+                {/if}
+              </div>
+            </div>
+          {/if}
+        {/each}
+      </div>
+    {/if}
+
+    {#if USERBOX_INSTALLED}
+      <div class="setting-group">
+        <div class="setting-row">
+          <label class="setting-text" for="newUserbox">
+            <span class="name">{t("userbox.new.activate")}</span>
+            <span class="desc">{t(`userbox.new.activate_desc`)}</span>
+          </label>
+          <input type="checkbox" class="switch" bind:checked={USERBOX_ENABLED.value} id="newUserbox">
+        </div>
+        <div class="setting-row">
+          <label class="setting-text" for="newUserboxProfile">
+            <span class="name">{t("userbox.new.activate_profile")}</span>
+            <span class="desc">{t(`userbox.new.activate_profile_desc`)}</span>
+          </label>
+          <input type="checkbox" class="switch" bind:checked={USERBOX_PROFILE_ENABLED.value} id="newUserboxProfile">
+        </div>
+      </div>
+    {/if}
+    {#if USERBOX_SUPPORT && !USERBOX_DEFAULT_URL}
+      <div class="row">
+        <button type="button" on:click={() => USERBOX_SETUP_RUN = !USERBOX_SETUP_RUN}><Icon icon="solar:download-minimalistic-bold-duotone" />{t(!USERBOX_INSTALLED ? `userbox.new.activate_first` : `userbox.new.activate_update`)}</button>
+      </div>
+    {/if}
+  </div>
+
+  <ChuniMatchingSettings/>
+
+  <div class="setting-section">
+    <h3>数据导出</h3>
+    <div class="export-actions">
+      <button type="button" on:click={exportData} disabled={!!submitting}>
+        {#if submitting === "export"}<Spinner />{:else}<Icon icon="bxs:file-export"/>{/if}
+        {t('settings.export')}
+      </button>
+      <button type="button" on:click={exportBatchManual} disabled={!!submitting}>
+        {#if submitting === "batchExport"}<Spinner />{:else}<Icon icon="bxs:file-export"/>{/if}
+        {t('settings.batchManualExport')}
+      </button>
     </div>
-    <div class="field boolean" style:margin-top="1em">
-      <input type="checkbox" bind:checked={USERBOX_PROFILE_ENABLED.value} id="newUserboxProfile">
-      <label for="newUserboxProfile">
-        <span class="name">{t("userbox.new.activate_profile")}</span>
-        <span class="desc">{t(`userbox.new.activate_profile_desc`)}</span>
-      </label>
-    </div>
-  {/if}
-  {#if USERBOX_SUPPORT && !USERBOX_DEFAULT_URL}
-    <p>
-      <button on:click={() => USERBOX_SETUP_RUN = !USERBOX_SETUP_RUN}>{t(!USERBOX_INSTALLED ? `userbox.new.activate_first` : `userbox.new.activate_update`)}</button>
-    </p>
-  {/if}
-  <ChuniMatchingSettings/><br>
-  <button class="exportButton" on:click={exportData}>
-    <Icon icon="bxs:file-export"/>
-    {t('settings.export')}
-  </button>
-  <button class="exportBatchManualButton" on:click={exportBatchManual}>
-    <Icon icon="bxs:file-export"/>
-    {t('settings.batchManualExport')}
-  </button>
+  </div>
 </div>
 {/if}
 
 {#if USERBOX_SETUP_RUN && !error}
-  <div class="overlay" transition:fade>
-    <div>
-      <h2>{t('userbox.new.name')}</h2>
-      <span>{USERBOX_SETUP_MODE ? t('userbox.new.url_warning') : USERBOX_SETUP_TEXT}</span>
-      <div class="actions">
-        {#if USERBOX_SETUP_MODE}
-          <input type="text" on:keyup={e => {if (e.key == "Enter") { userboxHandleInput((e.target as HTMLInputElement).value) }}} class="add-margin" placeholder="Base URL">
-        {:else}
-          {#if USERBOX_PROGRESS != 0}
-            <div class="progress">
-              <div class="progress-bar" style="width: {USERBOX_PROGRESS}%"></div>
-            </div>
-          {:else}
-          <p class="notice add-margin">
-            {t('userbox.new.setup.notice')}
-          </p>
-          <button class="drop-btn">
-            <input type="file" on:input={userboxSafeDrop} on:click={e => e.preventDefault()}>
-            {t('userbox.new.drop')}
-          </button>
-          {/if}
-        {/if}
-        {#if USERBOX_PROGRESS == 0}
-          <button on:click={() => USERBOX_SETUP_RUN = false}>
-            {t('back')}
-          </button>
-          <button on:click={() => USERBOX_SETUP_MODE = !USERBOX_SETUP_MODE}>
-            {t(USERBOX_SETUP_MODE ? 'userbox.new.switch.to_drop' : 'userbox.new.switch.to_url')}
-          </button>
-        {/if}
-      </div>
+  <Dialog title={t('userbox.new.name')} persistent={USERBOX_PROGRESS != 0} on:close={() => USERBOX_SETUP_RUN = false}>
+    <div class="setup">
+      <p class="muted">{USERBOX_SETUP_MODE ? t('userbox.new.url_warning') : USERBOX_SETUP_TEXT}</p>
+      {#if USERBOX_SETUP_MODE}
+        <input type="url" on:keyup={e => {if (e.key == "Enter") { userboxHandleInput((e.target as HTMLInputElement).value) }}} placeholder="Base URL（按 Enter 确认）">
+      {:else if USERBOX_PROGRESS != 0}
+        <div class="progress" role="progressbar" aria-valuenow={USERBOX_PROGRESS} aria-valuemin={0} aria-valuemax={100}>
+          <div class="progress-bar" style="width: {USERBOX_PROGRESS}%"></div>
+        </div>
+      {:else}
+        <p class="subtle">{t('userbox.new.setup.notice')}</p>
+        <label class="drop-btn">
+          <input type="file" on:input={userboxSafeDrop} on:click={e => e.preventDefault()}>
+          <Icon icon="solar:folder-with-files-bold-duotone" />
+          <span>{t('userbox.new.drop')}</span>
+        </label>
+      {/if}
     </div>
-  </div>
+    <svelte:fragment slot="footer">
+      {#if USERBOX_PROGRESS == 0}
+        <button type="button" on:click={() => USERBOX_SETUP_MODE = !USERBOX_SETUP_MODE}>
+          {t(USERBOX_SETUP_MODE ? 'userbox.new.switch.to_drop' : 'userbox.new.switch.to_url')}
+        </button>
+        <button type="button" on:click={() => USERBOX_SETUP_RUN = false}>{t('back')}</button>
+      {/if}
+    </svelte:fragment>
+  </Dialog>
 {/if}
 
 <style lang="sass">
 @use "../../vars"
 
-input
-  width: 100%
+.game-settings
+  display: grid
+  gap: 24px
 
-.general-options
+.option-grid
+  display: grid
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr))
+  gap: 10px
+
+.export-actions
   display: flex
-  flex-direction: column
   flex-wrap: wrap
+  gap: 8px
+
+  button
+    white-space: normal
+    text-align: left
+
+.setup
+  display: grid
   gap: 12px
 
-p.notice
-  opacity: 0.6
-  margin-top: 0
+  p
+    margin: 0
 
 .progress
   width: 100%
-  height: 10px
-  box-shadow: 0 0 1px 1px vars.$ov-lighter
-  border-radius: 25px
-  margin-bottom: 15px
+  height: 8px
+  border-radius: var(--radius-full)
+  background: var(--surface-3)
   overflow: hidden
 
   .progress-bar
-    background: #b3c6ff
     height: 100%
-    border-radius: 25px
-
-
-.add-margin, .drop-btn
-  margin-bottom: 1em
+    border-radius: var(--radius-full)
+    background: var(--primary)
+    transition: width 0.2s ease
 
 .drop-btn
   position: relative
-  width: 100%
-  aspect-ratio: 3
-  background: transparent
-  box-shadow: 0 0 1px 1px vars.$ov-lighter
+  display: flex
+  flex-direction: column
+  align-items: center
+  justify-content: center
+  gap: 8px
+  min-height: 140px
+  border: 2px dashed var(--border-strong)
+  border-radius: var(--radius)
+  color: var(--text-2)
+  text-align: center
+
+  :global(svg)
+    color: var(--primary)
+    font-size: 2rem
+
+  &:hover
+    border-color: var(--primary)
+    background: var(--primary-soft)
 
   > input
     position: absolute
-    top: 0
-    left: 0
+    inset: 0
     width: 100%
     height: 100%
     opacity: 0
-
-
-.fields
-  display: flex
-  flex-direction: column
-  gap: 12px
-  width: 100%
-  flex-grow: 0
-
-  label
-    display: flex
-    flex-direction: column
-
-  select
-    width: 100%
-
-.field
-  display: flex
-  flex-direction: column
-  width: 100%
-
-  label
-    max-width: max-content
-
-  > div:not(.bool)
-    display: flex
-    align-items: center
-    gap: 1rem
-    margin-top: 0.5rem
-
-    > select
-      flex: 1
-
-
-.field.boolean
-  display: flex
-  flex-direction: row
-  align-items: center
-  gap: 1rem
-  width: auto
-
-  input
-    width: auto
-    aspect-ratio: 1 / 1
-
-  label
-    display: flex
-    flex-direction: column
-    max-width: max-content
-
-    .desc
-      opacity: 0.6
-
-
-.fields-ranges
-  display: flex
-  flex-wrap: wrap
-  margin: 0.5rem 0
-  gap: 0 1rem
-  justify-content: center
-
-  :global(.field)
-    flex: calc(50% - 1rem)
-    width: 50%
+    cursor: pointer
 
 /* AquaBox */
 
 .chuni-userbox-row
-  width: 100%
   display: flex
+  gap: 6px
+  width: 100%
 
   button
-    padding: 0
-    margin: 0
-    width: 100%
-    flex: 0 1 100%
-    background: none
+    flex: 1 1 0
+    height: auto
+    min-width: 0
     aspect-ratio: 1
+    padding: 0
+    overflow: hidden
+    background: var(--surface-2)
 
     img
       width: 100%
-      filter: brightness(50%)
+      filter: brightness(60%)
+      transition: filter 0.15s ease
 
-      &.focused
-        filter: brightness(75%)
+    &.focused
+      border-color: var(--primary)
+      box-shadow: 0 0 0 2px var(--primary)
+
+      img
+        filter: none
 
 .chuni-userbox
-  width: calc(100% - 20px)
-  height: 350px
-
-  display: flex
-  flex-direction: row
-  flex-wrap: wrap
-  padding: 10px
-  background: vars.$c-bg
-  border-radius: 16px
+  display: grid
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr))
+  gap: 6px
+  max-height: 360px
+  padding: 8px
   overflow-y: auto
-  margin-bottom: 15px
-  justify-content: center
+  border: 1px solid var(--border)
+  border-radius: var(--radius)
+  background: var(--surface-2)
 
   button
-    padding: 0
-    margin: 0
-    width: 20%
-    align-self: flex-start
-    background: none
+    height: auto
     aspect-ratio: 1
+    padding: 0
+    overflow: hidden
+    background: var(--surface)
 
     img
       width: 100%
 
+    &.current
+      border-color: var(--primary)
+      box-shadow: 0 0 0 2px var(--primary)
+
     &.nameplate
-      width: 50%
-      aspect-ratio: unset
-      border: none
+      grid-column: span 2
+      aspect-ratio: auto
 
 .chuni-userbox-container
   display: flex

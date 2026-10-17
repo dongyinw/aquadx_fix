@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { fade } from "svelte/transition";
-  import { FADE_IN, FADE_OUT } from "../../libs/config";
+  import Spinner from "../ui/Spinner.svelte";
   import GameSettingFields from "./GameSettingFields.svelte";
   import { GAME, SETTING, USER } from "../../libs/sdk";
   import { download } from "../../libs/ui";
@@ -32,24 +31,30 @@
 </script>
 
 {#if !loading}
-  <div>
-    <div class="fields">
+  <div class="game-settings">
+    <div class="setting-group">
       <InputField bind:field={userNameField}
-        callback={() => SETTING.detailSet('ongeki', 'userName', userNameField.value)}/>
-      <GameSettingFields game="ongeki"/>
-      <button class="exportButton" on:click={exportData}>
-        <Icon icon="bxs:file-export"/>
-        {t('settings.export')}
-      </button>
+        callback={() => SETTING.detailSet('ongeki', 'userName', userNameField.value).then(() => true)}/>
+    </div>
+    <GameSettingFields game="ongeki"/>
+    <div class="setting-section">
+      <h3>数据导出</h3>
+      <div class="row">
+        <button type="button" on:click={exportData} disabled={!!submitting}>
+          {#if submitting === "export"}<Spinner />{:else}<Icon icon="bxs:file-export"/>{/if}
+          {t('settings.export')}
+        </button>
+      </div>
     </div>
   </div>
+{:else if !error}
+  <div class="stack" aria-hidden="true"><span class="skeleton" style="height:80px;border-radius:12px"></span></div>
 {/if}
 
-<StatusOverlays {error} loading={!userNameField || !!submitting || loading}/>
+<StatusOverlays {error} />
 
 <style lang="sass">
-  .fields
-    display: flex
-    flex-direction: column
-    gap: 12px
+  .game-settings
+    display: grid
+    gap: 24px
 </style>

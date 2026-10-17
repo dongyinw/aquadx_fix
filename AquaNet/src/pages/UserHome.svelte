@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { CHARTJS_OPT, coverNotFound, pfpNotFound, registerChart, renderCal, title, tooltip, pfp } from "../libs/ui";
   import type {
     GenericGamePlaylog,
@@ -25,6 +25,11 @@
   import useLocalStorage from "../libs/hooks/useLocalStorage.svelte";
   import Line from "../components/chart/Line.svelte";
   import ChuniUserboxDisplay from "../components/settings/userbox/ChuniUserboxDisplay.svelte";
+  import Dialog from "../components/ui/Dialog.svelte";
+  import Spinner from "../components/ui/Spinner.svelte";
+  import EmptyState from "../components/ui/EmptyState.svelte";
+  import { theme } from "../libs/theme";
+  import { toast } from "../libs/toast";
 
   const TREND_DAYS = 60
 
@@ -55,22 +60,6 @@
   let detailLoading = false
   let detailError = ""
   let detailRequest = 0
-
-  // Keep the dialog relative to the viewport even when the page is scrolled.
-  function portal(node: HTMLElement) {
-    const placeholder = document.createComment("score-detail-portal")
-    node.parentNode?.insertBefore(placeholder, node)
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = "hidden"
-    document.body.appendChild(node)
-
-    return {
-      destroy() {
-        document.body.style.overflow = previousOverflow
-        placeholder.remove()
-      }
-    }
-  }
 
   const judgmentRows = [
     { label: "Tap", prefix: "tap" },
@@ -145,10 +134,6 @@
         GAME.trend(username, game),
         DATA.allMusic(game),
       ]).then(async ([user, trend, music]) => {
-        console.log(user)
-        console.log(trend)
-        console.log(games)
-
         title(` ${user.name} (@${username}) ・ ${GAME_TITLE[game]}`)
 
         // If game is wacca, divide all ratings by 10
@@ -175,10 +160,9 @@
           validGames: Object.entries(GAME_TITLE).filter(g => games[g[0] as GameName])
         }
         allMusics = music
-        renderCal(calElement, trend.map(it => {return {date: it.date, value: it.plays}})).then(() => {
-          // Scroll to the rightmost
-          calElement.scrollLeft = calElement.scrollWidth - calElement.clientWidth
-        })
+        calData = trend.map(it => {return {date: it.date, value: it.plays}})
+        await tick()
+        paintCal($theme)
       }).catch((e) => error = e.message);
     }).catch((e) => { error = e.message; console.error(e) } );
   }
@@ -197,8 +181,34 @@
     isLoading = true
     GAME.setRival(game, username, isAdd).then(() => {
       d!.user.rival = isAdd
-    }).catch(e => error = e.message).finally(() => isLoading = false)
+      toast.success(isAdd ? t("UserHome.AddRival") + " ✓" : t("UserHome.RemoveRival") + " ✓")
+    }).catch(e => toast.error(e.message)).finally(() => isLoading = false)
   }
+
+  // Activity heatmap, repainted when the theme changes.
+  let calData: { date: any, value: any }[] = []
+  let paintedTheme = ""
+  function paintCal(current: string) {
+    if (!calElement || paintedTheme === current) return
+    paintedTheme = current
+    calElement.innerHTML = ""
+    renderCal(calElement, calData, {
+      dark: current === "dark",
+      tooltip: (count, date) => count ? t("UserHome.CalTooltip", { count, date }) : t("UserHome.CalNoPlay", { date }),
+    }).then(() => {
+      // Scroll to the rightmost
+      calElement.scrollLeft = calElement.scrollWidth - calElement.clientWidth
+    })
+  }
+  $: if (d && paintedTheme) paintCal($theme)
+
+  const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  const coverUrl = (musicId: number | string) => `${DATA_HOST}/d/${game}/music/00${musicId.toString().padStart(6, '0').substring(2)}.png`
+  const levelLabel = (r: MusicAndPlay) => r.notes?.[r.level === 10 ? 0 : r.level]?.lv?.toFixed(1) ?? r.worldsEndTag ?? '-'
+  const rankLabel = (achievement: number) => ("" + getMult(achievement, game)[2]).replace("p", "+")
+  const formatRating = (value: number, ongekiNew = false) => ongekiNew ? (value / 1000).toFixed(3)
+    : game === 'chu3' || game === 'ongeki' ? (value / 100).toFixed(2) : value.toLocaleString()
+  $: isSelf = !!me && me.username.toLowerCase() === username.toLowerCase()
 
   async function exportData() {
     if (exportLoading || !me || me.username.toLowerCase() !== username.toLowerCase()) return
@@ -216,6 +226,7 @@
       link.click()
       link.remove()
       setTimeout(() => URL.revokeObjectURL(url), 1000)
+      toast.success(t("UserHome.ExportData", { game: GAME_TITLE[exportGame] }) + " ✓")
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     } finally {
@@ -224,219 +235,140 @@
   }
 </script>
 
-<main id="user-home" class="content">
+<main id="user-home" class="page">
   {#if d}
-    <div class="user-pfp">
-      <img use:pfp={d.user.aquaUser} alt="" class="pfp" on:error={pfpNotFound}>
-      <div class="name-box">
-        <div class="name-left">
-
+    <section class="card profile-hero">
+      <img use:pfp={d.user.aquaUser} alt="" class="avatar" on:error={pfpNotFound}>
+      <div class="identity">
+        <h1>
+          <span class="truncate">{d.user.aquaUser?.displayName || d.user.name}</span>
+          {#if d.user.aquaUser?.country}<span class="flag" aria-hidden="true">{countryCodeToEmoji(d.user.aquaUser.country)}</span>{/if}
+        </h1>
+        <p class="handle">
           {#if d.user.aquaUser}
-            {#if d.user.aquaUser.displayName}
-              <h2>{d.user.aquaUser?.displayName}</h2>
-            {:else}
-              <h2>{d.user.name}</h2>
-            {/if}
-            <div class="game-name">
-              {#if d.user.aquaUser.displayName}
-                {d.user.name}
-              {/if}
-              (@{d.user.aquaUser.username})
-            </div>
-            <div class="country">{countryCodeToEmoji(d.user.aquaUser?.country)}</div>
+            {#if d.user.aquaUser.displayName}<span>{d.user.name}</span><span aria-hidden="true">·</span>{/if}
+            <span>@{d.user.aquaUser.username}</span>
           {:else}
-            <h2>{d.user.name}</h2>
+            <span>{GAME_TITLE[game]}</span>
           {/if}
-        </div>
-        {#if typeof d.user.rival === 'boolean' && game === 'mai2'}
-          <span class="clickable" on:click={() => setRival(!d?.user.rival)} role="button" tabindex="0"
-             on:keydown={e => e.key === "Enter" && setRival(!d?.user.rival)}>
-            {d.user.rival ? t("UserHome.RemoveRival") : t("UserHome.AddRival")}
-          </span>
+        </p>
+        {#if d.user.aquaUser?.profileBio}
+          <p class="bio" title={t("settings.profile.bio")}>{d.user.aquaUser.profileBio}</p>
         {/if}
       </div>
-      <nav>
-        {#each d.validGames as [g, name]}
-          <a class="game-tab" href={`/u/${username}/${g}`} class:active={game === g}>{name}</a>
-        {/each}
-
-        {#if me && me.username.toLowerCase() === username.toLowerCase()}
-          <button class="export-data clickable" disabled={exportLoading} on:click={exportData}>
-            <Icon icon="solar:download-minimalistic-bold-duotone" />
+      <div class="hero-actions">
+        {#if typeof d.user.rival === 'boolean' && game === 'mai2'}
+          <button type="button" class={d.user.rival ? "" : "btn-soft"} disabled={isLoading} on:click={() => setRival(!d?.user.rival)}>
+            {#if isLoading}<Spinner />{:else}<Icon icon="solar:cup-star-bold-duotone" />{/if}
+            {d.user.rival ? t("UserHome.RemoveRival") : t("UserHome.AddRival")}
+          </button>
+        {/if}
+        {#if isSelf}
+          <button type="button" disabled={exportLoading} on:click={exportData}>
+            {#if exportLoading}<Spinner />{:else}<Icon icon="solar:download-minimalistic-bold-duotone" />{/if}
             {exportLoading ? t("UserHome.ExportingData") : t("UserHome.ExportData", { game: GAME_TITLE[game] })}
           </button>
-          <a class="setting-icon clickable" use:tooltip={t("UserHome.Settings")} href={`/settings/${game}`}>
-            <Icon icon="eos-icons:rotating-gear"/>
+          <a class="btn btn-icon" href={`/settings/${game}`} aria-label={t("UserHome.Settings")} use:tooltip={t("UserHome.Settings")}>
+            <Icon icon="solar:settings-bold-duotone"/>
           </a>
         {/if}
-      </nav>
-    </div>
-
-    {#if d.user.aquaUser?.profileBio}
-      <div class="activity-info">
-        <div class="info-bottom profile-bio-container">
-          <div class="profile-bio">
-            <span>{t("settings.profile.bio")}</span>
-            <span class="profile-bio-text">{d.user.aquaUser?.profileBio}</span>
-          </div>
-        </div>
       </div>
+    </section>
+
+    {#if d.validGames.length > 1}
+      <nav class="segmented game-tabs" aria-label="游戏">
+        {#each d.validGames as [g, name]}
+          <a href={`/u/${username}/${g}`} class:active={game === g} aria-current={game === g ? "page" : undefined}>{name}</a>
+        {/each}
+      </nav>
     {/if}
 
     <ChuniUserboxDisplay {game} {username} bind:error={error} />
 
-    <div>
-      <h2>{GAME_TITLE[game] ?? "?"} {t('UserHome.Statistics')}</h2>
-      <div class="scoring-info">
-        <div class="chart">
-          <div class="info-top">
+    <section class="section">
+      <div class="section-header"><h2>{GAME_TITLE[game] ?? "?"} {t('UserHome.Statistics')}</h2></div>
+      <div class="stat-grid">
+        <div class="stat primary">
+          {#if game == "ongeki" && d.user.ratingNotGeneric}
+            <span>{t("UserHome.Rating")}</span><strong class="num">{formatRating(d.user.rating, true)}</strong>
+          {:else}
+            <span>{game === 'mai2' ? t("UserHome.DXRating") : t("UserHome.Rating")}</span><strong class="num">{formatRating(d.user.rating)}</strong>
+          {/if}
+          {#if !isNaN(parseInt(d.user.serverRank))}<small>{t('UserHome.ServerRank')} <b class="num">#{(d.user.serverRank).toLocaleString()}</b></small>{/if}
+        </div>
+        <div class="stat">
+          {#if game == "ongeki" && d.user.ratingNotGeneric}
+            <span>{t("UserHome.HighestRating")}</span><strong class="num">{formatRating(d.user.ratingHighest, true)}</strong>
+          {:else}
+            <span>{game === 'mai2' ? t("UserHome.HighestDXRating") : t("UserHome.HighestRating")}</span><strong class="num">{formatRating(d.user.ratingHighest)}</strong>
+          {/if}
+        </div>
+        <div class="stat"><span>{t('UserHome.Accuracy')}</span><strong class="num">{(d.user.accuracy).toFixed(2)}%</strong></div>
+        <div class="stat"><span>{t("UserHome.MaxCombo")}</span><strong class="num">{d.user.maxCombo}</strong></div>
+        <div class="stat"><span>{t("UserHome.FullCombo")}</span><strong class="num">{d.user.fullCombo}</strong></div>
+        <div class="stat"><span>{t("UserHome.AllPerfect")}</span><strong class="num">{d.user.allPerfect}</strong></div>
+        <div class="stat"><span>{game === 'mai2' ? t('UserHome.DXScore') : t("UserHome.Score")}</span><strong class="num">{d.user.totalScore.toLocaleString()}</strong></div>
+        <div class="stat"><span>{t("UserHome.Plays")}</span><strong class="num">{d.user.plays}</strong></div>
+      </div>
+    </section>
 
-
-            {#if game == "ongeki" && d.user.ratingNotGeneric}
-              <div class="rating">
-                <span>{t("UserHome.Rating")}</span>
-                <span>{(d.user.rating / 1000).toFixed(3)}</span>
-              </div>
+    <div class="overview-grid">
+      <section class="card trend-card">
+        <div class="card-header"><div><h3>Rating</h3><p>近 {TREND_DAYS} 天</p></div></div>
+        <!-- ChartJS cannot be fully responsive unless there is a parent div that's independent from its size and helps it determine its size -->
+        <div class="trend">
+          <div class="chartjs-box-reference">
+            {#if d.trend.length <= 1}
+              <div class="no-data">{t("UserHome.NoData", { days: TREND_DAYS })}</div>
             {:else}
-              <div class="rating">
-                <span>{game === 'mai2' ? t("UserHome.DXRating"): t("UserHome.Rating")}</span>
-                <!-- NOTE: this is for legacy ongeki display, so 1.45 profiles are at least usable -->
-                <span>{
-                  game === 'chu3' || game === 'ongeki' ?
-                    (d.user.rating / 100).toFixed(2) :
-                    d.user.rating.toLocaleString()
-                }</span>
-              </div>
-            {/if}
-
-            {#if !isNaN(parseInt(d.user.serverRank))}
-              <div class="rank">
-                <span>{t('UserHome.ServerRank')}</span>
-                <span>#{(d.user.serverRank).toLocaleString()}</span>
-              </div>
-            {/if}
-          </div>
-
-          <div class="trend">
-            <!-- ChartJS cannot be fully responsive unless there is a parent div that's independent from its size and helps it determine its size -->
-            <div class="chartjs-box-reference">
-              {#if d.trend.length <= 1}
-                <div class="no-data">{t("UserHome.NoData", { days: TREND_DAYS })}</div>
-              {:else}
+              {#key $theme}
                 <Line data={{
                   datasets: [
                     {
                       label: 'Rating',
                       data: d.trend.map(it => {return {x: Date.parse(it.date), y: it.rating}}),
-                      borderColor: '#646cff',
-                      tension: 0.1,
-
-                      // TODO: Set X axis span to 3 months
+                      borderColor: cssVar('--primary'),
+                      backgroundColor: cssVar('--primary-soft'),
+                      fill: true,
+                      borderWidth: 2,
+                      tension: 0.25,
                     }
                   ]
                 }} options={CHARTJS_OPT} />
-              {/if}
-            </div>
-          </div>
-
-          {#if Object.entries(d.user.detailedRanks).length > 0}
-            <div class="info-bottom clickable" use:tooltip={t("UserHome.ShowRanksDetails")}
-                 on:click={() => showDetailRank = !showDetailRank} role="button" tabindex="0"
-                 on:keydown={e => e.key === "Enter" && (showDetailRank = !showDetailRank)}>
-              {#each d.user.ranks as r}
-                <div><span>{r.name}</span><span>{r.count}</span></div>
-              {/each}
-            </div>
-          {:else}
-            <div class="info-bottom">
-              {#each d.user.ranks as r}
-                <div><span>{r.name}</span><span>{r.count}</span></div>
-              {/each}
-            </div>
-          {/if}
-        </div>
-
-        <div class="other-info">
-          <div class="accuracy">
-            <span>{t('UserHome.Accuracy')}</span>
-            <span>{(d.user.accuracy).toFixed(2)}%</span>
-          </div>
-
-          {#if game == "ongeki" && d.user.ratingNotGeneric}
-            <div class="rating">
-              <span>{t("UserHome.HighestRating")}</span>
-              <span>{(d.user.ratingHighest / 1000).toFixed(3)}</span>
-            </div>
-          {:else}
-            <div class="rating">
-              <span>{game === 'mai2' ? t("UserHome.HighestDXRating"): t("UserHome.HighestRating")}</span>
-              <!-- NOTE: this is for legacy ongeki display, so 1.45 profiles are at least usable -->
-              <span>{
-                game === 'chu3' || game === 'ongeki' ?
-                  (d.user.ratingHighest / 100).toFixed(2) :
-                  d.user.ratingHighest.toLocaleString()
-              }</span>
-            </div>
-          {/if}
-
-          <div class="max-combo">
-            <span>{t("UserHome.MaxCombo")}</span>
-            <span>{d.user.maxCombo}</span>
-          </div>
-
-          <div class="full-combo">
-            <span>{t("UserHome.FullCombo")}</span>
-            <span>{d.user.fullCombo}</span>
-          </div>
-
-          <div class="all-perfect">
-            <span>{t("UserHome.AllPerfect")}</span>
-            <span>{d.user.allPerfect}</span>
-          </div>
-
-          <div class="total-dx-score">
-            <span>{game === 'mai2' ? t('UserHome.DXScore') : t("UserHome.Score")}</span>
-            <span>{d.user.totalScore.toLocaleString()}</span>
+              {/key}
+            {/if}
           </div>
         </div>
-      </div>
+      </section>
+
+      <section class="card ranks-card">
+        <div class="card-header"><div><h3>{t("UserHome.RankDetail.Title")}</h3></div></div>
+        <div class="rank-chips">
+          {#each d.user.ranks as r}
+            <div class="rank-chip"><span>{r.name}</span><strong class="num">{r.count}</strong></div>
+          {/each}
+        </div>
+        {#if Object.entries(d.user.detailedRanks).length > 0}
+          <button class="btn-ghost btn-sm rank-toggle" type="button" aria-expanded={showDetailRank} on:click={() => showDetailRank = !showDetailRank}>
+            <Icon icon={showDetailRank ? "line-md:chevron-small-up" : "line-md:chevron-small-down"} />{t("UserHome.ShowRanksDetails")}
+          </button>
+        {/if}
+      </section>
     </div>
 
     {#if showDetailRank}<RankDetails g={d.user}/>{/if}
 
-    <div>
-      <h2>{t('UserHome.PlayActivity')}</h2>
-      <div class="activity-info">
-        <div class="hide-scrollbar" id="cal-heatmap" bind:this={calElement}></div>
-
-        <div class="info-bottom">
-          <div class="plays">
-            <span>{t("UserHome.Plays")}</span>
-            <span>{d.user.plays}</span>
-          </div>
-
-          <div class="time">
-            <span>{t('UserHome.PlayTime')}</span>
-            <span>{(d.user.totalPlayTime / 60).toFixed(1)} hr</span>
-          </div>
-
-          <div class="first-play">
-            <span>{t('UserHome.FirstSeen')}</span>
-            <span>{moment(d.user.joined).format("YYYY-MM-DD")}</span>
-          </div>
-
-          <div class="last-play">
-            <span>{t('UserHome.LastSeen')}</span>
-            <span>{moment(d.user.lastSeen).format("YYYY-MM-DD")}</span>
-          </div>
-
-          <div class="last-version">
-            <span>{t('UserHome.Version')}</span>
-            <span>{d.user.lastVersion}</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <section class="card activity-card">
+      <div class="card-header"><div><h3>{t('UserHome.PlayActivity')}</h3></div></div>
+      <div class="hide-scrollbar" id="cal-heatmap" bind:this={calElement}></div>
+      <dl class="activity-stats">
+        <div><dt>{t("UserHome.Plays")}</dt><dd class="num">{d.user.plays}</dd></div>
+        <div><dt>{t('UserHome.PlayTime')}</dt><dd class="num">{(d.user.totalPlayTime / 60).toFixed(1)} h</dd></div>
+        <div><dt>{t('UserHome.FirstSeen')}</dt><dd class="num">{moment(d.user.joined).format("YYYY-MM-DD")}</dd></div>
+        <div><dt>{t('UserHome.LastSeen')}</dt><dd class="num">{moment(d.user.lastSeen).format("YYYY-MM-DD")}</dd></div>
+        <div><dt>{t('UserHome.Version')}</dt><dd>{d.user.lastVersion}</dd></div>
+      </dl>
+    </section>
 
     <RatingComposition title={t("UserHome.RatingComposition.Best", {n: 50})} comp={d.user.ratingComposition.best50} {allMusics} {game}/>
     <RatingComposition title={t("UserHome.RatingComposition.Best", {n: 35})} comp={d.user.ratingComposition.best35} {allMusics} {game}/>
@@ -459,863 +391,523 @@
       <RatingComposition title={t("UserHome.RatingComposition.Recent", {n: 10})} comp={d.user.ratingComposition.recent10} {allMusics} {game} top={10}/>
     {/if}
 
-    <div class="recent">
-      <h2>{t('UserHome.RecentScores')}</h2>
-      <div class="scores">
-        {#each (showMoreRecent ? d.recent : d.recent.slice(0, 15)) as r, i}
-          <div class:alt={i % 2 === 0} class="score-entry" role="button" tabindex="0"
-               on:click={() => openScore(r)}
-               on:keydown={e => (e.key === "Enter" || e.key === " ") && openScore(r)}>
-            <img src={`${DATA_HOST}/d/${game}/music/00${r.musicId.toString().padStart(6, '0').substring(2)}.png`} alt="" on:error={coverNotFound} />
-            <div class="info">
-              <div>{r.name ?? t("UserHome.UnknownSong")}</div>
-              <div>
-                {#if r.isAllPerfect || r.isAllJustice}
-                  <img src="/assets/imgs/All Perfect.png" alt="All Perfect" />
-                {:else if r.isFullCombo}
-                  <img src="/assets/imgs/Full Combo.png" alt="Full Combo" />
-                {/if}
-                <span class={`lv level-${r.level === 10 ? 5 : r.level}`}>
-                  <span>
-                    {r.notes?.[r.level === 10 ? 0 : r.level]?.lv?.toFixed(1) ?? r.worldsEndTag ?? '-'}
-                  </span>
+    <section class="section recent">
+      <div class="section-header"><h2>{t('UserHome.RecentScores')}</h2><span class="subtle">点击成绩查看判定详情</span></div>
+      {#if d.recent.length}
+        <div class="card card-flush score-list">
+          {#each (showMoreRecent ? d.recent : d.recent.slice(0, 15)) as r}
+            <button class="score-row" type="button" on:click={() => openScore(r)}>
+              <img src={coverUrl(r.musicId)} alt="" loading="lazy" on:error={coverNotFound} />
+              <span class="score-main">
+                <span class="score-title truncate">{r.name ?? t("UserHome.UnknownSong")}</span>
+                <span class="score-meta">
+                  <span class={`lv level-${r.level === 10 ? 5 : r.level}`}>{levelLabel(r)}</span>
+                  {#if r.isAllPerfect || r.isAllJustice}
+                    <img class="lamp" src="/assets/imgs/All Perfect.png" alt="All Perfect" />
+                  {:else if r.isFullCombo}
+                    <img class="lamp" src="/assets/imgs/Full Combo.png" alt="Full Combo" />
+                  {/if}
+                  <span class="subtle num">{moment(r.userPlayDate ?? r.playDate).format("MM-DD HH:mm")}</span>
                 </span>
-                <span class={`rank-${getMult(r.achievement, game)[2].toString()[0]}`}>
-                  <span class="rank-text">{("" + getMult(r.achievement, game)[2]).replace("p", "+")}</span>
-                  <span class="rank-num" use:tooltip={(r.achievement / 10000).toFixed(4)}>
-                    {
-                      rounding.value ?
-                        roundFloor(r.achievement, game, 1) :
-                        (r.achievement / 10000).toFixed(4)
-                    }%
-                  </span>
+              </span>
+              <span class="score-result">
+                <span class={`rank-${getMult(r.achievement, game)[2].toString()[0]} rank-text`}>{rankLabel(r.achievement)}</span>
+                <span class="num achievement" use:tooltip={(r.achievement / 10000).toFixed(4)}>
+                  {rounding.value ? roundFloor(r.achievement, game, 1) : (r.achievement / 10000).toFixed(4)}%
                 </span>
-                <span class:increased={r.afterRating - r.beforeRating > 0} class="dx-change">
-                  {r.afterRating === r.beforeRating ? '-' : (r.afterRating - r.beforeRating).toFixed(0)}
-                </span>
-              </div>
-            </div>
-          </div>
-        {/each}
-
-        {#if !showMoreRecent}
-          <button class="clickable" on:click={() => showMoreRecent = true}>{t('UserHome.ShowMoreRecent')}</button>
+              </span>
+              <span class="dx-change num" class:increased={r.afterRating - r.beforeRating > 0}>
+                {r.afterRating === r.beforeRating ? '–' : (r.afterRating - r.beforeRating > 0 ? "+" : "") + (r.afterRating - r.beforeRating).toFixed(0)}
+              </span>
+            </button>
+          {/each}
+        </div>
+        {#if !showMoreRecent && d.recent.length > 15}
+          <button class="show-more" type="button" on:click={() => showMoreRecent = true}><Icon icon="line-md:chevron-small-down" />{t('UserHome.ShowMoreRecent')}</button>
         {/if}
-      </div>
-    </div>
+      {:else}
+        <EmptyState compact icon="solar:music-note-bold-duotone" title={t("UserHome.NoData", { days: TREND_DAYS })} />
+      {/if}
+    </section>
 
     {#if d.user.favorites != null && d.user.favorites.length > 0}
-      <div class="favorites">
-        <h2>{t('UserHome.FavoriteSongs')}</h2>
-        <div class="scores">
-          {#each d.user.favorites as favoriteSongId, i}
-            <div>
-              <img src={`${DATA_HOST}/d/${game}/music/00${favoriteSongId.toString().padStart(6, '0').substring(2)}.png`} alt="" on:error={coverNotFound} />
-              <div class="info">
-                <div class="song-title">{allMusics[favoriteSongId.toString()] ? allMusics[favoriteSongId.toString()].name : t("UserHome.UnknownSong")}</div>
-              </div>
+      <section class="section favorites">
+        <div class="section-header"><h2>{t('UserHome.FavoriteSongs')}</h2><span class="badge">{d.user.favorites.length}</span></div>
+        <div class="favorite-grid">
+          {#each d.user.favorites as favoriteSongId}
+            <div class="favorite">
+              <img src={coverUrl(favoriteSongId)} alt="" loading="lazy" on:error={coverNotFound} />
+              <span class="truncate">{allMusics[favoriteSongId.toString()] ? allMusics[favoriteSongId.toString()].name : t("UserHome.UnknownSong")}</span>
             </div>
           {/each}
         </div>
-      </div>
+      </section>
     {/if}
+  {:else if !error}
+    <div class="profile-skeleton" aria-hidden="true">
+      <span class="skeleton" style="height:128px;border-radius:16px"></span>
+      <div class="stat-grid">{#each Array(8) as _}<span class="skeleton" style="height:84px;border-radius:14px"></span>{/each}</div>
+      <span class="skeleton" style="height:280px;border-radius:16px"></span>
+    </div>
   {/if}
 
-  <StatusOverlays {error} loading={!d || isLoading} />
+  <StatusOverlays {error} />
 
 {#if selectedScore}
-  <div class="score-detail-overlay" use:portal role="presentation" on:click={(e) => e.currentTarget === e.target && closeScore()}>
-    <div class="score-detail" role="dialog" aria-modal="true" aria-label="成绩详情">
-      <div class="detail-header">
-        <div>
-          <span>成绩详情</span>
-          <h2>{selectedScore.name ?? t("UserHome.UnknownSong")}</h2>
-        </div>
-        <button class="icon" type="button" on:click={closeScore} aria-label="关闭"><Icon icon="line-md:close" /></button>
+  <Dialog title={selectedScore.name ?? t("UserHome.UnknownSong")} description="成绩详情" size="lg" on:close={closeScore}>
+    <div class="detail-summary">
+      <img class="detail-cover" src={coverUrl(selectedScore.musicId)} alt="" on:error={coverNotFound} />
+      <div>
+        <strong class="num">{moment(selectedScore.userPlayDate ?? selectedScore.playDate).format("YYYY-MM-DD HH:mm")}</strong>
+        <span class="row">
+          <span class={`lv level-${selectedScore.level === 10 ? 5 : selectedScore.level}`}>{levelLabel(selectedScore)}</span>
+          <span class="muted">{GAME_TITLE[game]}</span>
+        </span>
+        <span class="badge" class:primary={selectedScore.isAllPerfect || selectedScore.isAllJustice || selectedScore.isFullCombo}>
+          {selectedScore.isAllPerfect || selectedScore.isAllJustice ? "ALL PERFECT" : selectedScore.isFullCombo ? "FULL COMBO" : "PLAY RESULT"}
+        </span>
       </div>
-
-      <div class="detail-summary">
-        <img class="detail-cover" src={`${DATA_HOST}/d/${game}/music/00${selectedScore.musicId.toString().padStart(6, '0').substring(2)}.png`} alt="" on:error={coverNotFound} />
-        <div>
-          <strong>{moment(selectedScore.userPlayDate ?? selectedScore.playDate).format("YYYY-MM-DD HH:mm")}</strong>
-          <span>{GAME_TITLE[game]} · {selectedScore.notes?.[selectedScore.level === 10 ? 0 : selectedScore.level]?.lv?.toFixed(1) ?? selectedScore.worldsEndTag ?? '-'}</span>
-          <span>{selectedScore.isAllPerfect || selectedScore.isAllJustice ? "ALL PERFECT" : selectedScore.isFullCombo ? "FULL COMBO" : "PLAY RESULT"}</span>
-        </div>
-      </div>
-
-      <div class="detail-stats">
-        <div><span>达成率</span><strong>{(scoreAchievement(selectedScore) / 10000).toFixed(4)}%</strong><small>{("" + getMult(scoreAchievement(selectedScore), game)[2]).replace("p", "+")}</small></div>
-        <div><span>DX 分</span><strong>{formatNumber(selectedScore.deluxscore ?? selectedScore.totalDxScore)}</strong></div>
-        <div><span>最大连击</span><strong>{formatNumber(selectedScore.maxCombo)}<small> / {formatNumber(selectedScore.totalCombo)}</small></strong></div>
-        <div><span>Rating 变化</span><strong class:positive={ratingDelta(selectedScore) > 0}>{ratingDelta(selectedScore) > 0 ? "+" : ""}{ratingDelta(selectedScore)}</strong></div>
-      </div>
-
-      {#if detailLoading}
-        <div class="detail-message"><Icon icon="line-md:loading-twotone-loop" />正在读取逐项判定…</div>
-      {:else if detailError}
-        <div class="detail-message error">详情读取失败：{detailError}</div>
-      {:else if hasJudgments(selectedScore)}
-        <div class="judgment-table">
-          <div class="judgment-row header"><span>判定</span><span>Critical</span><span>Perfect</span><span>Great</span><span>Good</span><span>Miss</span></div>
-          {#each judgmentRows as row}
-            <div class="judgment-row"><strong>{row.label}</strong><span class="critical">{judgmentValue(selectedScore, row.prefix, "CriticalPerfect")}</span><span>{judgmentValue(selectedScore, row.prefix, "Perfect")}</span><span>{judgmentValue(selectedScore, row.prefix, "Great")}</span><span>{judgmentValue(selectedScore, row.prefix, "Good")}</span><span class="miss">{judgmentValue(selectedScore, row.prefix, "Miss")}</span></div>
-          {/each}
-        </div>
-        <div class="timing"><span>FAST {selectedScore.fastCount ?? 0}</span><span>LATE {selectedScore.lateCount ?? 0}</span><span>{selectedScore.isFreedomMode ? "FREEDOM" : selectedScore.isNewFree ? "NEW FREE" : "STANDARD"}</span></div>
-      {:else}
-        <div class="detail-message">该成绩没有返回逐项判定数据</div>
-      {/if}
     </div>
-  </div>
+
+    <div class="detail-stats">
+      <div><span>达成率</span><strong class="num">{(scoreAchievement(selectedScore) / 10000).toFixed(4)}%</strong><small>{rankLabel(scoreAchievement(selectedScore))}</small></div>
+      <div><span>DX 分</span><strong class="num">{formatNumber(selectedScore.deluxscore ?? selectedScore.totalDxScore)}</strong></div>
+      <div><span>最大连击</span><strong class="num">{formatNumber(selectedScore.maxCombo)}<small> / {formatNumber(selectedScore.totalCombo)}</small></strong></div>
+      <div><span>Rating 变化</span><strong class="num" class:positive={ratingDelta(selectedScore) > 0}>{ratingDelta(selectedScore) > 0 ? "+" : ""}{ratingDelta(selectedScore)}</strong></div>
+    </div>
+
+    {#if detailLoading}
+      <div class="detail-message"><Spinner />正在读取逐项判定…</div>
+    {:else if detailError}
+      <div class="alert alert-danger"><Icon icon="solar:danger-triangle-bold-duotone" /><p>详情读取失败：{detailError}</p></div>
+    {:else if hasJudgments(selectedScore)}
+      <div class="table-wrap">
+        <table class="data-table judgment-table">
+          <thead><tr><th>判定</th><th class="num">Critical</th><th class="num">Perfect</th><th class="num">Great</th><th class="num">Good</th><th class="num">Miss</th></tr></thead>
+          <tbody>
+            {#each judgmentRows as row}
+              <tr>
+                <td><strong>{row.label}</strong></td>
+                <td class="num critical">{judgmentValue(selectedScore, row.prefix, "CriticalPerfect")}</td>
+                <td class="num">{judgmentValue(selectedScore, row.prefix, "Perfect")}</td>
+                <td class="num">{judgmentValue(selectedScore, row.prefix, "Great")}</td>
+                <td class="num">{judgmentValue(selectedScore, row.prefix, "Good")}</td>
+                <td class="num miss">{judgmentValue(selectedScore, row.prefix, "Miss")}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+      <div class="timing">
+        <span class="badge">FAST {selectedScore.fastCount ?? 0}</span>
+        <span class="badge">LATE {selectedScore.lateCount ?? 0}</span>
+        <span class="badge primary">{selectedScore.isFreedomMode ? "FREEDOM" : selectedScore.isNewFree ? "NEW FREE" : "STANDARD"}</span>
+      </div>
+    {:else}
+      <div class="detail-message">该成绩没有返回逐项判定数据</div>
+    {/if}
+  </Dialog>
 {/if}
 </main>
 
 <style lang="sass">
 @use "../vars"
 
-#user-home
-  .user-pfp
-    display: flex
-    align-items: flex-end
-    gap: vars.$gap
-    margin-top: -72px
-    position: relative
+.profile-hero
+  flex-direction: row
+  align-items: center
+  gap: 20px
+  flex-wrap: wrap
+  background: linear-gradient(120deg, var(--surface) 40%, var(--primary-soft))
 
-    h2
-      font-size: 2rem
-      margin: 0
-      white-space: nowrap
-
-    nav
-      position: absolute
-      display: flex
-      flex-direction: row
-      gap: 10px
-      top: 4px
-      right: 0
-
-      .game-tab
-        padding: 7px 10px
-        border: 1px solid rgba(96, 114, 118, 0.13)
-        border-radius: 10px
-        color: vars.$c-sub
-        background: rgba(255, 255, 255, 0.48)
-        font-size: 0.76rem
-        font-weight: 700
-
-        &:hover, &.active
-          color: vars.$c-main
-          border-color: rgba(7, 143, 136, 0.28)
-          background: vars.$c-main-soft
-
-    .export-data
-      display: inline-flex
-      align-items: center
-      gap: 5px
-      padding: 7px 10px
-      border: 1px solid rgba(7, 143, 136, 0.28)
-      border-radius: 10px
-      color: vars.$c-main
-      background: vars.$c-main-soft
-      font-size: 0.76rem
-      white-space: nowrap
-      &:disabled
-        opacity: 0.55
-        cursor: wait
-
-    .setting-icon
-      font-size: 1.5rem
-      color: vars.$c-main
-      cursor: pointer
-      display: flex
-      align-items: center
-
-      position: relative
-      z-index: 20
-
-    .name-box
-      flex: 1
-      display: flex
-      align-items: center
-      justify-content: space-between
-      gap: 10px
-
-      .name-left
-        display: flex
-        gap: 1em
-        position: relative
-
-        .game-name
-          position: absolute
-          left: 0.5em
-          bottom: 0
-          transform: translate(0, 75%)
-          opacity: 50%
-          white-space: nowrap
-          max-width: 50%
-
-  .pfp
-    width: 100px
-    height: 100px
-    border-radius: vars.$border-radius
+  .avatar
+    width: 88px
+    height: 88px
+    flex: 0 0 88px
+    border-radius: 50%
     object-fit: cover
+    background: var(--surface-2)
+    box-shadow: 0 0 0 4px var(--surface), 0 0 0 5px var(--border)
 
-  @media (max-width: vars.$w-mobile)
-    .user-pfp
-      margin-top: -68px
-      flex-wrap: wrap
-      nav
-        position: static
-        width: 100%
-        flex-wrap: wrap
-      h2
-        font-size: 1.5rem
+  .identity
+    display: grid
+    flex: 1
+    gap: 2px
+    min-width: 200px
 
-    .pfp
-      width: 80px
-      height: 80px
-
-  .info-bottom, .info-top, .other-info
+  h1
     display: flex
-    gap: vars.$gap
+    align-items: center
+    gap: 10px
+    min-width: 0
+    margin: 0
+    font-size: clamp(1.4rem, 3vw, 1.9rem)
 
-    > div
-      display: flex
-      flex-direction: column
+  .flag
+    flex: 0 0 auto
+    font-family: TwemojiCountryFlags, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif
 
-      > span:first-child
-        font-weight: bold
-        font-size: 0.8rem
-
-        // character spacing
-        letter-spacing: 0.1em
-        color: vars.$c-main
-
-  .info-bottom
-    width: max-content
-
-    &.profile-bio-container,
-    &.profile-bio-container div
-      width: 100%
-
-    .profile-bio-text
-      white-space: pre
-      max-height: 10em
-      overflow-y: auto
-      flex: 1
-
-  .info-top > div > span:last-child
-    font-size: 1.5rem
-
-  .info-bottom
-    max-width: 100%
-    flex-wrap: wrap
-    row-gap: 0.5rem
-
-  .scoring-info
+  .handle
     display: flex
-    gap: vars.$gap
-    max-height: 300px
+    gap: 6px
+    margin: 0
+    color: var(--text-2)
+    font-size: 0.9rem
 
-    .chart
-      flex: 0 1 790px
-      display: flex
-      flex-direction: column
+  .bio
+    max-width: 640px
+    max-height: 7.5em
+    margin: 8px 0 0
+    overflow-y: auto
+    color: var(--text)
+    font-size: 0.92rem
+    white-space: pre-wrap
 
-    .other-info
-      flex: 1 0 100px
-      flex-direction: column
-      gap: 0
-      justify-content: space-between
+.hero-actions
+  display: flex
+  align-items: center
+  gap: 8px
+  flex-wrap: wrap
 
-    .trend
-      height: 300px
-      width: 100%
-      max-width: 790px
+.game-tabs
+  align-self: flex-start
 
-      position: relative
+.stat-grid
+  display: grid
+  grid-template-columns: repeat(4, minmax(0, 1fr))
+  gap: 12px
 
-      > .chartjs-box-reference
-        position: absolute
-        inset: 0
-        display: flex
-        align-items: center
-        justify-content: center
+.stat
+  display: grid
+  align-content: start
+  gap: 2px
+  padding: 14px 16px
+  border: 1px solid var(--border)
+  border-radius: var(--radius-lg)
+  background: var(--surface)
+  box-shadow: var(--shadow-xs)
 
-        .no-data
-          opacity: 0.5
-          user-select: none
+  span
+    color: var(--text-2)
+    font-size: 0.8rem
+    font-weight: 500
 
-    @media (max-width: vars.$w-mobile)
-      flex-direction: column
-      max-height: unset
+  strong
+    font-size: 1.35rem
+    line-height: 1.3
 
-      .chart
-        flex: 0
+  small
+    color: var(--text-2)
+    font-size: 0.8rem
 
-        .trend
-          max-height: 130px
+  &.primary
+    border-color: color-mix(in srgb, var(--primary) 35%, transparent)
+    background: var(--primary-soft)
 
-      .other-info
-        > div
-          flex-direction: row
-          justify-content: space-between
+    strong
+      color: var(--primary-soft-text)
+      font-size: 1.6rem
 
-      .info-bottom
-        justify-content: space-between
+.overview-grid
+  display: grid
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr)
+  gap: 16px
+  align-items: start
 
-  .activity-info
-    display: flex
-    flex-direction: column
-    gap: vars.$gap
+.trend
+  position: relative
+  height: 240px
 
-    #cal-heatmap
-      overflow-x: auto
-
-    @media (max-width: vars.$w-mobile)
-      #cal-heatmap
-        width: 100%
-
-      .info-bottom
-        flex-direction: column
-        gap: 0
-        width: 100%
-
-        > div
-          flex-direction: row
-          justify-content: space-between
-
-  .favorites
-    .scores
-      display: grid
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr))
-      gap: 20px
-
-      // Image and song info
-      > div
-        display: flex
-        align-items: center
-        gap: 20px
-
-        background-color: rgba(white, 0.03)
-        border-radius: vars.$border-radius
-
-        img
-          width: 50px
-          height: 50px
-          border-radius: vars.$border-radius
-          object-fit: cover
-
-        // Song info and score
-        > div.info
-          flex: 1
-          display: flex
-          justify-content: space-between
-          overflow: hidden
-          flex-direction: column
-
-          // Limit song name to one line
-          .song-title
-            max-width: 90%
-            overflow: hidden
-            text-overflow: ellipsis
-            white-space: nowrap
-
-          // Make song score and rank not wrap
-          > div:last-child
-            white-space: nowrap
-
-          @media (max-width: vars.$w-mobile)
-            flex-direction: column
-            gap: 0
-
-  // Recent Scores section
-  .recent
-    .scores
-      display: flex
-      flex-direction: column
-      flex-wrap: wrap
-      gap: vars.$gap
-
-      > div.alt
-        background-color: rgba(white, 0.03)
-        border-radius: vars.$border-radius
-
-      // Image and song info
-      > div
-        display: flex
-        align-items: center
-        gap: vars.$gap
-        padding-right: 16px
-        max-width: 100%
-        box-sizing: border-box
-
-        img
-          width: 50px
-          height: 50px
-          border-radius: vars.$border-radius
-          object-fit: cover
-
-        // Song info and score
-        > div.info
-          flex: 1
-          display: flex
-          justify-content: space-between
-          align-items: center
-          overflow: hidden
-
-          // Limit song name to one line
-          > div:first-child
-            flex: 1
-            min-width: 0
-            overflow: hidden
-            text-overflow: ellipsis
-            white-space: nowrap
-
-          // Make song score and rank not wrap
-          > div:last-child
-            white-space: nowrap
-            display: flex
-            align-items: center
-            gap: 10px
-
-            img
-              height: 1.5em
-              width: 1.5em
-
-          @media (max-width: vars.$w-mobile)
-            flex-direction: column
-            gap: 0
-
-            .rank-text
-              text-align: left
-
-            // Score and rank should be space-between on mobile
-            > div:last-child
-              display: flex
-              justify-content: space-between
-              gap: 10px
-
-              .lv
-                margin-right: auto
-
-        .rank-S
-          // Gold green gradient on text
-          background: vars.$grad-special
-          -webkit-background-clip: text
-          color: transparent
-
-        .rank-A
-          color: #ff8a8a
-
-        .rank-B
-          color: #6ba6ff
-
-        .lv
-          min-width: 30px
-          text-align: center
-          background: rgba(var(--lv-color), 0.6)
-          padding: 0 6px
-          border-radius: vars.$border-radius
-
-        .lv.level-5 > span
-          color: transparent
-          background: var(--lv-text-clip)
-          background-clip: text
-          -webkit-background-clip: text
-          font-weight: bold
-          font-size: 1em
-          font-family: 'Arial Black', sans-serif
-
-        span
-          display: inline-block
-          text-align: right
-
-        // Vertical table-like alignment
-        span.rank-text
-          min-width: 38px
-        span.rank-num
-          min-width: 60px
-        span.dx-change
-          min-width: 30px
-
-      span.increased
-        &:before
-          content: "+"
-        color: vars.$c-good
-
-  .score-entry
-    cursor: pointer
-    transition: vars.$transition
-
-    &:hover, &:focus-visible
-      background-color: rgba(vars.$c-main, 0.1) !important
-      outline: none
-
-  .score-detail-overlay
-    position: fixed
+  > .chartjs-box-reference
+    position: absolute
     inset: 0
-    z-index: 1000
     display: flex
     align-items: center
     justify-content: center
-    padding: 1rem
-    background: rgba(0, 0, 0, 0.72)
-    backdrop-filter: blur(5px)
-    overflow: auto
-    overscroll-behavior: contain
 
-  .score-detail
-    width: min(680px, calc(100vw - 2rem))
-    max-height: calc(100dvh - 2rem)
-    overflow-y: auto
-    min-width: 0
-    padding: 1.5rem
-    box-sizing: border-box
-    border-radius: vars.$border-radius
-    background: vars.$c-bg
-    box-shadow: 0 12px 45px vars.$c-shadow
+  .no-data
+    color: var(--text-3)
+    user-select: none
 
-  .detail-header
-    display: flex
-    align-items: flex-start
-    justify-content: space-between
-    gap: 1rem
+.rank-chips
+  display: grid
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr))
+  gap: 8px
 
-    > div > span
-      color: vars.$c-main
-      font-size: 0.8rem
-      letter-spacing: 0.08em
+.rank-chip
+  display: grid
+  gap: 2px
+  padding: 10px
+  border-radius: var(--radius)
+  background: var(--surface-2)
+  text-align: center
 
-    h2
-      margin: 0.2rem 0 0
-      font-size: 1.4rem
+  span
+    background: vars.$grad-special
+    -webkit-background-clip: text
+    background-clip: text
+    color: transparent
+    font-size: 0.82rem
+    font-weight: 700
 
-  .detail-summary
-    display: flex
-    align-items: center
-    gap: 1rem
-    margin: 1.25rem 0
-    padding-bottom: 1.25rem
-    border-bottom: 1px solid vars.$ov-light
+  strong
+    font-size: 1.1rem
 
-    img.detail-cover
-      display: block
-      width: 80px
-      height: 80px
-      min-width: 80px
-      max-width: 80px
-      flex: 0 0 80px
-      border-radius: vars.$border-radius
-      object-fit: cover
+.rank-toggle
+  align-self: flex-start
+  margin-top: 12px
 
-    div
-      min-width: 0
-      display: flex
-      flex-direction: column
-      gap: 0.25rem
+#cal-heatmap
+  overflow-x: auto
+  padding-bottom: 4px
 
-      span
-        color: vars.$c-main
-        font-size: 0.8rem
+  :global(text)
+    fill: var(--text-2) !important
 
-      span:first-of-type
-        color: vars.$c-sub
+.activity-stats
+  display: grid
+  grid-template-columns: repeat(5, minmax(0, 1fr))
+  gap: 12px
+  margin: 16px 0 0
+  padding-top: 16px
+  border-top: 1px solid var(--border)
 
-  .detail-stats
+  div
     display: grid
-    grid-template-columns: repeat(4, 1fr)
-    gap: 0.6rem
-    margin-bottom: 1.25rem
+    gap: 2px
 
-    > div
-      padding: 0.65rem
-      border-radius: vars.$border-radius
-      background: vars.$ov-light
-
-      span, small
-        display: block
-        color: vars.$c-sub
-        font-size: 0.72rem
-
-      strong
-        display: block
-        margin-top: 0.25rem
-        color: vars.$c-main
-        font-size: 1.05rem
-
-      small
-        margin-top: 0.1rem
-
-    .positive
-      color: vars.$c-good
-
-  .judgment-table
-    overflow-x: auto
-    border: 1px solid vars.$c-main
-    border-radius: vars.$border-radius
-
-  .judgment-row
-    display: grid
-    grid-template-columns: 1.2fr repeat(5, 1fr)
-    min-width: 30rem
-    border-top: 1px solid rgba(vars.$c-main, 0.35)
-    text-align: center
-
-    &:first-child
-      border-top: 0
-
-    > *
-      padding: 0.55rem 0.2rem
-
-    strong
-      text-align: left
-      padding-left: 0.7rem
-
-    .critical
-      color: vars.$c-warning
-
-    .miss
-      color: vars.$c-error
-
-  .judgment-row.header
-    color: vars.$c-main
-    background: vars.$ov-light
-    font-size: 0.75rem
-
-  .timing
-    display: flex
-    gap: 1rem
-    margin-top: 0.8rem
-    color: vars.$c-sub
+  dt
+    color: var(--text-2)
     font-size: 0.8rem
 
-  .detail-message
-    padding: 1rem
-    border-radius: vars.$border-radius
-    color: vars.$c-sub
-    background: vars.$ov-light
-    text-align: center
+  dd
+    margin: 0
+    font-weight: 600
 
-    &.error
-      color: vars.$c-error
+.score-list
+  display: grid
 
-  // Keep the detail dialog readable when the app is using the dark theme.
-  :global(:root[data-theme="dark"] .score-detail)
-    color: #e6f3f1
-    background: rgba(21, 34, 36, 0.96)
-    border: 1px solid rgba(214, 250, 245, 0.16)
+.score-row
+  display: flex
+  align-items: center
+  gap: 14px
+  height: auto
+  min-height: 64px
+  padding: 8px 16px 8px 8px
+  border: 0
+  border-bottom: 1px solid var(--border)
+  border-radius: 0
+  background: transparent
+  box-shadow: none
+  font-weight: 400
+  text-align: left
+  white-space: normal
 
-  :global(:root[data-theme="dark"] .score-detail .detail-summary)
-    border-color: rgba(214, 250, 245, 0.16)
+  &:last-child
+    border-bottom: 0
 
-  :global(:root[data-theme="dark"] .score-detail .detail-summary span:first-of-type)
-    color: #b5e3de
+  &:hover:not(:disabled)
+    border: 0
+    border-bottom: 1px solid var(--border)
+    background: var(--surface-hover)
 
-  :global(:root[data-theme="dark"] .score-detail .detail-stats > div)
-    background: rgba(255, 255, 255, 0.08)
+  &:focus-visible
+    position: relative
+    z-index: 1
 
-  :global(:root[data-theme="dark"] .score-detail .judgment-row.header)
-    background: rgba(255, 255, 255, 0.08)
+  > img
+    width: 48px
+    height: 48px
+    flex: 0 0 48px
+    border-radius: var(--radius-sm)
+    object-fit: cover
 
-  :global(:root[data-theme="dark"] .score-detail .detail-message)
-    color: #b5e3de
-    background: rgba(255, 255, 255, 0.08)
+.score-main
+  display: grid
+  flex: 1
+  gap: 4px
+  min-width: 0
 
-  :global(:root[data-theme="dark"] .score-detail .timing)
-    color: #b5e3de
+.score-title
+  font-weight: 600
 
-  @media (max-width: vars.$w-mobile)
-    .score-detail-overlay
-      padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left))
+.score-meta
+  display: flex
+  align-items: center
+  gap: 8px
+  font-size: 0.8rem
 
-    .score-detail
-      padding: 1rem
-      width: min(680px, calc(100vw - 1.5rem))
-      max-height: calc(100dvh - 1.5rem)
+  .lamp
+    height: 1.4em
 
-    .detail-stats
-      grid-template-columns: repeat(2, 1fr)
+.score-result
+  display: grid
+  justify-items: end
+  flex: 0 0 auto
 
-    .judgment-row
-      font-size: 0.72rem
+  .rank-text
+    font-size: 0.82rem
+    font-weight: 700
 
-      > *
-        padding: 0.45rem 0.1rem
+  .achievement
+    font-weight: 600
 
-// The dialog is portalled to body, so these rules must not depend on #user-home.
-:global(.score-detail-overlay)
-  position: fixed
-  inset: 0
-  z-index: 1000
+.dx-change
+  min-width: 42px
+  color: var(--text-3)
+  font-size: 0.85rem
+  text-align: right
+
+  &.increased
+    color: var(--success)
+    font-weight: 600
+
+.show-more
+  align-self: center
+
+.favorite-grid
+  display: grid
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr))
+  gap: 10px
+
+.favorite
+  display: flex
+  align-items: center
+  gap: 12px
+  min-width: 0
+  padding: 8px
+  border: 1px solid var(--border)
+  border-radius: var(--radius)
+  background: var(--surface)
+
+  img
+    width: 44px
+    height: 44px
+    flex: 0 0 44px
+    border-radius: var(--radius-sm)
+    object-fit: cover
+
+.profile-skeleton
+  display: flex
+  flex-direction: column
+  gap: 16px
+
+// Score detail dialog
+.detail-summary
+  display: flex
+  align-items: center
+  gap: 16px
+  margin-bottom: 16px
+
+  .detail-cover
+    width: 84px
+    height: 84px
+    flex: 0 0 84px
+    border-radius: var(--radius)
+    object-fit: cover
+
+  > div
+    display: grid
+    justify-items: start
+    gap: 6px
+
+.detail-stats
+  display: grid
+  grid-template-columns: repeat(4, minmax(0, 1fr))
+  gap: 8px
+  margin-bottom: 16px
+
+  > div
+    display: grid
+    gap: 2px
+    padding: 10px 12px
+    border-radius: var(--radius)
+    background: var(--surface-2)
+
+  span, small
+    color: var(--text-2)
+    font-size: 0.75rem
+
+  strong
+    font-size: 1.05rem
+
+  .positive
+    color: var(--success)
+
+.judgment-table
+  td, th
+    padding: 9px 12px
+
+  .critical
+    color: var(--warning)
+    font-weight: 600
+
+  .miss
+    color: var(--danger)
+
+.timing
+  display: flex
+  gap: 8px
+  margin-top: 12px
+
+.detail-message
   display: flex
   align-items: center
   justify-content: center
-  padding: 1rem
-  box-sizing: border-box
-  background: rgba(0, 0, 0, 0.72)
-  backdrop-filter: blur(5px)
-  overflow: auto
-  overscroll-behavior: contain
+  gap: 10px
+  padding: 18px
+  border-radius: var(--radius)
+  color: var(--text-2)
+  background: var(--surface-2)
 
-:global(.score-detail-overlay .score-detail)
-  width: min(680px, calc(100vw - 2rem))
-  max-height: calc(100dvh - 2rem)
-  overflow-y: auto
-  min-width: 0
-  padding: 1.5rem
-  box-sizing: border-box
-  border-radius: vars.$border-radius
-  color: vars.$c-text
-  background: vars.$c-bg
-  box-shadow: 0 12px 45px vars.$c-shadow
+@media (max-width: vars.$w-tablet)
+  .overview-grid
+    grid-template-columns: 1fr
 
-:global(.score-detail-overlay .detail-header)
-  display: flex
-  align-items: flex-start
-  justify-content: space-between
-  gap: 1rem
-
-  > div > span
-    color: vars.$c-main
-    font-size: 0.8rem
-    letter-spacing: 0.08em
-
-  h2
-    margin: 0.2rem 0 0
-    font-size: 1.4rem
-
-:global(.score-detail-overlay .detail-summary)
-  display: flex
-  align-items: center
-  gap: 1rem
-  margin: 1.25rem 0
-  padding-bottom: 1.25rem
-  border-bottom: 1px solid vars.$ov-light
-
-:global(.score-detail-overlay .detail-cover)
-  display: block
-  width: 80px
-  height: 80px
-  min-width: 80px
-  max-width: 80px
-  flex: 0 0 80px
-  border-radius: vars.$border-radius
-  object-fit: cover
-
-:global(.score-detail-overlay .detail-summary > div)
-  min-width: 0
-  display: flex
-  flex-direction: column
-  gap: 0.25rem
-
-  span
-    color: vars.$c-main
-    font-size: 0.8rem
-
-  span:first-of-type
-    color: vars.$c-sub
-
-:global(.score-detail-overlay .detail-stats)
-  display: grid
-  grid-template-columns: repeat(4, 1fr)
-  gap: 0.6rem
-  margin-bottom: 1.25rem
-
-  > div
-    padding: 0.65rem
-    border-radius: vars.$border-radius
-    background: vars.$ov-light
-
-    span, small
-      display: block
-      color: vars.$c-sub
-      font-size: 0.72rem
-
-    strong
-      display: block
-      margin-top: 0.25rem
-      color: vars.$c-main
-      font-size: 1.05rem
-
-    small
-      margin-top: 0.1rem
-
-  .positive
-    color: vars.$c-good
-
-:global(.score-detail-overlay .judgment-table)
-  overflow-x: auto
-  border: 1px solid vars.$c-main
-  border-radius: vars.$border-radius
-
-:global(.score-detail-overlay .judgment-row)
-  display: grid
-  grid-template-columns: 1.2fr repeat(5, 1fr)
-  min-width: 30rem
-  border-top: 1px solid rgba(vars.$c-main, 0.35)
-  text-align: center
-
-  &:first-child
-    border-top: 0
-
-  > *
-    padding: 0.55rem 0.2rem
-
-  strong
-    text-align: left
-    padding-left: 0.7rem
-
-  .critical
-    color: vars.$c-warning
-
-  .miss
-    color: vars.$c-error
-
-:global(.score-detail-overlay .judgment-row.header)
-  color: vars.$c-main
-  background: vars.$ov-light
-  font-size: 0.75rem
-
-:global(.score-detail-overlay .timing)
-  display: flex
-  gap: 1rem
-  margin-top: 0.8rem
-  color: vars.$c-sub
-  font-size: 0.8rem
-
-:global(.score-detail-overlay .detail-message)
-  padding: 1rem
-  border-radius: vars.$border-radius
-  color: vars.$c-sub
-  background: vars.$ov-light
-  text-align: center
-
-  &.error
-    color: vars.$c-error
-
-:global(:root[data-theme="dark"] .score-detail-overlay .score-detail)
-  color: #e6f3f1
-  background: rgba(21, 34, 36, 0.96)
-  border: 1px solid rgba(214, 250, 245, 0.16)
+  .activity-stats
+    grid-template-columns: repeat(3, minmax(0, 1fr))
 
 @media (max-width: vars.$w-mobile)
-  :global(.score-detail-overlay)
-    padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left))
+  .profile-hero
+    .avatar
+      width: 68px
+      height: 68px
+      flex-basis: 68px
 
-  :global(.score-detail-overlay .score-detail)
-    padding: 1rem
-    width: min(680px, calc(100vw - 1.5rem))
-    max-height: calc(100dvh - 1.5rem)
+  .hero-actions
+    width: 100%
 
-  :global(.score-detail-overlay .detail-stats)
-    grid-template-columns: repeat(2, 1fr)
+    > button
+      flex: 1
 
-  :global(.score-detail-overlay .judgment-row)
-    font-size: 0.72rem
+  .stat-grid
+    grid-template-columns: repeat(2, minmax(0, 1fr))
+    gap: 8px
 
-    > *
-      padding: 0.45rem 0.1rem
+  .stat
+    padding: 12px
 
+    strong
+      font-size: 1.15rem
 
+  .trend
+    height: 180px
+
+  .activity-stats
+    grid-template-columns: repeat(2, minmax(0, 1fr))
+
+  .score-row
+    gap: 10px
+    padding-right: 12px
+
+    > img
+      width: 42px
+      height: 42px
+      flex-basis: 42px
+
+  .dx-change
+    display: none
+
+  .detail-stats
+    grid-template-columns: repeat(2, minmax(0, 1fr))
 </style>

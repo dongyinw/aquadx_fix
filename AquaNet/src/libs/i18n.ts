@@ -23,6 +23,7 @@ let lang: Lang = 'en'
 if (navigator.language.startsWith('zh')) {
   lang = 'zh'
 }
+document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en'
 
 export function ts(key: string, variables?: { [index: string]: any }) {
   return t(key as keyof LocalizedMessages, variables)
