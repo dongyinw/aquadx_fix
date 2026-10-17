@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>MikuNet</title>
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png?v=mikunet-20261010">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32x32.png?v=mikunet-20261010">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/favicon-16x16.png?v=mikunet-20261010">
+    <link rel="manifest" href="/assets/icons/site.webmanifest?v=mikunet-20261010">
+    <link rel="mask-icon" href="/assets/icons/safari-pinned-tab.svg?v=mikunet-20261010" color="#39c5bb">
+    <link rel="shortcut icon" href="/assets/icons/favicon.ico?v=mikunet-20261010">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-config" content="/assets/icons/browserconfig.xml?v=mikunet-20261010">
+    <meta name="theme-color" content="#f5f8f8">
+    <meta name="color-scheme" content="light dark">
+    <script>
+      // Apply the saved theme before first paint to avoid a light/dark flash.
+      (function () {
+        try {
+          var pref = localStorage.getItem("mikunet-theme") || "system";
+          var dark = pref === "dark" || (pref === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+        } catch (e) {}
+      })();
+    </script>
+
+    <script src="/assets/vendor/dayjs/dayjs.min.js"></script>
+
+    <!-- Font CSS -->
+    <link rel="stylesheet" href="/assets/fonts/Quicksand.400.css" />
+    <link rel="stylesheet" href="/assets/fonts/Quicksand.500.css" />
+
+    <!-- Primary Meta Tags -->
+    <meta name="title" content="MikuNet" />
+    <meta name="description" content="A certain magical arcade server 🪄" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://net.maimaidx.top/" />
+    <meta property="og:title" content="MikuNet" />
+    <meta property="og:description" content="A certain magical arcade server 🪄" />
+    <meta property="og:image" content="https://net.maimaidx.top/assets/meta/meta.png?v=mikunet-20261010" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://net.maimaidx.top/" />
+    <meta property="twitter:title" content="MikuNet" />
+    <meta property="twitter:description" content="A certain magical arcade server 🪄" />
+    <meta property="twitter:image" content="https://net.maimaidx.top/assets/meta/meta.png?v=mikunet-20261010" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

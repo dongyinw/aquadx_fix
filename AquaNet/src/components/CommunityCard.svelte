@@ -1,0 +1,65 @@
+<!-- Svelte 4.2.11 -->
+
+<script lang="ts">
+  import Icon from "./ui/Icon.svelte";
+
+  export let color: string = '179, 198, 255'
+  export let icon: string
+  export let href: string
+</script>
+
+<a class="action-card" style="--card-color: {color}" {href} role="button" tabindex="0" on:keydown>
+  <slot/>
+
+  <div class="icon">
+    <Icon icon={icon} />
+  </div>
+</a>
+
+<style lang="sass">
+  @use '../vars'
+
+  .action-card
+    overflow: hidden
+    display: block
+    padding: 1rem
+    border-radius: vars.$border-radius
+    box-shadow: 0 5px 5px 1px vars.$c-shadow
+    transition: all 0.2s ease
+    cursor: pointer
+    position: relative
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(var(--card-color), 0.18))
+    outline: 1px solid transparent
+    filter: drop-shadow(0 0 12px rgba(var(--card-color), 0))
+    color: vars.$c-text
+
+    &:hover
+      box-shadow: 0 0 0.5rem 0.2rem vars.$c-shadow
+      transform: translateY(-3px)
+
+      // Drop shadow glow
+      filter: drop-shadow(0 0 12px rgba(var(--card-color), 0.5))
+      outline-color: rgba(var(--card-color), 0.5)
+
+    :global(span)
+      font-size: 1.2rem
+      display: block
+      margin-bottom: 0.5rem
+      color: color-mix(in oklab, rgb(var(--card-color)) 55%, vars.$c-text)
+
+    .icon
+      position: absolute
+      display: flex
+      color: rgba(var(--card-color), 0.5)
+      font-size: 4rem
+      right: 0
+      bottom: 0
+      padding: .5rem
+      transition: all 0.2s ease
+      z-index: -1
+      mask-image: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.5) 70%, white 100%)
+      opacity: 0.8
+
+      @media (max-width: vars.$w-mobile)
+        opacity: 0.6
+</style>

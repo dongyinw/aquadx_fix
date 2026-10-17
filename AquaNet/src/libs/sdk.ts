@@ -1,0 +1,383 @@
+import { AQUA_HOST, DATA_HOST } from './config'
+import type {
+  AllMusic,
+  Card,
+  CardSummary,
+  GenericGamePlaylog,
+  GenericGameSummary,
+  GenericRanking,
+  TrendEntry,
+  MikuNetUser, GameOption, AdminCardDetail, AdminCardSummary,
+  UserBox,
+  UserItem,
+  Dict,
+  GameUserOption
+  , AdminUserSummary, AdminUserDetail, MagicalPassState
+} from './generalTypes'
+import type { GameName } from './scoring'
+
+interface ExtReqInit extends RequestInit {
+  params?: { [index: string]: string }
+  json?: any
+}
+
+/**
+ * Modify a fetch url
+ *
+ * @param input Fetch url input
+ * @param callback Callback for modification
+ */
+export function reconstructUrl(input: URL | RequestInfo, callback: (url: URL) => URL | void): RequestInfo | URL {
+  let u = new URL((input instanceof Request) ? input.url : input)
+  const result = callback(u)
+  if (result) u = result
+  if (input instanceof Request) {
+    // @ts-ignore
+    return { url: u, ...input }
+  }
+  return u
+}
+
+/**
+ * Fetch with url parameters
+ */
+export function fetchWithParams(input: URL | RequestInfo, init?: ExtReqInit): Promise<Response> {
+  return fetch(reconstructUrl(input, u => {
+    u.search = new URLSearchParams(init?.params ?? {}).toString()
+  }), init)
+}
+
+/**
+ * Do something with the response when it's not ok
+ *
+ * @param res Response object
+ */
+async function ensureOk(res: Response) {
+  if (!res.ok) {
+    const text = await res.text()
+    console.error(`${res.status}: ${text}`)
+
+    // If 400 invalid token is caught, should invalidate the token and redirect to signin
+    if (text === 'Invalid token') {
+      localStorage.removeItem('token')
+      window.location.href = '/'
+    }
+
+    // Try to parse as json
+    let json
+    try {
+      json = JSON.parse(text)
+    } catch (e) {
+      throw new Error(text)
+    }
+    if (json.error) throw new Error(json.error)
+  }
+}
+
+/**
+ * Post to an endpoint and return the response in JSON while doing error checks
+ * and handling token (and token expiry) automatically.
+ *
+ * @param endpoint The endpoint to post to (e.g., '/pull')
+ * @param params An object containing the request body or any necessary parameters
+ * @param init Additional fetch/init configuration
+ * @returns The JSON response from the server
+ */
+export async function post(endpoint: string, params: Dict = {}, init?: ExtReqInit): Promise<any> {
+  return postHelper(endpoint, params, init).then(async response => {
+    const contentType = response.headers.get('content-type') ?? ''
+    if (!contentType.toLowerCase().includes('json'))
+      throw new Error('API ' + endpoint + ' returned ' + (contentType || 'an unknown content type') + ' instead of JSON. Check VITE_AQUA_HOST.')
+    return response.json()
+  })
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url)
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!response.ok || !contentType.toLowerCase().includes('json'))
+    throw new Error('Data request returned ' + response.status + ' ' + (contentType || 'an unknown content type') + ' instead of JSON. Check VITE_DATA_HOST: ' + url)
+  return response.json()
+}
+
+/**
+ * Actual impl of post(). This does not return JSON but returns response object.
+ */
+async function postHelper(endpoint: string, params: Dict = {}, init?: ExtReqInit): Promise<any> {
+  // Add token if exists
+  const token = localStorage.getItem('token')
+  if (token && !('token' in params)) params = { ...(params ?? {}), token }
+
+  if (init?.json) {
+    init.body = JSON.stringify(init.json)
+    init.headers = { 'Content-Type': 'application/json', ...init.headers }
+    init.json = undefined
+  }
+
+  const res = await fetchWithParams(AQUA_HOST + endpoint, { method: 'POST', params, ...init })
+    .catch(e => { console.error(e); throw new Error("Network error") })
+  await ensureOk(res)
+
+  return res
+}
+
+const decoder = new TextDecoder()
+
+/**
+ * Post with a stream response. Similar to post(), but the response will stream messages to onChunk.
+ */
+export async function postStream(endpoint: string, params: Dict = {}, onChunk: (data: any) => void, init?: ExtReqInit): Promise<void> {
+  const res = await postHelper(endpoint, params, init)
+  if (!res.body) {
+    console.error('Response body is not a stream')
+    return
+  }
+
+  // The response body is a ReadableStream. We'll read chunks as they arrive.
+  const reader = res.body?.getReader()
+  if (!reader) return
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      // Decode any new data, parse full lines, keep the rest in buffer
+      buffer += decoder.decode(value, { stream: true })
+      let fullLines = buffer.split('\n')
+      buffer = fullLines.pop() ?? ''
+
+      for (const line of fullLines) {
+        if (!line.trim()) continue // skip empty lines
+        onChunk(JSON.parse(line))
+      }
+    }
+
+    // If there's leftover data in 'buffer' after stream ends, parse
+    if (buffer.trim())
+      onChunk(JSON.parse(buffer.trim()))
+
+  } finally {
+    reader.releaseLock()
+  }
+}
+
+/**
+ * aqua.net.UserRegistrar
+ *
+ * @param user
+ */
+async function register(user: { username: string, email: string, password: string, turnstile: string }) {
+  return await post('/api/v2/user/register', user)
+}
+
+async function login(user: { email: string, password: string, turnstile: string }) {
+  const data = await post('/api/v2/user/login', user)
+
+  // Put token into local storage
+  localStorage.setItem('token', data.token)
+}
+
+async function resetPassword(user: { email: string, turnstile: string }) {
+  return await post('/api/v2/user/reset-password', user)
+}
+
+async function changePassword(user: { token: string, password: string }) {
+  return await post('/api/v2/user/change-password', user)
+}
+
+const isLoggedIn = () => !!localStorage.getItem('token')
+const ensureLoggedIn = () => !isLoggedIn() && (window.location.href = '/')
+const logout = () => {
+  localStorage.removeItem('token')
+  window.location.replace('/')
+}
+
+export const USER = {
+  register,
+  login,
+  logout,
+  resetPassword,
+  changePassword,
+  confirmEmail: (token: string) =>
+    post('/api/v2/user/confirm-email', { token }),
+  me: (): Promise<MikuNetUser> => {
+    ensureLoggedIn()
+    return post('/api/v2/user/me', {})
+  },
+  accessStatus: (): Promise<{ banState: number, blocked: boolean }> =>
+    post('/api/v2/user/access-status', {}),
+  mai2PassStatus: (cardId: string): Promise<MagicalPassState> =>
+    post('/api/v2/user/mai2-pass/status', { cardId }),
+  mai2PassPurchase: (cardId: string, passTypeId: number, passPackId: number, passCharaId: number) =>
+    post('/api/v2/user/mai2-pass/purchase', { cardId, passTypeId, passPackId, passCharaId }),
+  keychips: (): Promise<string[]> =>
+    post('/api/v2/user/keychip', {}).then(it => it.keychips),
+  addKeychip: (keychipId: string): Promise<string> =>
+    post('/api/v2/user/keychip/add', { keychipId }).then(it => it.keychipId),
+  deleteKeychip: (keychipId: string) =>
+    post('/api/v2/user/keychip/delete', { keychipId }),
+  setting: (key: string, value: string) =>
+    post('/api/v2/user/setting', { key: key === 'password' ? 'pwHash' : key, value }),
+  uploadPfp: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return post('/api/v2/user/upload-pfp', { }, { method: 'POST', body: formData })
+  },
+  isLoggedIn,
+  ensureLoggedIn,
+  changeRegion: (regionId: number) =>
+    post('/api/v2/user/change-region', { regionId }),
+}
+
+export interface AdminAnalytics {
+  from: string; to: string; totalPlays: number; players: number; guestPlayers: number;
+  averageAchievement: number; achievementRate: number;
+  trend: { date: string; plays: number; players: number; guestPlayers: number; averageAchievement: number }[];
+  ranking: { rank: number; musicId: number; plays: number; averageAchievement: number }[];
+}
+
+export const ADMIN = {
+  analytics: (from = "", to = ""): Promise<AdminAnalytics> => post('/api/v2/admin/analytics', { ...(from ? { from } : {}), ...(to ? { to } : {}) }),
+  users: (query: string, regFrom = "", regTo = ""): Promise<AdminUserSummary[]> =>
+    post('/api/v2/admin/users', { query, ...(regFrom ? { regFrom } : {}), ...(regTo ? { regTo } : {}) }),
+  cards: (query: string, regFrom = "", regTo = ""): Promise<AdminCardSummary[]> =>
+    post('/api/v2/admin/cards', { query, ...(regFrom ? { regFrom } : {}), ...(regTo ? { regTo } : {}) }),
+  user: (auId: number): Promise<AdminUserDetail> =>
+    post('/api/v2/admin/user', { auId }),
+  card: (cardId: number): Promise<AdminCardDetail> =>
+    post('/api/v2/admin/card', { cardId }),
+  setProfile: (auId: number, field: string, value: string | boolean) =>
+    post('/api/v2/admin/user/profile-set', { auId, field, value: String(value) }),
+  resetPassword: (auId: number, password: string): Promise<{ success: boolean }> =>
+    post('/api/v2/admin/user/password-reset', { auId }, { json: { password } }),
+  setGameProfile: (auId: number, game: string, field: string, value: string | number) =>
+    post('/api/v2/admin/user/game-profile-set', { auId, game, field, value: String(value) }),
+  setCardGameProfile: (cardId: number, game: string, field: string, value: string | number) =>
+    post('/api/v2/admin/card/game-profile-set', { cardId, game, field, value: String(value) }),
+  grantItem: (auId: number, game: string, itemKind: number, itemId: number, amount: number) =>
+    post('/api/v2/admin/user/item-grant', { auId, game, itemKind, itemId, amount }),
+  grantCardItem: (cardId: number, game: string, itemKind: number, itemId: number, amount: number) =>
+    post('/api/v2/admin/card/item-grant', { cardId, game, itemKind, itemId, amount }),
+  setKeychip: (keychipId: string, enabled: boolean) =>
+    post('/api/v2/admin/user/keychip-set', { keychipId, enabled }),
+  addKeychip: (auId: number, keychipId: string) =>
+    post('/api/v2/admin/user/keychip-add', { auId, keychipId }),
+  deleteKeychip: (keychipId: string) =>
+    post('/api/v2/admin/user/keychip-delete', { keychipId }),
+  deleteUser: (auId: number) =>
+    post('/api/v2/admin/user/delete', { auId }),
+  deleteCard: (cardId: number) =>
+    post('/api/v2/admin/card/delete', { cardId }),
+}
+
+export const USERBOX = {
+  getProfile: (): Promise<{ user: UserBox, items: UserItem[] }> =>
+    post('/api/v2/game/chu3/user-box', {}),
+  setUserBox: (d: { field: string, value: number | string }) =>
+    post(`/api/v2/game/chu3/user-detail-set`, d),
+  getUserProfile: (username: string): Promise<UserBox> =>
+    post(`/api/v2/game/chu3/user-detail`, {username})
+}
+
+export const CARD = {
+  summary: (cardId: string): Promise<{card: Card, summary: CardSummary}> =>
+    post('/api/v2/card/summary', { cardId }),
+  link: (props: { cardId: string, migrate: string }) =>
+    post('/api/v2/card/link', props),
+  unlink: (cardId: string) =>
+    post('/api/v2/card/unlink', { cardId }),
+  userGames: (username: string): Promise<CardSummary> =>
+    post('/api/v2/card/user-games', { username }),
+}
+
+export const GAME = {
+  trend: (username: string, game: GameName): Promise<TrendEntry[]> =>
+    post(`/api/v2/game/${game}/trend`, { username }),
+  photos: (): Promise<string[]> =>
+    post(`/api/v2/game/mai2/my-photo`, { }),
+  userSummary: (username: string, game: GameName): Promise<GenericGameSummary> =>
+    post(`/api/v2/game/${game}/user-summary`, { username }),
+  playlog: (game: GameName, id: number): Promise<GenericGamePlaylog> =>
+    post(`/api/v2/game/${game}/playlog`, { id }),
+  ranking: (game: GameName, page?: number): Promise<GenericRanking[]> =>
+    post(`/api/v2/game/${game}/ranking`, typeof page === "number" ? { page } : {}),
+  changeName: (game: GameName, newName: string): Promise<{ newName: string }> =>
+    post(`/api/v2/game/${game}/change-name`, { newName }),
+  export: (game: GameName): Promise<Record<string, any>> =>
+    post(`/api/v2/game/${game}/export`),
+  import: (game: GameName, data: any): Promise<Record<string, any>> =>
+    post(`/api/v2/game/${game}/import`, {}, { json: data }),
+  importMusicDetail: (game: GameName, data: any): Promise<Record<string, any>> =>
+    post(`/api/v2/game/${game}/import-music-detail`, {}, { json: data }),
+  setRival: (game: GameName, rivalUserName: string, isAdd: boolean) =>
+    post(`/api/v2/game/${game}/set-rival`, { rivalUserName, isAdd }),
+}
+
+export const CIRCLE = {
+  info: (aimeId: string) => post('/api/game/maimai2/userCircleInfo', { aimeId }),
+  list: (aimeId: string, page = 0) => post('/api/game/maimai2/circle', { aimeId, page }),
+  members: (aimeId: string, page = 0) => post('/api/game/maimai2/circleMemberUser', { aimeId, page }),
+  requests: (aimeId: string, page = 0) => post('/api/game/maimai2/requestJoinCircleList', { aimeId, page }),
+  create: (aimeId: string, circle: Record<string, unknown>) => post('/api/game/maimai2/createCircle', { aimeId }, { json: circle }),
+  update: (aimeId: string, circle: Record<string, unknown>) => post('/api/game/maimai2/updateCircle', { aimeId }, { json: circle }),
+  join: (aimeId: string, circleId: number) => post('/api/game/maimai2/requestJoinCircle', { aimeId, circleId }),
+  joinByCode: (aimeId: string, circleCode: string) => post('/api/game/maimai2/requestJoinCircleByCode', { aimeId, circleCode }),
+  leave: (aimeId: string) => post('/api/game/maimai2/exitCircle', { aimeId }),
+  dissolve: (aimeId: string) => post('/api/game/maimai2/dissolveCircle', { aimeId }),
+  kick: (aimeId: string, userCode: string) => post('/api/game/maimai2/deleteUserToCircle', { aimeId, userCode }),
+  approve: (aimeId: string, userCode: string) => post('/api/game/maimai2/approveUserJoinCircle', { aimeId, userCode }),
+  reject: (aimeId: string, userCode: string) => post('/api/game/maimai2/rejectUserJoinCircle', { aimeId, userCode }),
+}
+
+export const SOCIAL = {
+  state: (aimeId: string) => post('/api/game/maimai2/social', { aimeId }),
+  search: (aimeId: string, username: string) => post('/api/game/maimai2/socialSearch', { aimeId, username }),
+  request: (aimeId: string, username: string) => post('/api/game/maimai2/socialRequest', { aimeId, username }),
+  accept: (aimeId: string, friendId: number) => post('/api/game/maimai2/socialAccept', { aimeId, friendId }),
+  reject: (aimeId: string, friendId: number) => post('/api/game/maimai2/socialReject', { aimeId, friendId }),
+  remove: (aimeId: string, friendId: number) => post('/api/game/maimai2/socialRemove', { aimeId, friendId }),
+  rival: (aimeId: string, rivalId: number, isAdd: boolean) => post('/api/game/maimai2/socialRival', { aimeId, rivalId, isAdd }),
+}
+
+export const DATA = {
+  allMusic: (game: GameName): Promise<AllMusic> =>
+    fetchJson<AllMusic>(`${DATA_HOST}/d/${game}/00/all-music.json`),
+  allItems: (game: GameName): Promise<Record<string, Record<string, any>>> =>
+    fetchJson<Record<string, Record<string, any>>>(`${DATA_HOST}/d/${game}/00/all-items.json`),
+}
+
+export const SETTING = {
+  get: (): Promise<GameOption[]> =>
+    post('/api/v2/settings/get', {}),
+  set: (key: string, value: any) =>
+    post('/api/v2/settings/set', { key, value: `${value}` }),
+  detailSet: (game: string, field: string, value: any) =>
+    post(`/api/v2/game/${game}/user-detail-set`, { field, value }),
+  optionGet: (game: string): Promise<GameUserOption> =>
+    post(`/api/v2/game/${game}/user-option`),
+  optionSet: (game: string, field: string, value: number): Promise<void> =>
+    post(`/api/v2/game/${game}/user-option-set`, { field, value }),
+}
+
+export const TRANSFER = {
+  check: (d: AllNetClient): Promise<TrCheckGood> =>
+    post('/api/v2/transfer/check', {}, { json: d }),
+  pull: (d: AllNetClient, callback: (data: TrStreamMessage) => void) =>
+    postStream('/api/v2/transfer/pull', {}, callback, { json: d }),
+  push: (d: AllNetClient, data: string) =>
+    post('/api/v2/transfer/push', {}, { json: { client: d, data } }),
+}
+
+export const FEDY = {
+  status: (): Promise<{ linkedAt: number }> =>
+    post('/api/v2/fedy/status'),
+  link: (nonce: string): Promise<{ linkedAt: number }> =>
+    post('/api/v2/fedy/link', { nonce }),
+  unlink: () =>
+    post('/api/v2/fedy/unlink'),
+}
+
+// @ts-ignore
+window.sdk = { USER, USERBOX, CARD, GAME, DATA, SETTING, TRANSFER, FEDY }
