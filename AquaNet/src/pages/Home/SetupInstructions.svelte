@@ -12,6 +12,7 @@
   import Icon from "../../components/ui/Icon.svelte";
   import PageHeader from "../../components/ui/PageHeader.svelte";
   import Spinner from "../../components/ui/Spinner.svelte";
+  import EmptyState from "../../components/ui/EmptyState.svelte";
   import { confirmDialog } from "../../libs/confirm";
   import { toast, errorMessage } from "../../libs/toast";
 
@@ -142,13 +143,18 @@ ${keychipLines}`.trim();
 
 <main class="page setup-page">
   <PageHeader eyebrow="Setup" title={t('home.setup')} description="为街机端准备连接信息和 Keychip，敏感内容默认保持隐藏。" />
-  <DashboardTabs />
+  <DashboardTabs showSetup={!!user?.canModifyKeychips} />
 
   {#if isLoading}
     <div class="setup-layout" aria-hidden="true">
       <span class="skeleton" style="height:320px;border-radius:16px"></span>
       <div class="stack"><span class="skeleton" style="height:200px;border-radius:16px"></span><span class="skeleton" style="height:260px;border-radius:16px"></span></div>
     </div>
+  {:else if !user.canModifyKeychips}
+    <EmptyState icon="solar:lock-keyhole-minimalistic-bold-duotone" title="没有连接设置权限"
+                description="连接配置与 Keychip 由管理员统一管理。如需在自己的机台上连接 MikuNet，请联系管理员开通权限。">
+      <a class="btn" href="/home"><Icon icon="solar:home-2-bold-duotone" />返回首页</a>
+    </EmptyState>
   {:else}
     <div class="setup-layout">
       <aside class="card step-rail">
@@ -194,11 +200,6 @@ ${keychipLines}`.trim();
               </label>
               {#if addKeychipError}<p class="field-error" role="alert">{addKeychipError}</p>{/if}
             </form>
-          </section>
-        {:else}
-          <section class="card permission-card">
-            <span class="tile-icon tone-gold"><Icon icon="solar:lock-keyhole-minimalistic-bold-duotone" /></span>
-            <div><strong>连接设置由管理员托管</strong><p>当前账号没有 Keychip 管理权限。如需新增或切换凭证，请联系管理员。</p></div>
           </section>
         {/if}
 
@@ -402,16 +403,6 @@ ${keychipLines}`.trim();
   .add-keychip
     display: grid
     gap: 6px
-
-  .permission-card
-    flex-direction: row
-    align-items: center
-    gap: 14px
-
-    p
-      margin: 2px 0 0
-      color: var(--text-2)
-      font-size: 0.88rem
 
   .disclosure
     border: 1px solid var(--border)

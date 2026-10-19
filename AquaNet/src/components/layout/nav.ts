@@ -24,12 +24,14 @@ export function primaryNav(me: MikuNetUser | undefined, playedMai: boolean, rece
 }
 
 export function accountNav(me: MikuNetUser): NavItem[] {
-  return [
+  const items: (NavItem | false)[] = [
     { href: `/u/${me.username}`, label: t("navigation.profile"), icon: "solar:user-circle-bold-duotone", match: [`/u/${me.username}`] },
     { href: "/cards", label: t("navigation.cards"), icon: "solar:card-bold-duotone", match: ["/cards"] },
-    { href: "/setup", label: t("navigation.setup"), icon: "solar:plug-circle-bold-duotone", match: ["/setup"] },
+    // Connection setup manages keychips, so it is only offered to users allowed to modify them.
+    me.canModifyKeychips && { href: "/setup", label: t("navigation.setup"), icon: "solar:plug-circle-bold-duotone", match: ["/setup"] },
     { href: "/settings", label: t("navigation.settings"), icon: "solar:settings-bold-duotone", match: ["/settings"] },
   ]
+  return items.filter(Boolean) as NavItem[]
 }
 
 export const isActive = (path: string, item: NavItem) => item.match.some(prefix => inSection(path, prefix))

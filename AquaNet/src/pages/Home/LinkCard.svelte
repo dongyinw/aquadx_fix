@@ -319,7 +319,7 @@
   <PageHeader eyebrow="Cards" title="卡片管理" description="管理已绑定的实体卡，并把新的 Access Code 或 FeliCa 序列号加入账号。">
     <span class="badge primary"><Icon icon="solar:card-bold-duotone" />{me?.cards?.filter(card => !card.isGhost).length ?? 0} 张实体卡</span>
   </PageHeader>
-  <DashboardTabs />
+  <DashboardTabs showSetup={!!me?.canModifyKeychips} />
 
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="cards-layout" on:drop={dropFile} on:dragover={(e) => e.preventDefault()}>
