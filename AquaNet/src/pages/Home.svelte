@@ -40,6 +40,11 @@
   $: playedGames = gameProfiles ? (Object.keys(gameLabels) as GameName[]).filter(game => gameProfiles?.[game]) : [];
   $: physicalCards = me ? me.cards.filter(card => !card.isGhost).length : 0;
 
+  // One line under the name: what the player has been up to.
+  $: tagline = !gameProfiles ? `@${me?.username ?? ""}`
+    : playedGames.length === 0 ? `@${me?.username} · 还没有游戏档案，去机台刷卡开始第一局吧`
+    : `@${me?.username} · 正在游玩 ${playedGames.map(game => gameLabels[game]).join("、")}`;
+
   function greeting() {
     const hour = new Date().getHours();
     return hour < 6 ? "夜深了" : hour < 12 ? "早上好" : hour < 18 ? "下午好" : "晚上好";
@@ -57,7 +62,7 @@
       anchor.download = `MikuNet_data_${me.username}.json`;
       anchor.click();
       URL.revokeObjectURL(url);
-      toast.success("玩家数据已开始下载");
+      toast.success("舞萌 DX 存档已开始下载");
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -72,69 +77,78 @@
       <a class="identity" href={`/u/${me.username}`}>
         <img alt="" use:pfp={me} />
         <div>
-          <span class="muted">{greeting()}</span>
+          <span class="muted">{greeting()}，欢迎回来</span>
           <h1>{me.computedName}</h1>
-          <span class="subtle">@{me.username}</span>
+          <span class="subtle">{tagline}</span>
         </div>
       </a>
       <div class="header-actions">
-        <a class="btn" href={`/u/${me.username}`}><Icon icon="solar:user-circle-bold-duotone" />个人档案</a>
+        <a class="btn" href={`/u/${me.username}`}><Icon icon="solar:user-circle-bold-duotone" />我的档案</a>
         <a class="btn btn-icon" href="/settings" aria-label="账号设置" title="账号设置"><Icon icon="solar:settings-bold-duotone" /></a>
       </div>
     </header>
 
-    <DashboardTabs />
+    <DashboardTabs showSetup={me.canModifyKeychips} />
 
     {#if !me.emailConfirmed}
-      <div class="alert"><Icon icon="solar:letter-opened-bold-duotone" /><p>你的邮箱尚未验证，部分功能可能受限。请检查注册邮箱中的验证邮件。</p></div>
+      <div class="alert"><Icon icon="solar:letter-opened-bold-duotone" /><p><strong>邮箱还未验证。</strong>请打开注册邮箱中的验证邮件完成验证，验证后即可使用全部功能。</p></div>
+    {/if}
+    {#if physicalCards === 0}
+      <div class="alert alert-info"><Icon icon="solar:card-bold-duotone" /><p>还没有绑定实体卡。<a href="/cards">绑定一张 Aime / FeliCa 卡</a>，即可在机台上刷卡同步成绩。</p></div>
     {/if}
 
     <section class="stats" aria-label="账号概览">
       <a class="stat" href="/cards">
         <span class="stat-icon tone-teal"><Icon icon="solar:card-bold-duotone" /></span>
-        <span class="stat-label">已绑定实体卡</span>
-        <strong class="num">{physicalCards}</strong>
+        <span class="stat-label">实体卡</span>
+        <strong class="num">{physicalCards}<small> 张</small></strong>
         <span class="stat-link">管理卡片<Icon icon="line-md:chevron-small-right" /></span>
       </a>
       <a class="stat" href={`/u/${me.username}`}>
         <span class="stat-icon tone-pink"><Icon icon="solar:gameboy-bold-duotone" /></span>
-        <span class="stat-label">游戏资料</span>
-        <strong class="num">{#if gameProfiles}{playedGames.length}<small> / 4</small>{:else}<span class="skeleton stat-skeleton"></span>{/if}</strong>
-        <span class="stat-link">查看档案<Icon icon="line-md:chevron-small-right" /></span>
+        <span class="stat-label">游戏档案</span>
+        <strong class="num">{#if gameProfiles}{playedGames.length}<small> / 4 款</small>{:else}<span class="skeleton stat-skeleton"></span>{/if}</strong>
+        <span class="stat-link">查看成绩<Icon icon="line-md:chevron-small-right" /></span>
       </a>
       <a class="stat" href="/settings">
         <span class="stat-icon tone-gold"><Icon icon="solar:shield-check-bold-duotone" /></span>
-        <span class="stat-label">账号状态</span>
-        <strong class:success={me.emailConfirmed} class:warning={!me.emailConfirmed}>{me.emailConfirmed ? "已验证" : "待验证"}</strong>
+        <span class="stat-label">邮箱验证</span>
+        <strong class:success={me.emailConfirmed} class:warning={!me.emailConfirmed}>{me.emailConfirmed ? "已完成" : "待验证"}</strong>
         <span class="stat-link">账号设置<Icon icon="line-md:chevron-small-right" /></span>
       </a>
     </section>
 
     <section class="section">
-      <div class="section-header"><div><h2>常用入口</h2><p>快速前往常用功能</p></div></div>
+      <div class="section-header"><div><h2>快捷入口</h2><p>常用功能，一步直达</p></div></div>
       <div class="tile-grid">
-        <a class="tile" href={`/u/${me.username}`}><span class="tile-icon tone-teal"><Icon icon="solar:user-circle-bold-duotone" /></span><span class="tile-copy"><strong>个人档案</strong><small>{gameProfiles ? playedGames.map(game => gameLabels[game]).join("、") || "尚未建立游戏资料" : "正在读取游戏资料…"}</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
-        <a class="tile" href="/cards"><span class="tile-icon tone-pink"><Icon icon="solar:card-bold-duotone" /></span><span class="tile-copy"><strong>卡片管理</strong><small>绑定新的 Aime 卡或查看已绑定卡片</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
-        <a class="tile" href="/setup"><span class="tile-icon tone-gold"><Icon icon="solar:plug-circle-bold-duotone" /></span><span class="tile-copy"><strong>连接设置</strong><small>查看游戏端连接配置与 Keychip</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
-        <a class="tile" href="/ranking"><span class="tile-icon tone-blue"><Icon icon="solar:ranking-bold-duotone" /></span><span class="tile-copy"><strong>排行榜</strong><small>浏览服务器上的成绩排名</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
-        <a class="tile" href="/pass"><span class="tile-icon tone-violet"><Icon icon="solar:ticket-bold-duotone" /></span><span class="tile-copy"><strong>Magical Pass</strong><small>发放通行证并下载专属素材</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
+        <a class="tile" href={`/u/${me.username}`}><span class="tile-icon tone-teal"><Icon icon="solar:user-circle-bold-duotone" /></span><span class="tile-copy"><strong>我的档案</strong><small>{gameProfiles ? (playedGames.length ? `${playedGames.map(game => gameLabels[game]).join("、")} · Rating 趋势与 B50` : "刷卡游玩一次后即可生成档案") : "正在读取游戏档案…"}</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
+        <a class="tile" href="/cards"><span class="tile-icon tone-pink"><Icon icon="solar:card-bold-duotone" /></span><span class="tile-copy"><strong>卡片管理</strong><small>绑定 Access Code 或 FeliCa 卡号</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
+        {#if me.canModifyKeychips}
+          <a class="tile" href="/setup"><span class="tile-icon tone-gold"><Icon icon="solar:plug-circle-bold-duotone" /></span><span class="tile-copy"><strong>连接设置</strong><small>生成 segatools 配置，管理 Keychip</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
+        {/if}
+        <a class="tile" href="/ranking"><span class="tile-icon tone-blue"><Icon icon="solar:ranking-bold-duotone" /></span><span class="tile-copy"><strong>排行榜</strong><small>看看你在服务器里排第几</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
+        {#if gameProfiles?.mai2}
+          <a class="tile" href="/friends"><span class="tile-icon tone-teal"><Icon icon="solar:users-group-two-rounded-bold-duotone" /></span><span class="tile-copy"><strong>好友与劲敌</strong><small>添加好友，设置游戏内劲敌</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
+          <a class="tile" href="/circle"><span class="tile-icon tone-pink"><Icon icon="solar:users-group-rounded-bold-duotone" /></span><span class="tile-copy"><strong>圈子</strong><small>加入同好圈子，一起累积点数</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
+        {/if}
+        <a class="tile" href="/pass"><span class="tile-icon tone-violet"><Icon icon="solar:ticket-bold-duotone" /></span><span class="tile-copy"><strong>Magical Pass</strong><small>开通通行证，下载专属 Pass 图</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
       </div>
     </section>
 
     <section class="section">
-      <div class="section-header"><div><h2>数据工具</h2><p>备份与恢复你的游戏资料</p></div></div>
+      <div class="section-header"><div><h2>存档备份</h2><p>迁移存档或导出备份，换服、换机都不怕丢数据</p></div></div>
       <div class="tile-grid">
         <ImportDataAction />
         <button class="tile" type="button" on:click={exportData} disabled={!gameProfiles?.mai2 || exportLoading}>
           <span class="tile-icon tone-blue">{#if exportLoading}<Spinner />{:else}<Icon icon="solar:file-download-bold-duotone" />{/if}</span>
-          <span class="tile-copy"><strong>{exportLoading ? "正在导出…" : "导出玩家数据"}</strong><small>{gameProfiles ? (gameProfiles.mai2 ? "导出舞萌 DX 资料为 JSON 文件" : "暂无舞萌 DX 资料可导出") : "正在读取资料…"}</small></span>
+          <span class="tile-copy"><strong>{exportLoading ? "正在导出…" : "导出舞萌 DX 存档"}</strong><small>{gameProfiles ? (gameProfiles.mai2 ? "下载 JSON 文件，可用于备份或迁移" : "还没有舞萌 DX 存档可导出") : "正在读取存档…"}</small></span>
           <Icon class="arrow" icon="solar:download-minimalistic-bold-duotone" />
         </button>
       </div>
-      <div class="profile-status" aria-label="游戏资料状态">
+      <div class="profile-status" aria-label="游戏档案状态">
         {#each Object.keys(gameLabels) as game}
           <span class="badge" class:success={!!gameProfiles?.[game as GameName]}>
-            <i class="dot" class:success={!!gameProfiles?.[game as GameName]}></i>{gameLabels[game as GameName]} · {gameProfiles?.[game as GameName] ? "已有资料" : "未建立"}
+            <i class="dot" class:success={!!gameProfiles?.[game as GameName]}></i>{gameLabels[game as GameName]} · {gameProfiles?.[game as GameName] ? "已有档案" : "暂无档案"}
           </span>
         {/each}
       </div>
@@ -192,7 +206,10 @@
       white-space: nowrap
 
     span
+      overflow: hidden
       font-size: 0.88rem
+      text-overflow: ellipsis
+      white-space: nowrap
 
   .header-actions
     display: flex

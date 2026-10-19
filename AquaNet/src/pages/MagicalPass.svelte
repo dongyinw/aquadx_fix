@@ -156,6 +156,19 @@
     ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight)
   }
 
+  const CANVAS_FONT = '"PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", sans-serif'
+  const font = (weight: number, size: number) => `${weight} ${size}px ${CANVAS_FONT}`
+
+  // Accent palette per Pass type.
+  function accentGradient(ctx: CanvasRenderingContext2D, accent: string, x0: number, y0: number, x1: number, y1: number) {
+    const gradient = ctx.createLinearGradient(x0, y0, x1, y1)
+    const stops = accent === "gold"
+      ? ["#fbe38b", "#f2b93b", "#d98e0b"]
+      : ["#ff7eb6", "#ffb86b", "#7ee0c3", "#6aa8ff", "#b28cff"]
+    stops.forEach((color, i) => gradient.addColorStop(i / (stops.length - 1), color))
+    return gradient
+  }
+
   async function renderPreview(option: PassOption, pass: MagicalPassEntry | null) {
     const currentRender = ++renderId
     try {
@@ -168,67 +181,148 @@
 
       const ctx = canvas.getContext("2d")
       if (!ctx) return
-      const width = canvas.width
-      const height = canvas.height
-      ctx.clearRect(0, 0, width, height)
-      drawCover(ctx, background, 0, 0, width, height)
-      ctx.fillStyle = "rgba(28, 147, 210, 0.48)"
-      ctx.fillRect(0, 0, width, height)
+      const W = canvas.width
+      const H = canvas.height
+      const gold = option.accent === "gold"
+      ctx.clearRect(0, 0, W, H)
+      ctx.imageSmoothingQuality = "high"
 
-      fillRounded(ctx, 44, 24, width - 88, height - 48, 22, "rgba(247, 252, 255, 0.96)")
-      ctx.strokeStyle = "rgba(19, 43, 56, 0.9)"
-      ctx.lineWidth = 3
-      roundedRect(ctx, 44, 24, width - 88, height - 48, 22)
-      ctx.stroke()
+      // Card clip with rounded corners.
+      ctx.save()
+      roundedRect(ctx, 0, 0, W, H, 44)
+      ctx.clip()
 
-      drawContain(ctx, logo, 84, 44, 280, 62)
-      ctx.fillStyle = option.accent === "gold" ? "#a57816" : "#1787ba"
-      ctx.font = "800 30px \"Microsoft YaHei\", sans-serif"
-      ctx.fillText(option.title, 84, 150)
-      ctx.font = "600 18px \"Microsoft YaHei\", sans-serif"
-      ctx.fillStyle = "#53666d"
-      ctx.fillText(option.subtitle, 84, 177)
+      // Background: softly blurred to hide upscaling, then tinted.
+      ctx.filter = "blur(3px) saturate(1.15)"
+      drawCover(ctx, background, -12, -12, W + 24, H + 24)
+      ctx.filter = "none"
+      const tint = ctx.createLinearGradient(0, 0, 0, H)
+      tint.addColorStop(0, gold ? "rgba(255, 236, 190, 0.18)" : "rgba(214, 240, 255, 0.12)")
+      tint.addColorStop(0.55, "rgba(255, 255, 255, 0)")
+      tint.addColorStop(1, gold ? "rgba(120, 72, 8, 0.38)" : "rgba(28, 52, 110, 0.38)")
+      ctx.fillStyle = tint
+      ctx.fillRect(0, 0, W, H)
 
-      fillRounded(ctx, 84, 202, width - 168, 382, 15, "rgba(201, 235, 249, 0.88)")
-      ctx.strokeStyle = "#17303a"
-      ctx.lineWidth = 2
-      roundedRect(ctx, 84, 202, width - 168, 382, 15)
-      ctx.stroke()
+      // Logo
+      ctx.shadowColor = "rgba(0, 0, 0, 0.25)"
+      ctx.shadowBlur = 18
+      drawContain(ctx, logo, W / 2 - 170, 34, 340, 170)
+      ctx.shadowBlur = 0
 
-      fillRounded(ctx, 108, 226, 270, 334, 8, "rgba(255, 255, 255, 0.86)")
-      drawContain(ctx, character, 118, 236, 250, 314)
+      // Character with a soft halo behind it.
+      const charH = 640, charW = charH / 2
+      const charX = W / 2 - charW / 2, charY = 168
+      const halo = ctx.createRadialGradient(W / 2, charY + charH * 0.42, 20, W / 2, charY + charH * 0.42, charH * 0.55)
+      halo.addColorStop(0, "rgba(255, 255, 255, 0.85)")
+      halo.addColorStop(0.55, gold ? "rgba(255, 228, 160, 0.35)" : "rgba(200, 225, 255, 0.35)")
+      halo.addColorStop(1, "rgba(255, 255, 255, 0)")
+      ctx.fillStyle = halo
+      ctx.fillRect(0, charY - 40, W, charH + 80)
+      // Some character art ships with an opaque backdrop; feather the edges so it blends in.
+      const layer = document.createElement("canvas")
+      layer.width = charW
+      layer.height = charH
+      const lctx = layer.getContext("2d")!
+      lctx.imageSmoothingQuality = "high"
+      drawContain(lctx, character, 0, 0, charW, charH)
+      lctx.globalCompositeOperation = "destination-in"
+      const fadeX = lctx.createLinearGradient(0, 0, charW, 0)
+      fadeX.addColorStop(0, "rgba(0, 0, 0, 0)")
+      fadeX.addColorStop(0.14, "#000")
+      fadeX.addColorStop(0.86, "#000")
+      fadeX.addColorStop(1, "rgba(0, 0, 0, 0)")
+      lctx.fillStyle = fadeX
+      lctx.fillRect(0, 0, charW, charH)
+      const fadeY = lctx.createLinearGradient(0, 0, 0, charH)
+      fadeY.addColorStop(0, "rgba(0, 0, 0, 0)")
+      fadeY.addColorStop(0.06, "#000")
+      fadeY.addColorStop(0.82, "#000")
+      fadeY.addColorStop(1, "rgba(0, 0, 0, 0)")
+      lctx.fillStyle = fadeY
+      lctx.fillRect(0, 0, charW, charH)
+      ctx.drawImage(layer, charX, charY)
 
-      const infoX = 405
-      fillRounded(ctx, infoX, 226, 330, 56, 10, "rgba(255, 255, 255, 0.92)")
-      ctx.fillStyle = "#132f3a"
-      ctx.font = "700 19px \"Microsoft YaHei\", sans-serif"
-      ctx.fillText(`有效期限：${pass ? formatDate(pass.startDate) : "购买后生效"}`, infoX + 16, 249)
-      ctx.font = "700 18px \"Microsoft YaHei\", sans-serif"
-      ctx.fillText(`至 ${pass ? formatDate(pass.endDate) : "购买后计算"}`, infoX + 16, 273)
+      // Frosted info panel.
+      const px = 40, py = 770, pw = W - 80, ph = H - py - 40
+      ctx.shadowColor = "rgba(15, 30, 50, 0.28)"
+      ctx.shadowBlur = 40
+      ctx.shadowOffsetY = 14
+      fillRounded(ctx, px, py, pw, ph, 30, "rgba(255, 255, 255, 0.92)")
+      ctx.shadowColor = "transparent"
+      ctx.shadowBlur = 0
+      ctx.shadowOffsetY = 0
+      // Accent strip along the top of the panel.
+      ctx.save()
+      roundedRect(ctx, px, py, pw, ph, 30)
+      ctx.clip()
+      ctx.fillStyle = accentGradient(ctx, option.accent, px, 0, px + pw, 0)
+      ctx.fillRect(px, py, pw, 8)
+      ctx.restore()
 
-      const features = [
-        ["自由模式", "游玩时间延长"],
-        ["DX 分数", "获得额外加成"],
-        ["全难度", "解锁完整游玩"],
-        ["评级对象", "显示更多乐曲"],
+      // Title row: type chip + Pass name.
+      const chipText = gold ? "GOLD" : "RAINBOW"
+      ctx.font = font(800, 20)
+      const chipW = ctx.measureText(chipText).width + 32
+      fillRounded(ctx, px + 32, py + 36, chipW, 36, 18, "#000")
+      ctx.save()
+      roundedRect(ctx, px + 32, py + 36, chipW, 36, 18)
+      ctx.clip()
+      ctx.fillStyle = accentGradient(ctx, option.accent, px + 32, 0, px + 32 + chipW, 0)
+      ctx.fillRect(px + 32, py + 36, chipW, 36)
+      ctx.restore()
+      ctx.fillStyle = gold ? "#5a3a00" : "#ffffff"
+      ctx.textBaseline = "middle"
+      ctx.fillText(chipText, px + 48, py + 55)
+
+      ctx.fillStyle = "#18262b"
+      ctx.font = font(800, 40)
+      ctx.fillText(option.title, px + 32 + chipW + 18, py + 55)
+
+      // Validity
+      ctx.fillStyle = "#5c6d72"
+      ctx.font = font(600, 21)
+      const start = pass ? formatDate(pass.startDate).slice(0, 16) : "购买后生效"
+      const end = pass ? formatDate(pass.endDate).slice(0, 16) : "购买后计算"
+      ctx.fillText(`有效期  ${start}  →  ${end}`, px + 32, py + 112)
+
+      // Feature grid (2 x 2)
+      const features: [string, string, string][] = [
+        ["自由模式", "游玩时间延长", "#3a95e7"],
+        ["DX 分数", "获得额外加成", "#d39a14"],
+        ["全难度", "解锁完整游玩", "#a855f7"],
+        ["评级对象", "显示更多乐曲", "#e5536b"],
       ]
-      features.forEach(([label, detail], index) => {
-        const y = 300 + index * 62
-        fillRounded(ctx, infoX, y, 330, 49, 9, "rgba(255, 255, 255, 0.93)")
-        ctx.fillStyle = ["#3a95e7", "#c8981c", "#ad58cf", "#e55353"][index]
-        ctx.font = "800 17px \"Microsoft YaHei\", sans-serif"
-        ctx.fillText(label, infoX + 16, y + 21)
-        ctx.fillStyle = "#53666d"
-        ctx.font = "500 16px \"Microsoft YaHei\", sans-serif"
-        ctx.fillText(detail, infoX + 16, y + 42)
+      const gx = px + 32, gy = py + 148, gap = 14
+      const cellW = (pw - 64 - gap) / 2, cellH = 78
+      features.forEach(([label, detail, color], i) => {
+        const cx = gx + (i % 2) * (cellW + gap)
+        const cy = gy + Math.floor(i / 2) * (cellH + gap)
+        fillRounded(ctx, cx, cy, cellW, cellH, 16, "rgba(24, 38, 43, 0.045)")
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.arc(cx + 30, cy + cellH / 2, 9, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.fillStyle = "#18262b"
+        ctx.font = font(800, 24)
+        ctx.fillText(label, cx + 54, cy + 28)
+        ctx.fillStyle = "#66777b"
+        ctx.font = font(500, 19)
+        ctx.fillText(detail, cx + 54, cy + 55)
       })
 
-      ctx.fillStyle = "#1a7e9f"
-      ctx.font = "700 21px \"Microsoft YaHei\", sans-serif"
-      ctx.fillText("MikuNet Magical Pass", 84, 628)
-      ctx.fillStyle = "#53666d"
-      ctx.font = "500 17px \"Microsoft YaHei\", sans-serif"
-      ctx.fillText("票券 40001 与 Pass 同期有效", 84, 657)
+      // Footer
+      const fy = py + ph - 36
+      ctx.fillStyle = "#0a8079"
+      ctx.font = font(800, 22)
+      ctx.fillText("MikuNet Magical Pass", px + 32, fy)
+      ctx.fillStyle = "#829296"
+      ctx.font = font(600, 18)
+      ctx.textAlign = "right"
+      ctx.fillText(`Pass ID ${option.charaId} · 票券 40001 同期有效`, px + pw - 32, fy)
+      ctx.textAlign = "left"
+      ctx.textBaseline = "alphabetic"
+
+      ctx.restore()
     } catch (e) {
       if (currentRender === renderId) error = e instanceof Error ? e.message : String(e)
     }
@@ -272,7 +366,7 @@
           <div><h2>{selectedOption.title}</h2><p>{selectedOption.subtitle} · Pack {selectedOption.packId}</p></div>
           <span class="badge primary mono">ID {selectedOption.charaId}</span>
         </div>
-        <canvas bind:this={canvas} width="840" height="720" aria-label="合成后的 Magical Pass 素材预览"></canvas>
+        <div class="canvas-stage"><canvas bind:this={canvas} width="800" height="1200" aria-label="合成后的 Magical Pass 素材预览"></canvas></div>
         <div class="preview-actions">
           <small class="subtle">仅下载上方画布中的合成素材</small>
           <button class="btn-soft" type="button" on:click={downloadComposite} disabled={loading || !state?.hasProfile}>
@@ -333,7 +427,7 @@
 
   .pass-layout
     display: grid
-    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr)
+    grid-template-columns: minmax(300px, 440px) minmax(0, 1fr)
     align-items: start
     gap: 16px
 
@@ -341,13 +435,20 @@
     position: sticky
     top: calc(var(--nav-height) + 16px)
 
+  .canvas-stage
+    display: flex
+    justify-content: center
+    padding: 18px
+    border-radius: var(--radius)
+    background: radial-gradient(circle at 50% 30%, var(--primary-soft), var(--surface-2) 70%)
+
   canvas
     display: block
-    width: 100%
+    width: auto
+    max-width: 100%
     height: auto
-    border-radius: var(--radius)
-    background: var(--surface-2)
-    box-shadow: var(--shadow-sm)
+    max-height: calc(100dvh - 300px)
+    filter: drop-shadow(0 14px 28px rgba(15, 30, 50, 0.22))
 
   .preview-actions
     display: flex

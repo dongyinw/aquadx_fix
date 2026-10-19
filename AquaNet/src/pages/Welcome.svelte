@@ -200,12 +200,14 @@
 <main id="welcome-page">
   <section class="intro">
     <img class="brand-mark" src="/assets/branding/mikunet-logo.webp" alt="MikuNet" width="960" height="640" fetchpriority="high" />
-    <h1>让每一次游玩，<br class="desktop-br" />都有自己的位置。</h1>
-    <p class="lead">管理卡片、同步成绩，继续你的街机记录。</p>
+    <span class="eyebrow">舞萌 DX · 中二节奏 · 音击</span>
+    <h1>每一次出勤，<br />都值得被记住。</h1>
+    <p class="lead">绑定卡片后，成绩、Rating 与收藏会自动同步到 MikuNet，离开机台也能随时回顾自己的进步。</p>
     <ul class="features">
-      <li><span><Icon icon="solar:card-bold-duotone" /></span><div><strong>多卡片管理</strong><small>Access Code 与 FeliCa 一处绑定</small></div></li>
-      <li><span><Icon icon="solar:chart-2-bold-duotone" /></span><div><strong>成绩与排行</strong><small>Rating 趋势、B50 与服务器排名</small></div></li>
-      <li><span><Icon icon="solar:shield-check-bold-duotone" /></span><div><strong>数据随时可控</strong><small>随时导入、导出你的游戏资料</small></div></li>
+      <li><span><Icon icon="solar:card-bold-duotone" /></span><div><strong>一个账号，多张卡片</strong><small>Access Code 与 FeliCa 卡都能绑定到同一账号</small></div></li>
+      <li><span><Icon icon="solar:chart-2-bold-duotone" /></span><div><strong>成绩一目了然</strong><small>Rating 趋势、B50、出勤热力图与服务器排行</small></div></li>
+      <li><span><Icon icon="solar:users-group-two-rounded-bold-duotone" /></span><div><strong>和好友一起玩</strong><small>添加好友、设置劲敌，加入同好圈子</small></div></li>
+      <li><span><Icon icon="solar:shield-check-bold-duotone" /></span><div><strong>存档自己掌握</strong><small>随时导入、导出，换服换机都不丢数据</small></div></li>
     </ul>
   </section>
 
@@ -220,22 +222,22 @@
         <button type="button" role="tab" aria-selected={state === "signup"} on:click={() => switchState('signup')}>{t('welcome.btn-signup')}</button>
       </div>
       <div class="auth-heading">
-        <h2 id="auth-title">{isSignup ? "创建 MikuNet 账号" : "欢迎回来"}</h2>
-        <p>{isSignup ? "注册后需要验证邮箱才能登录。" : "使用用户名或邮箱登录你的账号。"}</p>
+        <h2 id="auth-title">{isSignup ? "注册 MikuNet 账号" : "登录 MikuNet"}</h2>
+        <p>{isSignup ? "注册后请前往邮箱点击验证链接，验证完成即可登录。" : "欢迎回来！登录后即可查看成绩、管理卡片。"}</p>
       </div>
 
       <form class="auth-form" on:submit|preventDefault={submit} novalidate>
         {#if error}<div class="alert alert-danger" role="alert" in:fade={{ duration: 120 }}><Icon icon="solar:danger-triangle-bold-duotone" /><p>{error}</p></div>{/if}
         {#if isSignup}
           <label class="field"><span class="field-label">{t('username')}</span>
-            <input type="text" name="username" autocomplete="username" placeholder="your-name" bind:value={username} disabled={submitting} />
+            <input type="text" name="username" autocomplete="username" placeholder="字母、数字或下划线" bind:value={username} disabled={submitting} />
           </label>
         {/if}
         <label class="field"><span class="field-label">{isSignup ? t('email') : "用户名或邮箱"}</span>
           {#if isSignup}
             <input type="email" name="email" autocomplete="email" inputmode="email" placeholder="you@example.com" bind:value={email} disabled={submitting} />
           {:else}
-            <input type="text" name="username" autocomplete="username" placeholder="name@example.com" bind:value={email} disabled={submitting} />
+            <input type="text" name="username" autocomplete="username" placeholder="输入用户名或注册邮箱" bind:value={email} disabled={submitting} />
           {/if}
         </label>
         <div class="field">
@@ -262,8 +264,8 @@
     {:else if state === "submitreset"}
       <button class="btn-ghost btn-sm back" type="button" on:click={() => switchState('login')}><Icon icon="line-md:chevron-small-left" />{t('back')}</button>
       <div class="auth-heading">
-        <h2 id="auth-title">重置密码</h2>
-        <p>输入注册邮箱，我们会发送一封重置链接。</p>
+        <h2 id="auth-title">找回密码</h2>
+        <p>输入注册时使用的邮箱，我们会发送一封重置密码的邮件。</p>
       </div>
       <form class="auth-form" on:submit|preventDefault={resetPassword} novalidate>
         {#if error}<div class="alert alert-danger" role="alert"><Icon icon="solar:danger-triangle-bold-duotone" /><p>{error}</p></div>{/if}
@@ -277,14 +279,14 @@
     {:else if state === "verify"}
       <div class="message-state" role="status">
         <span class="message-icon">{#if submitting}<Spinner size="28px" />{:else}<Icon icon="solar:letter-opened-bold-duotone" />{/if}</span>
-        <h2 id="auth-title">{submitting ? "请稍候" : "请查看提示"}</h2>
+        <h2 id="auth-title">{submitting ? "正在处理…" : "提示"}</h2>
         <p>{verifyMsg}</p>
         {#if !submitting}<button class="btn-primary btn-block" type="button" on:click={() => switchState('login')}>{t('welcome.btn-login')}</button>{/if}
       </div>
     {:else if state === "reset"}
       <div class="auth-heading">
         <h2 id="auth-title">设置新密码</h2>
-        <p>设置完成后请使用新密码重新登录。</p>
+        <p>请输入新的密码，设置成功后使用新密码重新登录。</p>
       </div>
       <form class="auth-form" on:submit|preventDefault={changePassword} novalidate>
         {#if error}<div class="alert alert-danger" role="alert"><Icon icon="solar:danger-triangle-bold-duotone" /><p>{error}</p></div>{/if}
@@ -315,6 +317,10 @@
   .intro
     max-width: 560px
 
+  .intro .eyebrow
+    display: block
+    margin-bottom: 10px
+
   .brand-mark
     display: block
     width: min(300px, 70%)
@@ -323,12 +329,14 @@
 
   h1
     margin: 0 0 14px
+    text-wrap: balance
     font-size: clamp(2rem, 4.6vw, 3.4rem)
     line-height: 1.12
     letter-spacing: -0.02em
 
   .lead
     margin: 0
+    text-wrap: pretty
     color: var(--text-2)
     font-size: 1.08rem
 
@@ -468,7 +476,7 @@
       width: min(220px, 60%)
       margin: 0 auto 14px
 
-    .desktop-br, .features
+    .features
       display: none
 
     .auth-card

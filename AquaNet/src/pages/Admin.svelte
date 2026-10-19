@@ -20,6 +20,7 @@
   } from "../libs/generalTypes"
 
   type View = "users" | "cards"
+  type Section = "overview" | View
   type ManagedGame = "mai2" | "chu3" | "ongeki"
 
   USER.ensureLoggedIn()
@@ -33,6 +34,10 @@
   let regFrom = ""
   let regTo = ""
   let view: View = "users"
+  // Top-level console tab, and the sub-tab shown inside a user / card detail.
+  let section: Section = "overview"
+  let userTab: "account" | "game" | "cards" = "account"
+  let cardTab: "info" | "game" | "logs" = "info"
   let users: AdminUserSummary[] = []
   let cards: AdminCardSummary[] = []
   let selectedUser: AdminUserSummary | null = null
@@ -166,8 +171,14 @@
     await search()
   }
 
+  async function switchSection(next: Section) {
+    section = next
+    if (next !== "overview") await switchView(next)
+  }
+
   async function openUser(user: AdminUserSummary) {
     view = "users"
+    section = "users"
     selectedUser = user
     selectedCard = null
     userDetail = null
@@ -190,6 +201,7 @@
 
   async function openCard(card: AdminCardSummary) {
     view = "cards"
+    section = "cards"
     selectedCard = card
     selectedUser = null
     cardDetail = null
@@ -388,7 +400,17 @@
 
   async function openCardOwner() {
     if (!cardDetail?.user) return
-    await openUser(cardDetail.user)
+    const owner = cardDetail.user
+    await openUser(owner)
+    // Show the owner in the list on the left as well.
+    query = owner.username
+    await search()
+  }
+
+  async function openLinkedCard(card: AdminCardSummary) {
+    await openCard(card)
+    query = card.luid
+    await search()
   }
 
   USER.me().then(value => {
@@ -410,15 +432,7 @@
 </script>
 
 <main class="page page-wide admin-page">
-  <PageHeader eyebrow="Console" title="用户管理" description="账号、卡片与连接权限">
-    <div class="segmented" role="tablist" aria-label="管理视图">
-      <button type="button" role="tab" aria-selected={view === "users"} on:click={() => switchView("users")}><Icon icon="solar:user-id-bold-duotone" />用户</button>
-      <button type="button" role="tab" aria-selected={view === "cards"} on:click={() => switchView("cards")}><Icon icon="solar:card-bold-duotone" />卡片</button>
-    </div>
-    <button class="btn-icon" type="button" title="刷新列表" aria-label="刷新列表" on:click={search} disabled={loading}>
-      {#if loading}<Spinner />{:else}<Icon icon="solar:refresh-bold" />{/if}
-    </button>
-  </PageHeader>
+  <PageHeader eyebrow="Console" title="管理控制台" description="查看服务器游玩数据，管理用户账号、卡片与连接权限" />
 
   {#if error && !me?.isAdmin}
     <EmptyState icon="solar:lock-keyhole-minimalistic-bold-duotone" title={error}>
@@ -427,6 +441,20 @@
   {/if}
 
   {#if me?.isAdmin}
+    <div class="console-bar">
+      <div class="tabs" role="tablist" aria-label="管理分类">
+        <button type="button" role="tab" aria-selected={section === "overview"} on:click={() => switchSection("overview")}><Icon icon="solar:chart-2-bold-duotone" />数据概览</button>
+        <button type="button" role="tab" aria-selected={section === "users"} on:click={() => switchSection("users")}><Icon icon="solar:user-id-bold-duotone" />用户管理{#if users.length}<span class="count">{users.length}</span>{/if}</button>
+        <button type="button" role="tab" aria-selected={section === "cards"} on:click={() => switchSection("cards")}><Icon icon="solar:card-bold-duotone" />卡片管理{#if cards.length}<span class="count">{cards.length}</span>{/if}</button>
+      </div>
+      {#if section === "overview"}
+        <button class="btn-ghost btn-sm" type="button" on:click={loadAnalytics} disabled={analyticsLoading}>{#if analyticsLoading}<Spinner />{:else}<Icon icon="solar:refresh-bold" />{/if}刷新数据</button>
+      {:else}
+        <button class="btn-ghost btn-sm" type="button" on:click={search} disabled={loading}>{#if loading}<Spinner />{:else}<Icon icon="solar:refresh-bold" />{/if}刷新列表</button>
+      {/if}
+    </div>
+
+    {#if section === "overview"}
     <section class="card analytics">
       <div class="card-header">
         <div><h2>游玩数据趋势</h2><p>舞萌 DX 游玩记录 · 达成率按成绩平均值计算</p></div>
@@ -465,7 +493,7 @@
           {/each}
         </div>
         <div class="legend"><span><i></i>游玩人数</span><span><i class="guest-dot"></i>游客人数</span></div>
-        <details class="ranking-details">
+        <details class="ranking-details" open>
           <summary>热门曲目排行（{analytics.ranking.length}）<Icon icon="line-md:chevron-small-down" /></summary>
           <div class="table-wrap">
             <table class="data-table">
@@ -482,7 +510,7 @@
         </details>
       {/if}
     </section>
-
+    {:else}
     <section class="workspace">
       <aside class="card sidebar">
         <form class="search" on:submit|preventDefault={search} role="search">
@@ -551,7 +579,6 @@
                 {#if userDetail.ongeki}<span class="badge">ONGEKI</span>{/if}
               </div>
             </div>
-            <button class="btn-danger" type="button" on:click={deleteUser}><Icon icon="solar:trash-bin-trash-bold-duotone" />删除用户</button>
           </div>
 
           <dl class="stat-strip">
@@ -560,6 +587,14 @@
             <div><dt>卡片</dt><dd class="num">{userDetail.cards.length}</dd></div>
             <div><dt>Keychip</dt><dd class="num">{userDetail.keychips.length}</dd></div>
           </dl>
+
+          <div class="segmented detail-tabs" role="tablist" aria-label="用户详情分类">
+            <button type="button" role="tab" aria-selected={userTab === "account"} on:click={() => userTab = "account"}><Icon icon="solar:shield-user-bold-duotone" />账号与权限</button>
+            <button type="button" role="tab" aria-selected={userTab === "game"} on:click={() => userTab = "game"}><Icon icon="solar:gamepad-bold-duotone" />游戏档案</button>
+            <button type="button" role="tab" aria-selected={userTab === "cards"} on:click={() => userTab = "cards"}><Icon icon="solar:card-bold-duotone" />卡片与 Keychip</button>
+          </div>
+
+          {#if userTab === "account"}
 
           <section class="card">
             <div class="card-header"><div><h3>账号设置</h3><p>资料与权限</p></div></div>
@@ -604,6 +639,14 @@
             </form>
           </section>
 
+          <section class="card danger-zone">
+            <div class="card-header"><div><h3>危险操作</h3><p>以下操作不可撤销，请谨慎执行</p></div></div>
+            <div class="setting-row">
+              <div class="setting-text"><span class="name">删除用户</span><span class="desc">永久删除该用户账号及其全部游戏数据</span></div>
+              <button class="btn-danger" type="button" on:click={deleteUser}><Icon icon="solar:trash-bin-trash-bold-duotone" />删除用户</button>
+            </div>
+          </section>
+          {:else if userTab === "game"}
           <section class="card">
             <div class="card-header">
               <div><h3>游戏档案管理</h3><p>支持舞萌、中二和音击</p></div>
@@ -637,6 +680,7 @@
             <div class="item-list">{#each userDetail.items.slice(0, 40) as item}<span class="badge mono">{item.itemKind}/{item.itemId} × {item.stock}</span>{:else}<span class="subtle">暂无物品记录</span>{/each}</div>
           </section>
 
+          {:else}
           <section class="card">
             <div class="card-header">
               <div><h3>关联卡片</h3><p>{userDetail.cards.length} 张卡片 · 点击查看卡片档案</p></div>
@@ -645,7 +689,7 @@
             <div class="linked-cards">
               {#each userDetail.cards as card, index (card.id)}
                 {#if cardsExpanded || index < 2}
-                  <button class="linked-card" type="button" on:click={() => openCard(card)}>
+                  <button class="linked-card" type="button" on:click={() => openLinkedCard(card)}>
                     <span class="result-copy"><strong class="mono truncate">{card.luid}</strong><small>#{card.id} · ext {card.extId}</small></span>
                     <span class="linked-meta"><span class="badge">{card.isGhost ? "Ghost" : "实体卡"}</span><small>{card.mai2?.playCount ?? 0} 次游玩</small></span>
                     <Icon icon="line-md:chevron-small-right" />
@@ -677,6 +721,7 @@
               {/each}
             </div>
           </section>
+          {/if}
         {:else if view === "cards" && cardDetail}
           <div class="card detail-head">
             <div class="detail-title">
@@ -685,7 +730,6 @@
               <span class="muted">ext {cardDetail.card.extId} · {cardDetail.card.status}</span>
               <div class="row tags"><span class="badge" class:danger={cardDetail.mai2?.banState === 2}>{gameBanLabel(cardDetail.mai2)}</span><span class="badge">{cardDetail.card.isGhost ? "Ghost 卡片" : "实体卡片"}</span></div>
             </div>
-            <button class="btn-danger" type="button" disabled={cardDetail.card.isGhost} title={cardDetail.card.isGhost ? "Ghost 卡片随用户删除" : "删除卡片"} on:click={deleteCard}><Icon icon="solar:trash-bin-trash-bold-duotone" />删除卡片</button>
           </div>
 
           <dl class="stat-strip">
@@ -694,6 +738,14 @@
             <div><dt>游玩次数</dt><dd class="num">{cardDetail.mai2?.playCount ?? 0}</dd></div>
             <div><dt>最近机台</dt><dd>{cardDetail.mai2?.lastClientId || "暂无"}</dd></div>
           </dl>
+
+          <div class="segmented detail-tabs" role="tablist" aria-label="卡片详情分类">
+            <button type="button" role="tab" aria-selected={cardTab === "info"} on:click={() => cardTab = "info"}><Icon icon="solar:card-bold-duotone" />卡片信息</button>
+            <button type="button" role="tab" aria-selected={cardTab === "game"} on:click={() => cardTab = "game"}><Icon icon="solar:gamepad-bold-duotone" />游戏档案</button>
+            <button type="button" role="tab" aria-selected={cardTab === "logs"} on:click={() => cardTab = "logs"}><Icon icon="solar:history-bold-duotone" />游玩日志<span class="count">{cardDetail.playlogs.length}</span></button>
+          </div>
+
+          {#if cardTab === "info"}
 
           <section class="card">
             <div class="card-header"><div><h3>卡片信息</h3></div></div>
@@ -708,6 +760,14 @@
             {:else}<p class="subtle">未绑定 Net 用户</p>{/if}
           </section>
 
+          <section class="card danger-zone">
+            <div class="card-header"><div><h3>危险操作</h3><p>以下操作不可撤销，请谨慎执行</p></div></div>
+            <div class="setting-row">
+              <div class="setting-text"><span class="name">删除卡片</span><span class="desc">{cardDetail.card.isGhost ? "Ghost 卡片随所属用户一起删除，不能单独删除" : "从系统中删除这张卡片"}</span></div>
+              <button class="btn-danger" type="button" disabled={cardDetail.card.isGhost} on:click={deleteCard}><Icon icon="solar:trash-bin-trash-bold-duotone" />删除卡片</button>
+            </div>
+          </section>
+          {:else if cardTab === "game"}
           <section class="card">
             <div class="card-header"><div><h3>maimai2 卡片档案</h3><p>{gameBanLabel(cardDetail.mai2)}</p></div></div>
             {#if cardDetail.mai2}
@@ -731,6 +791,7 @@
             <div class="item-list">{#each cardDetail.items.slice(0, 40) as item}<span class="badge mono">{item.itemKind}/{item.itemId} × {item.stock}</span>{:else}<span class="subtle">暂无物品记录</span>{/each}</div>
           </section>
 
+          {:else}
           <section class="card card-flush">
             <div class="card-header padded"><div><h3>最近游玩日志</h3><p>{cardDetail.playlogs.length} 条</p></div></div>
             <div class="table-wrap flush">
@@ -746,11 +807,13 @@
               </table>
             </div>
           </section>
+          {/if}
         {:else}
           <EmptyState icon={view === "users" ? "solar:user-id-bold-duotone" : "solar:card-bold-duotone"} title={`从左侧选择${view === "users" ? "用户" : "卡片"}`} description="详情会显示在这里" />
         {/if}
       </section>
     </section>
+    {/if}
   {/if}
 </main>
 
@@ -758,6 +821,33 @@
 
 <style lang="sass">
   @use "../vars"
+
+  .console-bar
+    display: flex
+    align-items: flex-end
+    justify-content: space-between
+    gap: 12px
+    border-bottom: 1px solid var(--border)
+
+    .tabs
+      border-bottom: 0
+
+    > button
+      margin-bottom: 6px
+
+  .detail-tabs
+    display: flex
+    align-self: flex-start
+
+  .danger-zone
+    border-color: color-mix(in srgb, var(--danger) 30%, transparent)
+
+    h3
+      color: var(--danger)
+
+    .setting-row
+      padding: 0
+      border: 0
 
   .analytics-tools
     display: flex
