@@ -38,7 +38,7 @@ Multipurpose game server for ALL.Net games.
 | SDEZ: maimai DX        | 1.65 (CiRCLE PLUS)    | 1.00 (DX)           | Thanks [@Menci](https://github.com/Menci)                   | ✅    |  ✅          | ✅  | 
 | SDGA: maimai DX (Intl) | 1.60 (CiRCLE)         | 1.00 (DX)           | Thanks [@Clansty](https://github.com/clansty)               | ✅    |  ✅          | ✅  |
 | SDED: Card Maker       | 1.39                  | N/A                 | Thanks [@Becods](https://github.com/Becods)                 | ❌    |  ❌          | ❌  |
-| SDDT: O.N.G.E.K.I.     | 1.60 (Re:Fresh Act 2) | N/A                 | Thanks [@PenguinCaptain](https://github.com/PenguinCaptain) | ✅    |  ✅          | ❌  |
+| SDDT: O.N.G.E.K.I.     | 1.60 (Re:Fresh Act 2) | N/A                 |                                                             | ✅    |  ✅          | ❌  |
 | SBZV: Project DIVA     | 7.10                  | N/A                 | Minimal support                                             | ❌    |  ❌          | 🔓  |
 | SDFE: Wacca            | 3.07 (REVERSE)        | N/A                 | Later versions are EOS patches                              | ✅    |  ❌          | 🔓  |
 
