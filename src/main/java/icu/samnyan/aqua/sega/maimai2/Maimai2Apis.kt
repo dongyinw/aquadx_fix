@@ -397,7 +397,9 @@ fun Maimai2ServletController.initApis() {
 
         mapOf("nextIndex" to 0, "nationalDataList" to nationalDataList)
     }
-    "GetGameTournamentInfo" static { mapOf("length" to 0, "gameTournamentInfoList" to empty) }
+    "GetGameTournamentInfo" static {
+        tournament.gameTournamentInfo().let { mapOf("length" to it.size, "gameTournamentInfoList" to it) }
+    }
 
     // <phaseId: start offset days>
     val phases = mapOf(1 to 1, 2 to 7, 3 to 14, 4 to 21)
@@ -595,7 +597,12 @@ fun Maimai2ServletController.initApis() {
 
     // NOTE: no-op APIs moved to respect encryption
     "UpsertUserPlaceCircleRegist" static { mapOf( "returnCode" to 0, "apiName" to "com.sega.maimai2servlet.api.UpsertUserPlaceCircleRegistApi") }
-    "GetUserScoreRanking" static { """{"returnCode":1, "apiName":"com.sega.maimai2servlet.api.GetUserScoreRankingApi"}""" }
+    // Request: {userId, competitionId}
+    // Response: {userId, userScoreRanking: {tournamentId, totalScore, ranking, rankingDate}}
+    "GetUserScoreRanking" {
+        val competitionId = parsing { data["competitionId"]!!.int }
+        mapOf("userId" to uid, "userScoreRanking" to tournament.userScoreRanking(uid, competitionId))
+    }
     "UpsertClientBookkeeping" static { """{"returnCode":1, "apiName":"com.sega.maimai2servlet.api.UpsertClientBookkeepingApi"}""" }
     "UpsertClientSetting" static { """{"returnCode":1, "apiName":"com.sega.maimai2servlet.api.UpsertClientSettingApi"}""" }
     "UpsertClientTestmode" static { """{"returnCode":1, "apiName":"com.sega.maimai2servlet.api.UpsertClientTestmodeApi"}""" }
