@@ -8,6 +8,7 @@ import icu.samnyan.aqua.sega.maimai2.model.userdata.QMai2UserPlaylog
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Configuration
 import org.springframework.stereotype.Service
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /**
@@ -16,6 +17,8 @@ import java.time.format.DateTimeFormatter
  * game.maimai2.tournaments[0].id=20006
  * game.maimai2.tournaments[0].music-ids=11810,11745,12025
  * game.maimai2.tournaments[0].start-date=2026-10-29 07:00:00
+ *
+ * A tournament stops being sent to cabinets once the server clock passes its notice-end-date (or end-date).
  */
 @Configuration
 @ConfigurationProperties(prefix = "game.maimai2")
@@ -36,6 +39,9 @@ class Mai2TournamentDef {
     var entryEndDate = ""
     var musicIds: List<Int> = emptyList()
     var lockedMusicIds: List<Int> = emptyList()
+
+    /** [now] is formatted as yyyy-MM-dd HH:mm:ss, so plain string comparison orders the dates. */
+    fun isExpired(now: String) = noticeEndDate.ifBlank { endDate }.let { it.isNotBlank() && now > it }
 
     fun toGameInfo() = mapOf(
         "tournamentId" to id,
@@ -74,6 +80,7 @@ class Mai2TournamentService(
 
     companion object {
         private val RANKING_DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+        private val CONFIG_DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
         fun levelPenalty(level: Int) = when (level) {
             0 -> 30000
@@ -112,7 +119,9 @@ class Mai2TournamentService(
         val achievement: Int, val deluxscore: Int, val userPlayDate: String,
     )
 
-    fun gameTournamentInfo() = props.tournaments.filter { it.id != 0 }.map { it.toGameInfo() }
+    fun gameTournamentInfo(now: String = LocalDateTime.now().format(CONFIG_DATE_FMT)) = props.tournaments
+        .filter { it.id != 0 && !it.isExpired(now) }
+        .map { it.toGameInfo() }
 
     /** Response body for GetUserScoreRankingApi. tournamentId = 0 means the user has no entry. */
     fun userScoreRanking(userId: Long, competitionId: Int): Map<String, Any> {

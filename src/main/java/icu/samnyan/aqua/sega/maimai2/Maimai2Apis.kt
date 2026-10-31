@@ -397,7 +397,7 @@ fun Maimai2ServletController.initApis() {
 
         mapOf("nextIndex" to 0, "nationalDataList" to nationalDataList)
     }
-    "GetGameTournamentInfo" static {
+    "GetGameTournamentInfo" {
         tournament.gameTournamentInfo().let { mapOf("length" to it.size, "gameTournamentInfoList" to it) }
     }
 

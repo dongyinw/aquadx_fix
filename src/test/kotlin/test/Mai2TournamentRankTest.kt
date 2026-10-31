@@ -1,5 +1,6 @@
 package test
 
+import icu.samnyan.aqua.sega.maimai2.Mai2TournamentDef
 import icu.samnyan.aqua.sega.maimai2.Mai2TournamentService.Companion.rank
 import icu.samnyan.aqua.sega.maimai2.Mai2TournamentService.Play
 import io.kotest.core.spec.style.StringSpec
@@ -37,5 +38,15 @@ class Mai2TournamentRankTest : StringSpec({
             play(3, 3, 11745, 1000000, date = "2026-10-29 08:00:00"), play(3, 3, 12025, 1000000, date = "2026-10-29 08:00:00"),
         )
         rank(plays, songs).map { it.userId } shouldBe listOf(3L, 2L, 1L)
+    }
+
+    "tournament expires after notice end date, falling back to end date" {
+        val t = Mai2TournamentDef().apply { endDate = "2026-11-24 23:59:59" }
+        t.isExpired("2026-11-24 23:59:59") shouldBe false
+        t.isExpired("2026-11-25 00:00:00") shouldBe true
+        t.noticeEndDate = "2026-11-30 23:59:59"
+        t.isExpired("2026-11-25 00:00:00") shouldBe false
+        t.isExpired("2026-12-01 00:00:00") shouldBe true
+        Mai2TournamentDef().isExpired("2099-01-01 00:00:00") shouldBe false
     }
 })
