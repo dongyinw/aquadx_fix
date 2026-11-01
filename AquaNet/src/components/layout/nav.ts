@@ -10,10 +10,12 @@ export interface NavItem {
   match: string[]
 }
 
-export function primaryNav(me: MikuNetUser | undefined, playedMai: boolean, recentGame: string): NavItem[] {
+export function primaryNav(me: MikuNetUser | undefined, playedMai: boolean, recentGame: string, hasTournament = false): NavItem[] {
   const items: (NavItem | false)[] = [
     { href: "/home", label: t("navigation.home"), icon: "solar:home-2-bold-duotone", match: ["/home", "/cards", "/setup"] },
     { href: `/ranking/${recentGame}`, label: t("navigation.rankings"), icon: "solar:ranking-bold-duotone", match: ["/ranking"] },
+    // Only shown while a tournament is running; it disappears once every tournament has ended.
+    hasTournament && { href: "/tournament", label: t("navigation.tournament"), icon: "solar:cup-star-bold-duotone", match: ["/tournament"] },
     playedMai && { href: "/friends", label: t("navigation.friends"), icon: "solar:users-group-two-rounded-bold-duotone", match: ["/friends"] },
     playedMai && { href: "/circle", label: t("navigation.circle"), icon: "solar:users-group-rounded-bold-duotone", match: ["/circle"] },
     !!me && { href: "/pass", label: t("navigation.pass"), icon: "solar:ticket-bold-duotone", match: ["/pass"] },

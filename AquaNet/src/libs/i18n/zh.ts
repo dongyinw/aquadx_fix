@@ -120,6 +120,7 @@ const zhGeneral: typeof EN_REF_GENERAL = {
   'navigation.maps': '地图',
   'navigation.home': '首页',
   'navigation.rankings': '排行榜',
+  'navigation.tournament': '大赛',
   'navigation.notice': '公告',
   'navigation.friends': '好友',
   'navigation.circle': '圈子',

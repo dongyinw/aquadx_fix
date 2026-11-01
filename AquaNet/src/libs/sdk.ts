@@ -272,6 +272,36 @@ export const ADMIN = {
     post('/api/v2/admin/card/delete', { cardId }),
 }
 
+export interface Tournament {
+  id: number; name: string; enabled: boolean; active: boolean; expired: boolean;
+  rankingKind: number; scoreType: number;
+  noticeStartDate: string; noticeEndDate: string; startDate: string; endDate: string;
+  entryStartDate: string; entryEndDate: string;
+  musicIds: number[]; lockedMusicIds: number[];
+}
+
+export interface TournamentSong { musicId: number; level: number; achievement: number; deluxscore: number }
+
+export interface TournamentRow {
+  rank: number; name: string; username: string | null;
+  totalScore: number; totalDxScore: number; playDate: string; songs: TournamentSong[];
+}
+
+export type TournamentInput = Omit<Tournament, "active" | "expired">
+
+export const TOURNAMENT = {
+  list: (): Promise<Tournament[]> =>
+    post('/api/v2/game/mai2/tournament/list'),
+  ranking: (id: number): Promise<{ tournament: Tournament, ranking: TournamentRow[] }> =>
+    post('/api/v2/game/mai2/tournament/ranking', { id }),
+  adminList: (): Promise<Tournament[]> =>
+    post('/api/v2/game/mai2/tournament/admin/list'),
+  adminSave: (t: TournamentInput): Promise<Tournament> =>
+    post('/api/v2/game/mai2/tournament/admin/save', {}, { json: t }),
+  adminDelete: (id: number) =>
+    post('/api/v2/game/mai2/tournament/admin/delete', { id }),
+}
+
 export const USERBOX = {
   getProfile: (): Promise<{ user: UserBox, items: UserItem[] }> =>
     post('/api/v2/game/chu3/user-box', {}),

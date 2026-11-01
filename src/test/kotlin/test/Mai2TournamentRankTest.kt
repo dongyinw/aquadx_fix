@@ -49,4 +49,22 @@ class Mai2TournamentRankTest : StringSpec({
         t.isExpired("2026-12-01 00:00:00") shouldBe true
         Mai2TournamentDef().isExpired("2099-01-01 00:00:00") shouldBe false
     }
+
+    "only enabled, unexpired tournaments with songs are active" {
+        val t = Mai2TournamentDef().apply { id = 20006; endDate = "2026-11-24 23:59:59"; musicIds = songs }
+        t.isActive("2026-11-01 00:00:00") shouldBe true
+        t.isActive("2026-11-25 00:00:00") shouldBe false
+        t.enabled = false
+        t.isActive("2026-11-01 00:00:00") shouldBe false
+        Mai2TournamentDef().apply { id = 1; endDate = t.endDate }.isActive("2026-11-01 00:00:00") shouldBe false
+    }
+
+    "entity round-trips through the database representation" {
+        val t = Mai2TournamentDef().apply { id = 20006; name = "KOP"; enabled = false; startDate = "2026-10-29 07:00:00"; musicIds = songs; lockedMusicIds = listOf(12025) }
+        val back = t.toEntity().toDef()
+        back.musicIds shouldBe songs
+        back.lockedMusicIds shouldBe listOf(12025)
+        back.enabled shouldBe false
+        back.startDate shouldBe t.startDate
+    }
 })

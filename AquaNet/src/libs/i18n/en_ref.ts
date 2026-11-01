@@ -107,6 +107,7 @@ export const EN_REF_GENERAL = {
   'navigation.maps': 'Maps',
   'navigation.home': 'Home',
   'navigation.rankings': 'Rankings',
+  'navigation.tournament': 'Tournament',
   'navigation.notice': 'Notice',
   'navigation.friends': 'Friends',
   'navigation.circle': 'Circle',

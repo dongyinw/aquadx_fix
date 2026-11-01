@@ -5,7 +5,8 @@
   import UserHome from "./pages/UserHome.svelte";
   import Home from "./pages/Home.svelte";
   import Ranking from "./pages/Ranking.svelte";
-  import { CARD, USER } from "./libs/sdk";
+  import Tournament from "./pages/Tournament.svelte";
+  import { CARD, TOURNAMENT, USER } from "./libs/sdk";
   import type { MikuNetUser } from "./libs/generalTypes";
   import Settings from "./pages/User/Settings.svelte";
   import MaiPhoto from "./pages/MaiPhoto.svelte";
@@ -45,6 +46,9 @@
   let playedMai = false
   let recentGame: string = DEFAULT_GAME;
   const loggedIn = USER.isLoggedIn()
+  // The tournament entry is only shown while a tournament is running.
+  let hasTournament = false
+  TOURNAMENT.list().then(list => hasTournament = list.length > 0).catch(() => {})
 
   if (loggedIn)
   {
@@ -75,6 +79,7 @@
     ["/cards", () => t("navigation.cards")],
     ["/setup", () => t("navigation.setup")],
     ["/ranking", () => t("navigation.rankings")],
+    ["/tournament", () => t("navigation.tournament")],
     ["/friends", () => t("navigation.friends")],
     ["/circle", () => t("navigation.circle")],
     ["/pass", () => t("navigation.pass")],
@@ -96,7 +101,7 @@
 
   $: path = $currentLocation.split("?")[0]
   $: authPage = path === "/" || path === "/verify" || path === "/reset-password"
-  $: navItems = primaryNav(me, playedMai, recentGame)
+  $: navItems = primaryNav(me, playedMai, recentGame, hasTournament)
   $: showTabBar = loggedIn && !authPage
 </script>
 
@@ -121,6 +126,7 @@
         <Route path="/friends" component={Social} />
         <Route path="/ranking" component={Ranking} />
         <Route path="/ranking/:game" component={Ranking} />
+        <Route path="/tournament" component={Tournament} />
         <Route path="/u/:username" component={UserHome} />
         <Route path="/u/:username/:game" component={UserHome} />
         <Route path="/settings" component={Settings} />
