@@ -23,6 +23,7 @@ class Mai2UserAll {
     var userMusicDetailList: List<Mai2UserMusicDetail>? = null
     var userCourseList: List<Mai2UserCourse>? = null
     var userFriendSeasonRankingList: List<Mai2UserFriendSeasonRanking>? = null
+    var userCirclePointDataList: List<Mai2CirclePointUpload>? = null
     var userChargeList: List<Mai2UserCharge>? = null
     var userFavoriteList: List<Mai2UserFavorite>? = null
     var userActivityList: List<Mai2UserActivity>? = null
@@ -40,6 +41,11 @@ class Mai2UserAll {
     var isNewFriendSeasonRankingList: String? = null
     var isNewFavoritemusicList: String? = null
     var isNewKaleidxScopeList: String? = null
+}
+
+class Mai2CirclePointUpload {
+    var circleId: Long = 0
+    var point: Int? = null
 }
 
 class Mai2UserFavoriteItem {

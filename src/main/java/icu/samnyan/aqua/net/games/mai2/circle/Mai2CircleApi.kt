@@ -384,7 +384,10 @@ class Mai2CircleService(
             ?: return mapOf("circleId" to 0, "circleName" to "一緒に歌おう！", "isPlace" to false, "circleClass" to 0, "lastLoginDate" to "", "circlePointRankingList" to emptyList<Any>())
         member.lastLoginDate = nowString()
         members.save(member)
-        return mapOf("circleId" to circle.id, "circleName" to circle.circleName, "isPlace" to circle.isPlace, "circleClass" to circle.circleClass, "lastLoginDate" to member.lastLoginDate, "circlePointRankingList" to emptyList<Any>())
+        val ranking = members.findByCircleIdOrderByPointDescJoinedAtAsc(circle.id).mapIndexed { index, entry ->
+            mapOf("userId" to entry.aimeExtId, "userName" to (mai2.userData.findByCardExtId(entry.aimeExtId)?.userName ?: ""), "rank" to index + 1, "point" to entry.point)
+        }
+        return mapOf("circleId" to circle.id, "circleName" to circle.circleName, "isPlace" to circle.isPlace, "circleClass" to circle.circleClass, "lastLoginDate" to member.lastLoginDate, "circlePointRankingList" to ranking)
     }
 
     @Transactional(readOnly = true)

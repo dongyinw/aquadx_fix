@@ -348,12 +348,12 @@ fun Maimai2ServletController.initApis() {
     "GetUserFriendCheck" {
         val userId1 = parsing { data["userId1"]!!.long }
         val userId2 = parsing { data["userId2"]!!.long }
-        socialService.gameFriendCheck(uid, userId1, userId2)
+        socialService.gameFriendCheck(userId1, userId1, userId2)
     }
     "UserFriendRegist" {
         val userId1 = parsing { data["userId1"]!!.long }
         val userId2 = parsing { data["userId2"]!!.long }
-        socialService.gameFriendRegist(uid, userId1, userId2)
+        socialService.gameFriendRegist(userId1, userId1, userId2)
     }
     "GetGameNgMusicId" static { mapOf("length" to 0, "musicIdList" to empty, "ngMusicDataList" to empty) }
     "GetGameNationalData" {

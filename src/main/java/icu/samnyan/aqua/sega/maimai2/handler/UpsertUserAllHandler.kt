@@ -7,6 +7,7 @@ import ext.unique
 import icu.samnyan.aqua.sega.general.BaseHandler
 import icu.samnyan.aqua.sega.general.model.CardStatus
 import icu.samnyan.aqua.sega.general.service.CardService
+import icu.samnyan.aqua.net.games.mai2.circle.Mai2CircleMemberRepo
 import icu.samnyan.aqua.sega.maimai2.handler.UploadUserPlaylogHandler.Companion.playBacklog
 import icu.samnyan.aqua.sega.maimai2.model.Mai2Repos
 import icu.samnyan.aqua.sega.maimai2.model.request.Mai2UpsertUserAll
@@ -24,7 +25,8 @@ import org.springframework.stereotype.Component
 class UpsertUserAllHandler(
     val mapper: BasicMapper,
     val cardService: CardService,
-    val repos: Mai2Repos
+    val repos: Mai2Repos,
+    val circleMembers: Mai2CircleMemberRepo
 ) : BaseHandler {
     fun String.isValidUsername() = isNotBlank() && length <= 8
 
@@ -61,6 +63,15 @@ class UpsertUserAllHandler(
             }
 
         })
+
+        req.userCirclePointDataList?.let { points ->
+            val member = circleMembers.findByAimeExtId(userId)
+            val point = points.lastOrNull { it.circleId == member?.circleId && (it.point ?: -1) >= 0 }?.point
+            if (member != null && point != null) {
+                member.point = point
+                circleMembers.save(member)
+            }
+        }
 
         // If the user was previously migrated to Minato, saving would mark them "migrated and then cleared".
         if (u.card?.status == CardStatus.MIGRATED_TO_MINATO) {

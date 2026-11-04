@@ -48,6 +48,19 @@ private class SocialProfileFixture {
 }
 
 class Mai2SocialProfileTest : StringSpec({
+    "game friend check resolves external card ids instead of profile ids" {
+        val f = SocialProfileFixture()
+        `when`(f.repos.userData.findByCardExtId(102)).thenReturn(f.other)
+        f.service.gameFriendCheck(100, 100, 102) shouldBe mapOf("returnCode" to 1)
+        verify(f.repos.userData, never()).findById(102)
+    }
+
+    "game friend check rejects a pair that excludes the requesting card" {
+        val f = SocialProfileFixture()
+        f.service.gameFriendCheck(100, 102, 103) shouldBe mapOf("returnCode" to 0)
+        verify(f.repos.userData, never()).findByCardExtId(102)
+    }
+
     "linked physical card shows the same friends as the account card" {
         val f = SocialProfileFixture()
         f.service.state("test-token", f.physical.luid) shouldBe f.service.state("test-token", f.ghost.luid)

@@ -236,9 +236,9 @@ class Mai2SocialService(
     private fun gamePair(extId: Long, userId1: Long, userId2: Long): Pair<Mai2UserDetail, Mai2UserDetail>? {
         if (userId1 == userId2) return null
         val owner = mai2.userData.findByCardExtId(extId) ?: return null
-        if (owner.id != userId1 && owner.id != userId2) return null
-        val first = mai2.userData.findById(userId1).orElse(null) ?: return null
-        val second = mai2.userData.findById(userId2).orElse(null) ?: return null
+        if (extId != userId1 && extId != userId2) return null
+        val first = if (extId == userId1) owner else mai2.userData.findByCardExtId(userId1) ?: return null
+        val second = if (extId == userId2) owner else mai2.userData.findByCardExtId(userId2) ?: return null
         return first to second
     }
 
