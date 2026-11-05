@@ -78,7 +78,7 @@
   <div class="table-wrap"><table class="data-table"><thead><tr><th>活动 ID</th><th>类型</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>操作</th></tr></thead><tbody>
     {#each filtered.slice(0, 100) as event (event.id)}
       <tr><td>{event.id}</td><td>{event.type}</td><td>{event.startDate}</td><td>{event.endDate}</td><td>{event.enabled ? "启用" : "停用"}</td><td><button class="btn-ghost btn-sm" type="button" on:click={() => edit(event)} title="编辑活动" aria-label={`编辑活动 ${event.id}`}><Icon icon="solar:pen-bold-duotone" /></button><button class="btn-ghost btn-sm" type="button" on:click={() => remove(event)} disabled={saving} title="删除活动" aria-label={`删除活动 ${event.id}`}><Icon icon="solar:trash-bin-trash-bold-duotone" /></button></td></tr>
-    {:else}<tr><td colspan="6">{loading ? "加载中" : "没有匹配的活动"}</td></tr>{/each}
+    {:else}<tr><td colspan="6">{loading ? "加载中" : query.trim() ? "没有匹配的活动" : "暂无自定义活动"}</td></tr>{/each}
   </tbody></table></div>
   {#if filtered.length > 100}<p>显示前 100 项，请使用活动 ID 搜索。</p>{/if}
 </section>

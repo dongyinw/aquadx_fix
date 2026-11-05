@@ -22,15 +22,20 @@ class Mai2EventManagementTest : StringSpec({
         val property = PropertyEntry("maimai2_event_overrides", "[]")
         `when`(repo.findByPropertyKey("maimai2_event_overrides")).thenReturn(property)
         val service = Mai2EventManagement(repo, BasicMapper(), data)
+        service.customEvents().size shouldBe 0
+        service.events().any { it.id == 123L } shouldBe true
         val entry = Mai2EventOverride(123, 0, "2026-11-04 04:00:00", "2026-12-01 04:00:00", true)
         service.save(entry)
+        service.customEvents().map { it.id } shouldBe listOf(123L)
         service.events().single { it.id == 123L }.startDate shouldBe entry.startDate
         service.save(entry.copy(enabled = false))
         service.events().any { it.id == 123L } shouldBe false
         service.managedEvents().single { it.id == 123L }.enabled shouldBe false
+        service.customEvents().single().enabled shouldBe false
         service.delete(123)
         service.events().any { it.id == 123L } shouldBe false
         service.managedEvents().any { it.id == 123L } shouldBe false
+        service.customEvents().size shouldBe 0
         service.save(entry)
         service.events().any { it.id == 123L } shouldBe true
     }

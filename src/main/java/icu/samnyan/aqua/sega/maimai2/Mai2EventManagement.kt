@@ -31,6 +31,8 @@ class Mai2EventManagement(val properties: PropertyEntryRepository, val mapper: B
         mapper.read<List<Mai2EventOverride>>(it.propertyValue)
     } ?: emptyList()
 
+    fun customEvents(): List<Mai2EventOverride> = overrides().filterNot { it.deleted }.sortedByDescending { it.id }
+
     fun events(): List<Mai2GameEvent> {
         val base = gameData.mai2Events.associateBy { it.id }.toMutableMap()
         base.putIfAbsent(261016011, Mai2GameEvent().apply {
@@ -80,7 +82,7 @@ class Mai2EventAdminApi(val jwt: JWT, val events: Mai2EventManagement) {
     private fun admin(token: Str) = jwt.auth(token).also { if (!it.isAdmin) 403 - "Admin permission required" }
 
     @API("admin/list")
-    fun list(@RP token: Str): List<Mai2EventOverride> { admin(token); return events.managedEvents() }
+    fun list(@RP token: Str): List<Mai2EventOverride> { admin(token); return events.customEvents() }
 
     @API(value = ["admin/save"], method = [RequestMethod.POST])
     fun save(@RP token: Str, @RB event: Mai2EventOverride): Map<String, Boolean> {
