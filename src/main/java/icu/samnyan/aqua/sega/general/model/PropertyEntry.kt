@@ -15,7 +15,7 @@ class PropertyEntry {
     @Column(unique = true)
     var propertyKey: String = ""
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "LONGTEXT")
     var propertyValue: String = ""
 
     constructor(propertyKey: String, propertyValue: String) {

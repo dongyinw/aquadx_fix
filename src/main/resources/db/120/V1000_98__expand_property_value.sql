@@ -1,0 +1,1 @@
+ALTER TABLE property MODIFY COLUMN property_value LONGTEXT NULL;
