@@ -289,6 +289,12 @@ export interface TournamentRow {
 
 export type TournamentInput = Omit<Tournament, "active" | "expired">
 
+export interface Mai2Event { id: number; type: number; startDate: string; endDate: string; enabled: boolean }
+export const MAI2_EVENT = {
+  list: (): Promise<Mai2Event[]> => post('/api/v2/game/mai2/event/admin/list'),
+  save: (event: Mai2Event): Promise<{ success: boolean }> => post('/api/v2/game/mai2/event/admin/save', {}, { json: event }),
+}
+
 export const TOURNAMENT = {
   list: (): Promise<Tournament[]> =>
     post('/api/v2/game/mai2/tournament/list'),

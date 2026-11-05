@@ -51,6 +51,7 @@ class Maimai2ServletController(
     val circleService: Mai2CircleService,
     val socialService: Mai2SocialService,
     val tournament: Mai2TournamentService,
+    val eventManagement: Mai2EventManagement,
 ): MeowApi(
     serialize = { _, resp -> if (resp is String) resp else resp.toJson() },
     @kotlin.ExperimentalStdlibApi

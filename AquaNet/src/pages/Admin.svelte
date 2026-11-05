@@ -2,6 +2,7 @@
 <script lang="ts">
   import StatusOverlays from "../components/StatusOverlays.svelte"
   import TournamentAdmin from "../components/admin/TournamentAdmin.svelte"
+  import EventAdmin from "../components/admin/EventAdmin.svelte"
   import Icon from "../components/ui/Icon.svelte"
   import PageHeader from "../components/ui/PageHeader.svelte"
   import EmptyState from "../components/ui/EmptyState.svelte"
@@ -21,7 +22,7 @@
   } from "../libs/generalTypes"
 
   type View = "users" | "cards"
-  type Section = "overview" | "tournaments" | View
+  type Section = "overview" | "tournaments" | "events" | View
   type ManagedGame = "mai2" | "chu3" | "ongeki"
 
   USER.ensureLoggedIn()
@@ -174,7 +175,7 @@
 
   async function switchSection(next: Section) {
     section = next
-    if (next !== "overview" && next !== "tournaments") await switchView(next)
+    if (next !== "overview" && next !== "tournaments" && next !== "events") await switchView(next)
   }
 
   async function openUser(user: AdminUserSummary) {
@@ -448,10 +449,11 @@
         <button type="button" role="tab" aria-selected={section === "users"} on:click={() => switchSection("users")}><Icon icon="solar:user-id-bold-duotone" />用户管理{#if users.length}<span class="count">{users.length}</span>{/if}</button>
         <button type="button" role="tab" aria-selected={section === "cards"} on:click={() => switchSection("cards")}><Icon icon="solar:card-bold-duotone" />卡片管理{#if cards.length}<span class="count">{cards.length}</span>{/if}</button>
         <button type="button" role="tab" aria-selected={section === "tournaments"} on:click={() => switchSection("tournaments")}><Icon icon="solar:cup-star-bold-duotone" />大赛管理</button>
+        <button type="button" role="tab" aria-selected={section === "events"} on:click={() => switchSection("events")}><Icon icon="solar:calendar-bold-duotone" />活动管理</button>
       </div>
       {#if section === "overview"}
         <button class="btn-ghost btn-sm" type="button" on:click={loadAnalytics} disabled={analyticsLoading}>{#if analyticsLoading}<Spinner />{:else}<Icon icon="solar:refresh-bold" />{/if}刷新数据</button>
-      {:else if section !== "tournaments"}
+      {:else if section !== "tournaments" && section !== "events"}
         <button class="btn-ghost btn-sm" type="button" on:click={search} disabled={loading}>{#if loading}<Spinner />{:else}<Icon icon="solar:refresh-bold" />{/if}刷新列表</button>
       {/if}
     </div>
@@ -514,6 +516,8 @@
     </section>
     {:else if section === "tournaments"}
     <TournamentAdmin />
+    {:else if section === "events"}
+    <EventAdmin />
     {:else}
     <section class="workspace">
       <aside class="card sidebar">

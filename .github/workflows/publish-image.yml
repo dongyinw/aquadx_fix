@@ -31,6 +31,7 @@ jobs:
             --tests test.Mai2CustomPortraitSaveTest \
             --tests test.Mai2SocialProfileTest \
             --tests test.Mai2CirclePointUploadTest \
+            --tests test.Mai2EventManagementTest \
             --tests test.Mai2ImportSocialRetentionTest \
             --tests test.ImportTransactionTest \
             --tests test.ImportExportParityTest \
