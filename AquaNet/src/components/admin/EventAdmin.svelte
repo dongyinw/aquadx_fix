@@ -5,6 +5,7 @@
   import { MAI2_EVENT } from "../../libs/sdk"
   import type { Mai2Event } from "../../libs/sdk"
   import { errorMessage, toast } from "../../libs/toast"
+  import { confirmDialog } from "../../libs/confirm"
 
   let events: Mai2Event[] = []
   let query = ""
@@ -41,6 +42,16 @@
       await load()
     } catch (e) { toast.error(errorMessage(e)) } finally { saving = false }
   }
+  async function remove(event: Mai2Event) {
+    if (!await confirmDialog({ title: "删除活动", message: `确定删除活动 ${event.id} 吗？删除后游戏将不再收到此活动。`, confirmText: "删除", danger: true })) return
+    saving = true
+    try {
+      await MAI2_EVENT.delete(event.id)
+      if (form?.id === event.id) form = null
+      toast.success("活动已删除")
+      await load()
+    } catch (e) { toast.error(errorMessage(e)) } finally { saving = false }
+  }
   onMount(load)
 </script>
 
@@ -64,9 +75,9 @@
     </form>
   {/if}
   <div class="search"><Icon icon="solar:magnifer-bold-duotone" /><input type="search" bind:value={query} placeholder="搜索活动 ID" aria-label="搜索活动 ID" /><span>{filtered.length} 项</span></div>
-  <div class="table-wrap"><table class="data-table"><thead><tr><th>活动 ID</th><th>类型</th><th>开始时间</th><th>结束时间</th><th>状态</th><th></th></tr></thead><tbody>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>活动 ID</th><th>类型</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>操作</th></tr></thead><tbody>
     {#each filtered.slice(0, 100) as event (event.id)}
-      <tr><td>{event.id}</td><td>{event.type}</td><td>{event.startDate}</td><td>{event.endDate}</td><td>{event.enabled ? "启用" : "停用"}</td><td><button class="btn-ghost btn-sm" type="button" on:click={() => edit(event)} title="编辑活动" aria-label={`编辑活动 ${event.id}`}><Icon icon="solar:pen-bold" /></button></td></tr>
+      <tr><td>{event.id}</td><td>{event.type}</td><td>{event.startDate}</td><td>{event.endDate}</td><td>{event.enabled ? "启用" : "停用"}</td><td><button class="btn-ghost btn-sm" type="button" on:click={() => edit(event)} title="编辑活动" aria-label={`编辑活动 ${event.id}`}><Icon icon="solar:pen-bold-duotone" /></button><button class="btn-ghost btn-sm" type="button" on:click={() => remove(event)} disabled={saving} title="删除活动" aria-label={`删除活动 ${event.id}`}><Icon icon="solar:trash-bin-trash-bold-duotone" /></button></td></tr>
     {:else}<tr><td colspan="6">{loading ? "加载中" : "没有匹配的活动"}</td></tr>{/each}
   </tbody></table></div>
   {#if filtered.length > 100}<p>显示前 100 项，请使用活动 ID 搜索。</p>{/if}

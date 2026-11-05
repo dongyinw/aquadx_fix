@@ -19,6 +19,7 @@ data class Mai2EventOverride(
     val startDate: String = "",
     val endDate: String = "",
     val enabled: Boolean = true,
+    val deleted: Boolean = false,
 )
 
 @Service
@@ -36,7 +37,7 @@ class Mai2EventManagement(val properties: PropertyEntryRepository, val mapper: B
             id = 261016011; startDate = "2026-11-04 04:00:00"; endDate = "2026-12-01 04:00:00"
         })
         overrides().forEach { entry ->
-            if (!entry.enabled) base.remove(entry.id)
+            if (!entry.enabled || entry.deleted) base.remove(entry.id)
             else base[entry.id] = Mai2GameEvent().apply {
                 id = entry.id; type = entry.type; startDate = entry.startDate; endDate = entry.endDate
             }
@@ -46,18 +47,28 @@ class Mai2EventManagement(val properties: PropertyEntryRepository, val mapper: B
 
     fun managedEvents(): List<Mai2EventOverride> {
         val entries = events().map { Mai2EventOverride(it.id, it.type, it.startDate ?: "", it.endDate ?: "") }.associateBy { it.id }.toMutableMap()
-        overrides().forEach { entries[it.id] = it }
+        overrides().forEach { if (!it.deleted) entries[it.id] = it }
         return entries.values.sortedByDescending { it.id }
     }
 
     @Synchronized
     fun save(entry: Mai2EventOverride) {
+        if (entry.deleted) 400 - "请通过删除接口删除活动"
         if (entry.id <= 0 || entry.id > Int.MAX_VALUE || entry.type < 0) 400 - "无效的活动 ID 或类型"
         val start = try { LocalDateTime.parse(entry.startDate, dateFormat) } catch (_: Exception) { 400 - "开始时间格式应为 yyyy-MM-dd HH:mm:ss" }
         val end = try { LocalDateTime.parse(entry.endDate, dateFormat) } catch (_: Exception) { 400 - "结束时间格式应为 yyyy-MM-dd HH:mm:ss" }
         if (!start.isBefore(end)) 400 - "结束时间必须晚于开始时间"
         val existing = properties.findByPropertyKey(key) ?: PropertyEntry(key, "[]")
         val entries = mapper.read<List<Mai2EventOverride>>(existing.propertyValue).filterNot { it.id == entry.id } + entry
+        existing.propertyValue = mapper.write(entries)
+        properties.saveAndFlush(existing)
+    }
+
+    @Synchronized
+    fun delete(id: Long) {
+        val current = managedEvents().find { it.id == id } ?: (404 - "活动不存在")
+        val existing = properties.findByPropertyKey(key) ?: PropertyEntry(key, "[]")
+        val entries = mapper.read<List<Mai2EventOverride>>(existing.propertyValue).filterNot { it.id == id } + current.copy(enabled = false, deleted = true)
         existing.propertyValue = mapper.write(entries)
         properties.saveAndFlush(existing)
     }
@@ -74,5 +85,10 @@ class Mai2EventAdminApi(val jwt: JWT, val events: Mai2EventManagement) {
     @API(value = ["admin/save"], method = [RequestMethod.POST])
     fun save(@RP token: Str, @RB event: Mai2EventOverride): Map<String, Boolean> {
         admin(token); events.save(event); return mapOf("success" to true)
+    }
+
+    @API(value = ["admin/delete"], method = [RequestMethod.POST])
+    fun delete(@RP token: Str, @RP id: Long): Map<String, Boolean> {
+        admin(token); events.delete(id); return mapOf("success" to true)
     }
 }

@@ -28,6 +28,11 @@ class Mai2EventManagementTest : StringSpec({
         service.save(entry.copy(enabled = false))
         service.events().any { it.id == 123L } shouldBe false
         service.managedEvents().single { it.id == 123L }.enabled shouldBe false
+        service.delete(123)
+        service.events().any { it.id == 123L } shouldBe false
+        service.managedEvents().any { it.id == 123L } shouldBe false
+        service.save(entry)
+        service.events().any { it.id == 123L } shouldBe true
     }
 
     "invalid dates are rejected before writing" {

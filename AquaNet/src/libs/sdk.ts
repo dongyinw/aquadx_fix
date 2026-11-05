@@ -293,6 +293,7 @@ export interface Mai2Event { id: number; type: number; startDate: string; endDat
 export const MAI2_EVENT = {
   list: (): Promise<Mai2Event[]> => post('/api/v2/game/mai2/event/admin/list'),
   save: (event: Mai2Event): Promise<{ success: boolean }> => post('/api/v2/game/mai2/event/admin/save', {}, { json: event }),
+  delete: (id: number): Promise<{ success: boolean }> => post('/api/v2/game/mai2/event/admin/delete', { id }),
 }
 
 export const TOURNAMENT = {

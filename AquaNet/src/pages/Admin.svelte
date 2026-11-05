@@ -449,7 +449,7 @@
         <button type="button" role="tab" aria-selected={section === "users"} on:click={() => switchSection("users")}><Icon icon="solar:user-id-bold-duotone" />用户管理{#if users.length}<span class="count">{users.length}</span>{/if}</button>
         <button type="button" role="tab" aria-selected={section === "cards"} on:click={() => switchSection("cards")}><Icon icon="solar:card-bold-duotone" />卡片管理{#if cards.length}<span class="count">{cards.length}</span>{/if}</button>
         <button type="button" role="tab" aria-selected={section === "tournaments"} on:click={() => switchSection("tournaments")}><Icon icon="solar:cup-star-bold-duotone" />大赛管理</button>
-        <button type="button" role="tab" aria-selected={section === "events"} on:click={() => switchSection("events")}><Icon icon="solar:calendar-bold-duotone" />活动管理</button>
+        <button type="button" role="tab" aria-selected={section === "events"} on:click={() => switchSection("events")}><Icon icon="solar:bell-bing-bold-duotone" />活动管理</button>
       </div>
       {#if section === "overview"}
         <button class="btn-ghost btn-sm" type="button" on:click={loadAnalytics} disabled={analyticsLoading}>{#if analyticsLoading}<Spinner />{:else}<Icon icon="solar:refresh-bold" />{/if}刷新数据</button>
