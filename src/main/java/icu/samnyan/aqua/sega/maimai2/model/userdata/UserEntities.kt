@@ -240,6 +240,19 @@ class Mai2UserGhostEntry : Mai2UserEntity() {
     var achievement = 0
 }
 
+/** One applied use of the self-service claim tools. Kept so admins can review abuse. */
+@Table(name = "maimai2_user_claim_log")
+@Entity
+class Mai2UserClaimLog : Mai2UserEntity() {
+    var kind: String = ""
+    var musicId = 0
+    var level = 0
+    var oldValue = 0
+    var newValue = 0
+    var detail: String = ""
+    var createdAt: LocalDateTime = LocalDateTime.now()
+}
+
 @Table(name = "maimai2_user_item")
 @Entity
 class Mai2UserItem : Mai2UserEntity() {

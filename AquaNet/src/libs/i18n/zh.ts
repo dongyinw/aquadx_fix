@@ -126,6 +126,7 @@ const zhGeneral: typeof EN_REF_GENERAL = {
   'navigation.circle': '圈子',
   'navigation.pass': '通行证',
   'navigation.photos': '照片',
+  'navigation.claim': '创哥理赔',
   'navigation.admin': '管理',
   'navigation.settings': '设置',
   'navigation.cards': '卡片管理',

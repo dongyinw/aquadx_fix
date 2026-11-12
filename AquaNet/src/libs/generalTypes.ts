@@ -38,6 +38,29 @@ export interface MagicalPassState {
   ticket: MagicalPassTicket | null
 }
 
+export interface ClaimStatus {
+  hasProfile: boolean
+  point: number
+  totalPoint: number
+  scoreUsed: number
+  scoreLimit: number
+  mileUsed: number
+  mileLimit: number
+}
+
+export interface ClaimLogEntry {
+  id: number
+  createdAt: string
+  userName: string
+  userId: number | null
+  kind: "score" | "mile"
+  musicId: number
+  level: number
+  oldValue: number
+  newValue: number
+  detail: string
+}
+
 export interface MikuNetUser {
   username: string
   email: string

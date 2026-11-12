@@ -73,6 +73,11 @@ interface Mai2UserFriendSeasonRankingRepo : Mai2UserLinked<Mai2UserFriendSeasonR
     fun countAhead(seasonId: Int, point: Int, recordDate: String, id: Long): Long
 }
 
+interface Mai2UserClaimLogRepo : Mai2UserLinked<Mai2UserClaimLog> {
+    fun countByUserAndKindAndCreatedAtGreaterThanEqual(user: Mai2UserDetail, kind: String, since: java.time.LocalDateTime): Long
+    fun findTop300ByOrderByIdDesc(): List<Mai2UserClaimLog>
+}
+
 interface Mai2UserGhostRepo : Mai2UserLinked<Mai2UserGhostEntry> {
     fun findByUserAndMusicIdAndDifficulty(user: Mai2UserDetail, musicId: Int, difficulty: Int): Mai2UserGhostEntry?
     fun findByUserOrderByPlayDatetimeDescIdDesc(user: Mai2UserDetail): List<Mai2UserGhostEntry>
@@ -152,6 +157,7 @@ class Mai2Repos(
     val userFriendSeasonRanking: Mai2UserFriendSeasonRankingRepo,
     val userGeneralData: Mai2UserGeneralDataRepo,
     val userGhost: Mai2UserGhostRepo,
+    val userClaimLog: Mai2UserClaimLogRepo,
     val userItem: Mai2UserItemRepo,
     val userLoginBonus: Mai2UserLoginBonusRepo,
     val userMap: Mai2UserMapRepo,

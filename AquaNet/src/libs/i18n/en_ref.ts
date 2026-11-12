@@ -113,6 +113,7 @@ export const EN_REF_GENERAL = {
   'navigation.circle': 'Circle',
   'navigation.pass': 'Magical Pass',
   'navigation.photos': 'Photos',
+  'navigation.claim': 'Claims',
   'navigation.admin': 'Admin',
   'navigation.settings': 'Settings',
   'navigation.cards': 'Cards',

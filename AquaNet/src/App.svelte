@@ -18,6 +18,7 @@
   import PageNotFound from "./pages/PageNotFound.svelte";
   import Admin from "./pages/Admin.svelte";
   import MagicalPass from "./pages/MagicalPass.svelte";
+  import Claim from "./pages/Claim.svelte";
   import Circle from "./pages/Circle.svelte";
   import Social from "./pages/Social.svelte";
   import AppHeader from "./components/layout/AppHeader.svelte";
@@ -83,6 +84,7 @@
     ["/friends", () => t("navigation.friends")],
     ["/circle", () => t("navigation.circle")],
     ["/pass", () => t("navigation.pass")],
+    ["/claim", () => t("navigation.claim")],
     ["/pictures", () => t("navigation.photos")],
     ["/settings", () => t("navigation.settings")],
     ["/admin", () => t("navigation.admin")],
@@ -122,6 +124,7 @@
         <Route path="/cards" component={LinkCard} />
         <Route path="/setup" component={SetupInstructions} />
         <Route path="/pass" component={MagicalPass} />
+        <Route path="/claim" component={Claim} />
         <Route path="/circle" component={Circle} />
         <Route path="/friends" component={Social} />
         <Route path="/ranking" component={Ranking} />

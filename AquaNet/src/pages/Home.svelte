@@ -129,6 +129,7 @@
         <a class="tile" href="/ranking"><span class="tile-icon tone-blue"><Icon icon="solar:ranking-bold-duotone" /></span><span class="tile-copy"><strong>排行榜</strong><small>看看你在服务器里排第几</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
         {#if gameProfiles?.mai2}
           <a class="tile" href="/friends"><span class="tile-icon tone-teal"><Icon icon="solar:users-group-two-rounded-bold-duotone" /></span><span class="tile-copy"><strong>好友与劲敌</strong><small>添加好友，设置游戏内劲敌</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
+          <a class="tile" href="/claim"><span class="tile-icon tone-gold"><Icon icon="solar:hand-money-bold-duotone" /></span><span class="tile-copy"><strong>创哥理赔</strong><small>服务异常时，自行补传成绩或修改舞里程</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
           <a class="tile" href="/circle"><span class="tile-icon tone-pink"><Icon icon="solar:users-group-rounded-bold-duotone" /></span><span class="tile-copy"><strong>圈子</strong><small>加入同好圈子，一起累积点数</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
         {/if}
         {#if me.isAdmin}

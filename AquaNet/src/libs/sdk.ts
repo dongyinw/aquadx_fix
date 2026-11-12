@@ -12,7 +12,7 @@ import type {
   UserItem,
   Dict,
   GameUserOption
-  , AdminUserSummary, AdminUserDetail, MagicalPassState
+  , AdminUserSummary, AdminUserDetail, MagicalPassState, ClaimStatus, ClaimLogEntry
 } from './generalTypes'
 import type { GameName } from './scoring'
 
@@ -212,6 +212,12 @@ export const USER = {
     post('/api/v2/user/mai2-pass/status', { cardId }),
   mai2PassPurchase: (cardId: string, passTypeId: number, passPackId: number, passCharaId: number) =>
     post('/api/v2/user/mai2-pass/purchase', { cardId, passTypeId, passPackId, passCharaId }),
+  mai2ClaimStatus: (cardId: string): Promise<ClaimStatus> =>
+    post('/api/v2/user/mai2-claim/status', { cardId }),
+  mai2ClaimMile: (cardId: string, point: number): Promise<ClaimStatus> =>
+    post('/api/v2/user/mai2-claim/mile', { cardId, point }),
+  mai2ClaimScore: (cardId: string, musicId: number, level: number, achievement: number, deluxscore: number, comboStatus: number, syncStatus: number): Promise<ClaimStatus> =>
+    post('/api/v2/user/mai2-claim/score', { cardId, musicId, level, achievement, deluxscore, comboStatus, syncStatus }),
   keychips: (): Promise<string[]> =>
     post('/api/v2/user/keychip', {}).then(it => it.keychips),
   addKeychip: (keychipId: string): Promise<string> =>
@@ -239,6 +245,7 @@ export interface AdminAnalytics {
 }
 
 export const ADMIN = {
+  claimLog: (): Promise<ClaimLogEntry[]> => post('/api/v2/user/mai2-claim/admin/log', {}),
   analytics: (from = "", to = ""): Promise<AdminAnalytics> => post('/api/v2/admin/analytics', { ...(from ? { from } : {}), ...(to ? { to } : {}) }),
   users: (query: string, regFrom = "", regTo = ""): Promise<AdminUserSummary[]> =>
     post('/api/v2/admin/users', { query, ...(regFrom ? { regFrom } : {}), ...(regTo ? { regTo } : {}) }),
