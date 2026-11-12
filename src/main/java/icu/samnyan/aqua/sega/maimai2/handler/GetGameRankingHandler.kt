@@ -30,7 +30,8 @@ class GetGameRankingHandler(
         thread { refreshMusicRankingCache() }
     }
 
-    @Scheduled(fixedDelay = 3600_000)
+    // Refreshed once a day (04:00 Asia/Shanghai by default) so the in-game ranking stays fixed for the whole day.
+    @Scheduled(cron = "\${game.maimai2.music-ranking-cron:0 0 4 * * *}", zone = "\${game.maimai2.music-ranking-zone:Asia/Shanghai}")
     private fun refreshMusicRankingCache() {
         // Get the play count of each music in the last N days
         val queryAfter = LocalDateTime.now().minusDays(LOOK_BACK_DAYS)
