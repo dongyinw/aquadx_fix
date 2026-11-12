@@ -4,7 +4,7 @@
   import PageHeader from "../components/ui/PageHeader.svelte"
   import EmptyState from "../components/ui/EmptyState.svelte"
   import Spinner from "../components/ui/Spinner.svelte"
-  import type { Card, ClaimStatus } from "../libs/generalTypes"
+  import type { ClaimStatus } from "../libs/generalTypes"
   import { USER } from "../libs/sdk"
   import { getMaimaiAllMusic } from "../libs/maimai"
   import { confirmDialog } from "../libs/confirm"
@@ -16,8 +16,9 @@
   const comboNames = ["无", "FC", "FC+", "AP", "AP+"]
   const syncNames = ["无", "FS", "FS+", "FDX", "FDX+"]
 
-  let cards: Card[] = []
+  // Only the account's virtual card is used; physical cards are not offered here.
   let selectedCardId = ""
+  let noCard = false
   let status: ClaimStatus | null = null
   let loading = true
   let busy = false
@@ -46,8 +47,8 @@
   onMount(() => {
     USER.ensureLoggedIn()
     USER.me().then(user => {
-      cards = user.ghostCard ? [{ ...user.ghostCard, isGhost: true }, ...user.cards.filter(card => !card.isGhost)] : user.cards
-      selectedCardId = cards[0]?.luid ?? ""
+      selectedCardId = user.ghostCard?.luid ?? ""
+      noCard = !selectedCardId
       if (selectedCardId) void loadStatus(selectedCardId)
     }).catch(e => { error = errorMessage(e) }).finally(() => loading = false)
     getMaimaiAllMusic().then(all => {
@@ -61,11 +62,6 @@
         .filter(song => song.levels.length > 0)
     }).catch(() => { /* the song search simply stays empty */ })
   })
-
-  function cardName(card: Card) {
-    if (card.isGhost) return "账户虚拟卡"
-    return card.luid.length > 12 ? `${card.luid.slice(0, 6)}…${card.luid.slice(-6)}` : card.luid
-  }
 
   async function loadStatus(cardId: string) {
     selectedCardId = cardId
@@ -155,24 +151,12 @@
     <div class="alert alert-danger" role="alert"><Icon icon="solar:danger-triangle-bold-duotone" /><p>{error}</p></div>
   {/if}
 
-  {#if !loading && cards.length === 0}
-    <EmptyState icon="solar:card-search-bold-duotone" title="还没有可用卡片" description="请先绑定一张卡片并游玩一次舞萌 DX。">
-      <a class="btn btn-primary" href="/cards">前往卡片管理<Icon icon="line-md:chevron-small-right" /></a>
+  {#if noCard}
+    <EmptyState icon="solar:card-search-bold-duotone" title="没有找到账户虚拟卡" description="请先游玩一次舞萌 DX，生成游戏数据后再来。">
+      <a class="btn btn-primary" href="/home">返回首页</a>
     </EmptyState>
   {:else}
-    <section class="card">
-      <div class="card-header"><div><h3>选择卡片</h3></div></div>
-      <div class="card-list" role="radiogroup" aria-label="选择卡片">
-        {#each cards as card}
-          <button class="choice" class:selected={selectedCardId === card.luid} type="button" role="radio" aria-checked={selectedCardId === card.luid} on:click={() => loadStatus(card.luid)}>
-            <span class="tile-icon tone-teal"><Icon icon={card.isGhost ? "solar:user-circle-bold-duotone" : "solar:card-bold-duotone"} /></span>
-            <span class="tile-copy"><strong>{cardName(card)}</strong><small>{card.isGhost ? "账户虚拟卡" : "实体卡"}</small></span>
-            {#if selectedCardId === card.luid}<Icon class="check" icon="solar:check-circle-bold" />{/if}
-          </button>
-        {/each}
-      </div>
-      {#if loading}<p class="subtle"><Spinner /> 正在读取…</p>{/if}
-    </section>
+    {#if loading}<p class="subtle"><Spinner /> 正在读取…</p>{/if}
 
     <fieldset class="tools" disabled={!agreed || !status?.hasProfile}>
       <section class="card">
@@ -261,10 +245,6 @@
 
     &:disabled
       opacity: 0.55
-
-  .card-list
-    display: grid
-    gap: 8px
 
   .row
     display: flex
