@@ -131,7 +131,9 @@
           <a class="tile" href="/friends"><span class="tile-icon tone-teal"><Icon icon="solar:users-group-two-rounded-bold-duotone" /></span><span class="tile-copy"><strong>好友与劲敌</strong><small>添加好友，设置游戏内劲敌</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
           <a class="tile" href="/circle"><span class="tile-icon tone-pink"><Icon icon="solar:users-group-rounded-bold-duotone" /></span><span class="tile-copy"><strong>圈子</strong><small>加入同好圈子，一起累积点数</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
         {/if}
-        <a class="tile" href="/pass"><span class="tile-icon tone-violet"><Icon icon="solar:ticket-bold-duotone" /></span><span class="tile-copy"><strong>Magical Pass</strong><small>开通通行证，下载专属 Pass 图</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
+        {#if me.isAdmin}
+          <a class="tile" href="/pass"><span class="tile-icon tone-violet"><Icon icon="solar:ticket-bold-duotone" /></span><span class="tile-copy"><strong>Magical Pass</strong><small>开通通行证，下载专属 Pass 图</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
+        {/if}
       </div>
     </section>
 

@@ -52,6 +52,7 @@
     USER.ensureLoggedIn()
     USER.me().then(user => {
       me = user
+      if (!user.isAdmin) return
       cards = user.ghostCard ? [{ ...user.ghostCard, isGhost: true }] : user.cards.filter(card => card.isGhost).slice(0, 1)
       selectedCardId = cards[0]?.luid ?? ""
       if (selectedCardId) void loadStatus(selectedCardId)
@@ -345,9 +346,14 @@
 
 <main class="page pass-page">
   <PageHeader eyebrow="maimai DX" title="Magical Pass" description="选择 Pass 样式并发放到账户卡，随后可下载对应的 Pass 合成素材。">
-    <span class="badge warning"><Icon icon="solar:ticket-bold-duotone" />票券 40001 · {state?.ticket?.stock ?? 0} 张</span>
+    {#if me?.isAdmin}<span class="badge warning"><Icon icon="solar:ticket-bold-duotone" />票券 40001 · {state?.ticket?.stock ?? 0} 张</span>{/if}
   </PageHeader>
 
+  {#if me && !me.isAdmin}
+    <EmptyState icon="solar:lock-keyhole-minimalistic-bold-duotone" title="当前账号没有管理员权限" description="Magical Pass 发放仅限管理员使用。">
+      <a class="btn" href="/home">返回首页</a>
+    </EmptyState>
+  {:else}
   {#if error}
     <div class="alert alert-danger" role="alert"><Icon icon="solar:danger-triangle-bold-duotone" /><p>{error}</p></div>
   {/if}
@@ -419,6 +425,7 @@
         </section>
       </aside>
     </div>
+  {/if}
   {/if}
 </main>
 

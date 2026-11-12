@@ -19,6 +19,7 @@ import icu.samnyan.aqua.sega.general.dao.CardRepository
 import icu.samnyan.aqua.sega.general.model.Card
 import icu.samnyan.aqua.sega.general.model.CardStatus
 import icu.samnyan.aqua.sega.general.service.CardService
+import icu.samnyan.aqua.sega.maimai2.Mai2MagicalPass
 import icu.samnyan.aqua.sega.maimai2.model.Mai2Repos
 import icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserGeneralData
 import icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserItem
@@ -34,7 +35,6 @@ import org.springframework.web.multipart.MultipartFile
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
-import java.time.format.DateTimeFormatter
 import kotlin.io.path.Path
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
@@ -43,7 +43,6 @@ import kotlin.io.path.writeBytes
 
 private const val MAGICAL_PASS_STORE_KEY = "aquadx.magical_pass"
 private const val MAGICAL_PASS_TICKET_STORE_KEY = "aquadx.magical_pass_ticket"
-private val MAGICAL_PASS_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")
 
 @RestController
 @API("/api/v2/user")
@@ -252,6 +251,11 @@ class UserRegistrar(
         mapOf("banState" to banState, "blocked" to (banState == 2))
     }
 
+    // Magical Pass issuing from the website is restricted to admins.
+    private fun requirePassAdmin(u: AquaNetUser) {
+        if (!u.isAdmin) 403 - "Admin permission required"
+    }
+
     private fun findOwnedCard(u: AquaNetUser, cardId: Str): Card {
         val card = cardService.tryLookup(cardId) ?: (404 - "Card not found")
         if (card.aquaUser?.auId != u.auId) 403 - "Card is not linked to your account"
@@ -290,6 +294,7 @@ class UserRegistrar(
     @API("/mai2-pass/status")
     @Doc("Get Magical Pass and ticket state for one of the current user's cards.", "Magical Pass state")
     fun magicalPassStatus(@RP token: Str, @RP cardId: Str) = jwt.auth(token) { u ->
+        requirePassAdmin(u)
         passState(findOwnedCard(u, cardId))
     }
 
@@ -303,6 +308,7 @@ class UserRegistrar(
         @RP passPackId: Int?,
         @RP passCharaId: Int?,
     ) = jwt.auth(token) { u ->
+        requirePassAdmin(u)
         val card = findOwnedCard(u, cardId)
         val gameUser = mai2.userData.findByCard(card) ?: (400 - "This card does not have a maimai profile")
         val requestedPassPackId = passPackId ?: when (passTypeId) {
@@ -329,10 +335,9 @@ class UserRegistrar(
             else -> 400 - "Unsupported Magical Pass ID"
         }
 
-        val start = jstNow()
-        val end = start.plusDays(14)
-        val startDate = start.format(MAGICAL_PASS_DATE_FORMATTER)
-        val endDate = end.format(MAGICAL_PASS_DATE_FORMATTER)
+        val period = Mai2MagicalPass.newPeriod()
+        val startDate = period.startDate
+        val endDate = period.endDate
         val userPass = pass + mapOf("startDate" to startDate, "endDate" to endDate)
         val userPassList = listOf(userPass)
         val ticketLimitDateList = listOf(

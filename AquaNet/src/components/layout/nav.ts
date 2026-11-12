@@ -18,7 +18,8 @@ export function primaryNav(me: MikuNetUser | undefined, playedMai: boolean, rece
     hasTournament && { href: "/tournament", label: t("navigation.tournament"), icon: "solar:cup-star-bold-duotone", match: ["/tournament"] },
     playedMai && { href: "/friends", label: t("navigation.friends"), icon: "solar:users-group-two-rounded-bold-duotone", match: ["/friends"] },
     playedMai && { href: "/circle", label: t("navigation.circle"), icon: "solar:users-group-rounded-bold-duotone", match: ["/circle"] },
-    !!me && { href: "/pass", label: t("navigation.pass"), icon: "solar:ticket-bold-duotone", match: ["/pass"] },
+    // Magical Pass issuing is restricted to admins.
+    !!me?.isAdmin && { href: "/pass", label: t("navigation.pass"), icon: "solar:ticket-bold-duotone", match: ["/pass"] },
     playedMai && { href: "/pictures", label: t("navigation.photos"), icon: "solar:gallery-bold-duotone", match: ["/pictures"] },
     !!me?.isAdmin && { href: "/admin", label: t("navigation.admin"), icon: "solar:shield-user-bold-duotone", match: ["/admin"] },
   ]

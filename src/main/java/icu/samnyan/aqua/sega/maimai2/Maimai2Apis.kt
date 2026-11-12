@@ -11,20 +11,12 @@ import icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserItem
 import icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserKaleidx
 import icu.samnyan.aqua.sega.maimai2.model.userdata.UserRegions
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import kotlin.random.Random
 
 fun Maimai2ServletController.initApis() {
     val log = logger()
     val magicalPassStoreKey = "aquadx.magical_pass"
     val magicalPassTicketStoreKey = "aquadx.magical_pass_ticket"
-    val magicalPassDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")
-    val magicalPassTypeByPackId = mapOf(7001 to 2, 7002 to 3, 7003 to 3)
-    fun canonicalizePass(pass: Map<String, Any?>): Map<String, Any?> {
-        val passPackId = (pass["passPackId"] as? Number)?.toInt()
-        val passTypeId = magicalPassTypeByPackId[passPackId]
-        return if (passTypeId != null) pass + ("passTypeId" to passTypeId) else pass
-    }
 
     "GetUserExtend" { mapOf(
         "userId" to uid,
@@ -248,7 +240,6 @@ fun Maimai2ServletController.initApis() {
         val passList = user?.let {
             db.userGeneralData.findByUserAndPropertyKey(it, magicalPassStoreKey)
                 ?.propertyValue?.jsonArray()
-                ?.map(::canonicalizePass)
         } ?: emptyList()
         mapOf("length" to passList.size, "userId" to uid, "userPassList" to passList)
     }
@@ -271,31 +262,24 @@ fun Maimai2ServletController.initApis() {
             listOf(mapOf("passTypeId" to 2, "passPackId" to 7001, "passCharaId" to 700107, "mapId" to 0))
         }
 
-        val start = jstNow()
-        val end = start.plusDays(14)
-        val startDate = start.format(magicalPassDateFormatter)
-        val endDate = end.format(magicalPassDateFormatter)
+        val period = Mai2MagicalPass.newPeriod()
+        // Pass type (gold/rainbow) and pack are chosen independently in game, so keep what the client sent.
         val userPassList = requestedPasses.map { pass ->
             fun number(key: String, fallback: Int) = (pass[key] as? Number)?.toInt() ?: fallback
-            val requestedPassTypeId = number("passTypeId", 2)
-            val requestedPassPackId = number("passPackId", 7001)
-            // Older clients can send the DX type with the default pack id.
-            val passPackId = if (requestedPassTypeId == 3 && requestedPassPackId == 7001) 7002 else requestedPassPackId
-            val passCharaId = if (requestedPassTypeId == 3 && requestedPassPackId == 7001) 700201 else number("passCharaId", 700107)
             mapOf(
-                "passTypeId" to (magicalPassTypeByPackId[passPackId] ?: requestedPassTypeId),
-                "passPackId" to passPackId,
-                "passCharaId" to passCharaId,
+                "passTypeId" to number("passTypeId", 2),
+                "passPackId" to number("passPackId", 7001),
+                "passCharaId" to number("passCharaId", 700107),
                 "mapId" to number("mapId", 0),
-                "startDate" to startDate,
-                "endDate" to endDate
+                "startDate" to period.startDate,
+                "endDate" to period.endDate
             )
         }
 
         val ticketLimitDateList = listOf(
             mapOf(
-                "itemId" to 40001,
-                "limitDate" to end.format(magicalPassDateFormatter),
+                "itemId" to Mai2MagicalPass.TICKET_ITEM_ID,
+                "limitDate" to period.endDate,
                 "lastUsedDate" to ""
             )
         )
