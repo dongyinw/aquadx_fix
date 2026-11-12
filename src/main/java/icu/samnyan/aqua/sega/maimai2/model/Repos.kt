@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.NoRepositoryBean
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
@@ -64,6 +65,20 @@ interface Mai2UserFavoriteRepo : Mai2UserLinked<Mai2UserFavorite> {
 
 interface Mai2UserFriendSeasonRankingRepo : Mai2UserLinked<Mai2UserFriendSeasonRanking> {
     fun findByUserAndSeasonId(user: Mai2UserDetail, seasonId: Int): Mai2UserFriendSeasonRanking?
+
+    /** Number of rows that rank above the given one in a season: more points, or the same points reached earlier. */
+    @Query("""select count(r) from Mai2UserFriendSeasonRanking r
+        where r.seasonId = :seasonId and r.point > 0 and (r.point > :point or (r.point = :point and
+        (r.recordDate < :recordDate or (r.recordDate = :recordDate and r.id < :id))))""")
+    fun countAhead(seasonId: Int, point: Int, recordDate: String, id: Long): Long
+}
+
+interface Mai2UserGhostRepo : Mai2UserLinked<Mai2UserGhostEntry> {
+    fun findByUserAndMusicIdAndDifficulty(user: Mai2UserDetail, musicId: Int, difficulty: Int): Mai2UserGhostEntry?
+    fun findByUserOrderByPlayDatetimeDescIdDesc(user: Mai2UserDetail): List<Mai2UserGhostEntry>
+
+    @Query("select g from Mai2UserGhostEntry g where g.user.id <> :userId and g.user.banState = 0 order by g.playDatetime desc, g.id desc")
+    fun findRecentOfOthers(userId: Long, page: Pageable): List<Mai2UserGhostEntry>
 }
 
 interface Mai2UserGeneralDataRepo : Mai2UserLinked<Mai2UserGeneralData> {
@@ -136,6 +151,7 @@ class Mai2Repos(
     val userFavorite: Mai2UserFavoriteRepo,
     val userFriendSeasonRanking: Mai2UserFriendSeasonRankingRepo,
     val userGeneralData: Mai2UserGeneralDataRepo,
+    val userGhost: Mai2UserGhostRepo,
     val userItem: Mai2UserItemRepo,
     val userLoginBonus: Mai2UserLoginBonusRepo,
     val userMap: Mai2UserMapRepo,

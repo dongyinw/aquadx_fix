@@ -212,6 +212,34 @@ class Mai2UserGhost {
     var achievement = 0
 }
 
+/** A ghost uploaded by a cabinet; served to other players as a VS ghost. */
+@Table(name = "maimai2_user_ghost", uniqueConstraints = [UniqueConstraint(columnNames = ["user_id", "music_id", "difficulty"])])
+@Entity
+class Mai2UserGhostEntry : Mai2UserEntity() {
+    var musicId = 0
+    var difficulty = 0
+    var name: String = ""
+    var iconId = 0
+    var plateId = 0
+    var titleId = 0
+    var rate = 0
+    var udemaeRate = 0
+    var courseRank = 0
+    var classRank = 0
+    var classValue = 0
+    var playDatetime: String = ""
+    var shopId = 0
+    var regionCode = 0
+    var typeId = 0
+    var version = 0
+
+    /** Comma separated unsigned bytes. */
+    @Column(columnDefinition = "TEXT")
+    var resultBitList: String = ""
+    var resultNum = 0
+    var achievement = 0
+}
+
 @Table(name = "maimai2_user_item")
 @Entity
 class Mai2UserItem : Mai2UserEntity() {

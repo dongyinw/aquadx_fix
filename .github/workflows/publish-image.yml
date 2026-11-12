@@ -33,6 +33,7 @@ jobs:
             --tests test.Mai2CirclePointUploadTest \
             --tests test.Mai2EventManagementTest \
             --tests test.Mai2MagicalPassPeriodTest \
+            --tests test.Mai2VsGhostTest \
             --tests test.Mai2ImportSocialRetentionTest \
             --tests test.ImportTransactionTest \
             --tests test.ImportExportParityTest \

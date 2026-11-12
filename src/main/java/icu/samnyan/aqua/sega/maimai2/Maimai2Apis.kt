@@ -12,6 +12,7 @@ import icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserKaleidx
 import icu.samnyan.aqua.sega.maimai2.model.userdata.UserRegions
 import java.time.LocalDate
 import kotlin.random.Random
+import org.springframework.data.domain.PageRequest
 
 fun Maimai2ServletController.initApis() {
     val log = logger()
@@ -36,7 +37,12 @@ fun Maimai2ServletController.initApis() {
     "GetUserMap".unpaged { db.userMap.findByUser_Card_ExtId(uid) }
     "GetUserCard".unpaged { db.userCard.findByUser_Card_ExtId(uid) }
     "GetUserCharge".unpaged { db.userCharge.findByUser_Card_ExtId(uid) }
-    "GetUserFriendSeasonRanking".unpaged { db.userFriendSeasonRanking.findByUser_Card_ExtId(uid) }
+    // The cabinet only uploads points; the rank (which decides the rank rewards) is computed here.
+    "GetUserFriendSeasonRanking".unpaged {
+        db.userFriendSeasonRanking.findByUser_Card_ExtId(uid).map { row ->
+            Mai2FriendSeason.withRank(row) { db.userFriendSeasonRanking.countAhead(it.seasonId, it.point, it.recordDate, it.id) }
+        }
+    }
     "GetUserCourse".unpaged { db.userCourse.findByUser_Card_ExtId(uid) }
 
     "GetUserMusic".unpaged {
@@ -323,7 +329,14 @@ fun Maimai2ServletController.initApis() {
     }
 
     // Empty List Handlers
-    "GetUserGhost".unpaged { empty }
+    // Real players' ghosts for friend battle; the client fills the rest with NPCs.
+    "GetUserGhost".unpaged {
+        val me = db.userData.findByCardExtId(uid)
+        if (me == null) empty else {
+            val recent = db.userGhost.findRecentOfOthers(me.id, PageRequest.of(0, 300))
+            Mai2VsGhost.select(recent, me.playerRating).map(Mai2VsGhost::toResponse)
+        }
+    }
     "GetUserFriendBonus" { mapOf("userId" to uid, "returnCode" to 0, "getMiles" to 0) }
     "GetTransferFriend" { socialService.gameTransferFriends(uid) }
     "GetUserNewItem" { mapOf("userId" to uid, "itemKind" to 0, "itemId" to 0) }

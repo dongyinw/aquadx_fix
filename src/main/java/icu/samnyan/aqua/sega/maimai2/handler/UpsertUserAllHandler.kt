@@ -8,6 +8,7 @@ import icu.samnyan.aqua.sega.general.BaseHandler
 import icu.samnyan.aqua.sega.general.model.CardStatus
 import icu.samnyan.aqua.sega.general.service.CardService
 import icu.samnyan.aqua.net.games.mai2.circle.Mai2CircleMemberRepo
+import icu.samnyan.aqua.sega.maimai2.Mai2VsGhost
 import icu.samnyan.aqua.sega.maimai2.handler.UploadUserPlaylogHandler.Companion.playBacklog
 import icu.samnyan.aqua.sega.maimai2.model.Mai2Repos
 import icu.samnyan.aqua.sega.maimai2.model.request.Mai2UpsertUserAll
@@ -130,6 +131,15 @@ class UpsertUserAllHandler(
         req.userItemList?.unique { it.itemId to it.itemKind }?.let { news ->
             repos.userItem.saveAll(news.mapApply {
                 id = repos.userItem.findByUserAndItemKindAndItemId(u, itemKind, itemId)?.id ?: 0 }) }
+
+        // Ghost of the latest play; other players meet it as a VS ghost in friend battle.
+        req.userGhost?.firstOrNull()?.let { up ->
+            val entry = Mai2VsGhost.toEntry(u, up, repos.userGhost.findByUserAndMusicIdAndDifficulty(u, up.musicId, up.difficulty))
+            if (entry != null) {
+                repos.userGhost.save(entry)
+                repos.userGhost.deleteAll(repos.userGhost.findByUserOrderByPlayDatetimeDescIdDesc(u).drop(Mai2VsGhost.MAX_STORED_PER_USER))
+            }
+        }
 
         req.userMusicDetailList?.unique { it.musicId to it.level }?.let { news ->
             repos.userMusicDetail.saveAll(news.mapApply {
