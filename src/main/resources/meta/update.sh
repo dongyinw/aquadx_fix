@@ -42,5 +42,9 @@ download_optional() {
 download_required "${DATA_HOST}/d/ongeki/00/all-music.json" "$DIR/ongeki/music.json"
 download_required "${DATA_HOST}/d/mai2/00/all-music.json" "$DIR/mai2/music.json"
 download_required "${DATA_HOST}/d/chu3/00/all-music.json" "$DIR/chu3/music.json"
-download_optional "${DATA_HOST}/d/mai2/00/all-items.json" "$DIR/mai2/items.json"
+# The mai2 item list (all-items.json) is intentionally not downloaded. It is a fixed upstream snapshot that
+# lacks newer partners and event collectables, and while it is present the "unlock all" options answer
+# GetUserItem from it instead of the database, so items the player actually owns disappear.
+# Without it the server returns what is stored in the database. Remove a stale copy from older builds.
+rm -f "$DIR/mai2/items.json"
 download_optional "${DATA_HOST}/d/wacca/00/all-music.json" "$DIR/wacca/music.json"
