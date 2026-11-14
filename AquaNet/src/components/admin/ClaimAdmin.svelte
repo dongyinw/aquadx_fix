@@ -33,10 +33,10 @@
     <select bind:value={kind} aria-label="类型"><option value="">全部</option><option value="score">补传成绩</option><option value="mile">舞里程</option></select>
     <span>{filtered.length} 条</span>
   </div>
-  <div class="table-wrap"><table class="data-table"><thead><tr><th>时间</th><th>玩家</th><th>类型</th><th>内容</th><th>修改前</th><th>修改后</th></tr></thead><tbody>
+  <div class="table-wrap"><table class="data-table stack"><thead><tr><th>时间</th><th>玩家</th><th>类型</th><th>内容</th><th>修改前</th><th>修改后</th></tr></thead><tbody>
     {#each filtered as entry (entry.id)}
-      <tr><td>{entry.createdAt}</td><td>{entry.userName}{#if entry.userId}<small> #{entry.userId}</small>{/if}</td><td>{entry.kind === "score" ? "补传成绩" : "舞里程"}</td><td class="detail">{entry.detail}</td><td>{entry.oldValue}</td><td>{entry.newValue}</td></tr>
-    {:else}<tr><td colspan="6">{loading ? "加载中" : "暂无记录"}</td></tr>{/each}
+      <tr><td data-label="时间">{entry.createdAt}</td><td data-label="玩家">{entry.userName}{#if entry.userId}<small> #{entry.userId}</small>{/if}</td><td data-label="类型">{entry.kind === "score" ? "补传成绩" : "舞里程"}</td><td data-label="内容" class="detail">{entry.detail}</td><td data-label="修改前">{entry.oldValue}</td><td data-label="修改后">{entry.newValue}</td></tr>
+    {:else}<tr><td colspan="6" data-label="">{loading ? "加载中" : "暂无记录"}</td></tr>{/each}
   </tbody></table></div>
 </section>
 

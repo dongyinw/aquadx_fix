@@ -294,8 +294,8 @@
         {#if !currentCircle}<button type="button" on:click={openCreate}><Icon icon="solar:add-circle-bold-duotone" />创建圈子</button>{/if}
       </section>
 
-      <section class="section" aria-label="公开圈子">
-        <div class="section-header"><div><h2>公开圈子</h2><p>{publicTotal} 个圈子正在招募</p></div></div>
+      <section class="section" aria-label="全部圈子">
+        <div class="section-header"><div><h2>全部圈子</h2><p>共 {publicTotal} 个圈子</p></div></div>
         {#if publicCircles.length}
           <div class="circle-grid">
             {#each publicCircles as circle (circle.circleId)}
@@ -326,7 +326,7 @@
             </nav>
           {/if}
         {:else}
-          <EmptyState icon="solar:users-group-rounded-bold-duotone" title="暂时没有公开圈子" description="创建一个来聚集同好吧。">
+          <EmptyState icon="solar:users-group-rounded-bold-duotone" title="暂时还没有圈子" description="创建一个来聚集同好吧。">
             {#if !currentCircle}<button class="btn-primary" type="button" on:click={openCreate}><Icon icon="solar:add-circle-bold-duotone" />创建圈子</button>{/if}
           </EmptyState>
         {/if}
@@ -407,7 +407,6 @@
         <textarea bind:value={editor.comment} rows="4" maxlength="500" placeholder="介绍圈子的风格、活动时间或招募要求"></textarea>
         <small class="field-hint">{editor.comment.length} / 500</small>
       </label>
-      <label class="switch-row"><span><strong>公开显示</strong><small>允许其他玩家在公开列表中找到圈子</small></span><input type="checkbox" class="switch" bind:checked={editor.isPublic} /></label>
       <label class="switch-row"><span><strong>允许直接加入</strong><small>关闭后，加入申请需要团长批准</small></span><input type="checkbox" class="switch" bind:checked={editor.isAllowAnyoneJoin} /></label>
     </form>
     <svelte:fragment slot="footer">

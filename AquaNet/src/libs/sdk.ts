@@ -240,12 +240,21 @@ export const USER = {
 export interface AdminAnalytics {
   from: string; to: string; totalPlays: number; players: number; guestPlayers: number;
   averageAchievement: number; achievementRate: number;
-  trend: { date: string; plays: number; players: number; guestPlayers: number; averageAchievement: number }[];
+  newPlayers: number; days: number;
+  trend: { date: string; plays: number; players: number; guestPlayers: number; newPlayers: number; averageAchievement: number }[];
+  hours: { hour: number; plays: number }[];
   ranking: { rank: number; musicId: number; plays: number; averageAchievement: number }[];
+}
+
+/** One player who played on a given day, with the in-game user ID. */
+export interface AnalyticsDayPlayer {
+  userId: number; userName: string; guest: boolean; plays: number;
+  averageAchievement: number; firstPlay: string; lastPlay: string;
 }
 
 export const ADMIN = {
   claimLog: (): Promise<ClaimLogEntry[]> => post('/api/v2/user/mai2-claim/admin/log', {}),
+  analyticsDay: (date: string): Promise<AnalyticsDayPlayer[]> => post('/api/v2/admin/analytics/day', { date }),
   analytics: (from = "", to = ""): Promise<AdminAnalytics> => post('/api/v2/admin/analytics', { ...(from ? { from } : {}), ...(to ? { to } : {}) }),
   users: (query: string, regFrom = "", regTo = ""): Promise<AdminUserSummary[]> =>
     post('/api/v2/admin/users', { query, ...(regFrom ? { regFrom } : {}), ...(regTo ? { regTo } : {}) }),
@@ -297,23 +306,73 @@ export interface TournamentRow {
 export type TournamentInput = Omit<Tournament, "active" | "expired">
 
 export interface Mai2Event { id: number; type: number; startDate: string; endDate: string; enabled: boolean }
+export type Mai2EventStatus = "active" | "upcoming" | "ended" | "permanent" | "disabled"
+/** A row of the event admin list: built-in and custom events together. */
+export interface Mai2EventView extends Mai2Event { custom: boolean; status: Mai2EventStatus }
 export const MAI2_EVENT = {
   list: (): Promise<Mai2Event[]> => post('/api/v2/game/mai2/event/admin/list'),
+  overview: (): Promise<Mai2EventView[]> => post('/api/v2/game/mai2/event/admin/overview'),
+  toggle: (id: number, enabled: boolean): Promise<{ success: boolean }> => post('/api/v2/game/mai2/event/admin/toggle', { id, enabled }),
   save: (event: Mai2Event): Promise<{ success: boolean }> => post('/api/v2/game/mai2/event/admin/save', {}, { json: event }),
   delete: (id: number): Promise<{ success: boolean }> => post('/api/v2/game/mai2/event/admin/delete', { id }),
 }
 
+/** Games that have website tournaments. Each game manages its own tournaments. */
+export type TournamentGame = "mai2" | "chu3" | "ongeki"
+export const TOURNAMENT_GAMES: { game: TournamentGame, label: string }[] = [
+  { game: "mai2", label: "舞萌 DX" },
+  { game: "chu3", label: "中二节奏" },
+  { game: "ongeki", label: "音击" },
+]
+
 export const TOURNAMENT = {
-  list: (): Promise<Tournament[]> =>
-    post('/api/v2/game/mai2/tournament/list'),
-  ranking: (id: number): Promise<{ tournament: Tournament, ranking: TournamentRow[] }> =>
-    post('/api/v2/game/mai2/tournament/ranking', { id }),
-  adminList: (): Promise<Tournament[]> =>
-    post('/api/v2/game/mai2/tournament/admin/list'),
-  adminSave: (t: TournamentInput): Promise<Tournament> =>
-    post('/api/v2/game/mai2/tournament/admin/save', {}, { json: t }),
-  adminDelete: (id: number) =>
-    post('/api/v2/game/mai2/tournament/admin/delete', { id }),
+  list: (game: TournamentGame = "mai2"): Promise<Tournament[]> =>
+    post(`/api/v2/game/${game}/tournament/list`),
+  ranking: (id: number, game: TournamentGame = "mai2"): Promise<{ tournament: Tournament, ranking: TournamentRow[] }> =>
+    post(`/api/v2/game/${game}/tournament/ranking`, { id }),
+  adminList: (game: TournamentGame = "mai2"): Promise<Tournament[]> =>
+    post(`/api/v2/game/${game}/tournament/admin/list`),
+  adminSave: (t: TournamentInput, game: TournamentGame = "mai2"): Promise<Tournament> =>
+    post(`/api/v2/game/${game}/tournament/admin/save`, {}, { json: t }),
+  adminDelete: (id: number, game: TournamentGame = "mai2") =>
+    post(`/api/v2/game/${game}/tournament/admin/delete`, { id }),
+}
+
+export type AnnouncementLevel = "info" | "warning" | "danger"
+export interface Announcement {
+  id: number; title: string; content: string; level: AnnouncementLevel; enabled: boolean;
+  startDate: string; endDate: string; active: boolean; updatedAt: string;
+}
+export type AnnouncementInput = Pick<Announcement, "id" | "title" | "content" | "level" | "enabled" | "startDate" | "endDate">
+export const ANNOUNCEMENTS = {
+  list: (): Promise<Announcement[]> => post('/api/v2/announcement/list'),
+  adminList: (): Promise<Announcement[]> => post('/api/v2/admin/announcement/list'),
+  adminSave: (a: AnnouncementInput): Promise<Announcement> => post('/api/v2/admin/announcement/save', {}, { json: a }),
+  adminDelete: (id: number) => post('/api/v2/admin/announcement/delete', { id }),
+}
+
+export interface CircleAdminRow {
+  circleId: number; circleName: string; circleCode: string; comment: string;
+  ownerExtId: number; ownerName: string; isPublic: boolean; isAllowAnyoneJoin: boolean;
+  memberCount: number; requestCount: number; createdAt: string;
+}
+export interface CircleAdminMember {
+  extId: number; userName: string; playerRating: number; point: number;
+  joinedAt: string; lastLoginDate: string; isOwner: boolean;
+}
+export const CIRCLE_ADMIN = {
+  list: (query = "", page = 0): Promise<{ content: CircleAdminRow[], totalElements: number, totalPages: number, page: number }> =>
+    post('/api/v2/admin/mai2-circle/list', { query, page }),
+  members: (circleId: number): Promise<CircleAdminMember[]> =>
+    post('/api/v2/admin/mai2-circle/members', { circleId }),
+  update: (circleId: number, name: string, comment: string, allowAnyoneJoin: boolean): Promise<CircleAdminRow> =>
+    post('/api/v2/admin/mai2-circle/update', { circleId, name, comment, allowAnyoneJoin }),
+  kick: (circleId: number, extId: number) =>
+    post('/api/v2/admin/mai2-circle/kick', { circleId, extId }),
+  setOwner: (circleId: number, extId: number): Promise<CircleAdminRow> =>
+    post('/api/v2/admin/mai2-circle/owner', { circleId, extId }),
+  remove: (circleId: number) =>
+    post('/api/v2/admin/mai2-circle/delete', { circleId }),
 }
 
 export const USERBOX = {

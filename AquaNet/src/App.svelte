@@ -6,7 +6,7 @@
   import Home from "./pages/Home.svelte";
   import Ranking from "./pages/Ranking.svelte";
   import Tournament from "./pages/Tournament.svelte";
-  import { CARD, TOURNAMENT, USER } from "./libs/sdk";
+  import { CARD, TOURNAMENT, TOURNAMENT_GAMES, USER } from "./libs/sdk";
   import type { MikuNetUser } from "./libs/generalTypes";
   import Settings from "./pages/User/Settings.svelte";
   import MaiPhoto from "./pages/MaiPhoto.svelte";
@@ -49,7 +49,8 @@
   const loggedIn = USER.isLoggedIn()
   // The tournament entry is only shown while a tournament is running.
   let hasTournament = false
-  TOURNAMENT.list().then(list => hasTournament = list.length > 0).catch(() => {})
+  Promise.all(TOURNAMENT_GAMES.map(item => TOURNAMENT.list(item.game).catch(() => [])))
+    .then(lists => hasTournament = lists.some(list => list.length > 0))
 
   if (loggedIn)
   {

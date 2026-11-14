@@ -4,14 +4,17 @@
   import TournamentAdmin from "../components/admin/TournamentAdmin.svelte"
   import EventAdmin from "../components/admin/EventAdmin.svelte"
   import ClaimAdmin from "../components/admin/ClaimAdmin.svelte"
+  import AnalyticsPanel from "../components/admin/AnalyticsPanel.svelte"
+  import CircleAdmin from "../components/admin/CircleAdmin.svelte"
+  import AnnouncementAdmin from "../components/admin/AnnouncementAdmin.svelte"
   import Icon from "../components/ui/Icon.svelte"
   import PageHeader from "../components/ui/PageHeader.svelte"
   import EmptyState from "../components/ui/EmptyState.svelte"
   import Spinner from "../components/ui/Spinner.svelte"
   import { confirmDialog } from "../libs/confirm"
   import { toast } from "../libs/toast"
-  import { ADMIN, USER } from "../libs/sdk"
-  import type { AdminAnalytics } from "../libs/sdk"
+  import { ADMIN, TOURNAMENT_GAMES, USER } from "../libs/sdk"
+  import type { TournamentGame } from "../libs/sdk"
   import type {
     AdminCardDetail,
     AdminCardGame,
@@ -23,7 +26,9 @@
   } from "../libs/generalTypes"
 
   type View = "users" | "cards"
-  type Section = "overview" | "tournaments" | "events" | "claims" | View
+  type Section = "overview" | "tournaments" | "events" | "announcements" | "circles" | "claims" | View
+  // Sections that manage their own data and have no user / card list to refresh.
+  const selfManaged: Section[] = ["overview", "tournaments", "events", "announcements", "circles", "claims"]
   type ManagedGame = "mai2" | "chu3" | "ongeki"
 
   USER.ensureLoggedIn()
@@ -63,12 +68,8 @@
   let itemAmount = 1
   let newKeychip = ""
   let cardsExpanded = false
-  let analytics: AdminAnalytics | null = null
-  let analyticsLoading = false
-  let analyticsError = ""
-  let analyticsPeriod = "7"
-  let analyticsFrom = ""
-  let analyticsTo = ""
+  // Tournaments are managed per game.
+  let tournamentGame: TournamentGame = "mai2"
 
   const gameLabels: Record<ManagedGame, string> = { mai2: "舞萌 DX", chu3: "中二节奏", ongeki: "音击" }
   const gameFields: Record<ManagedGame, string[]> = {
@@ -129,29 +130,6 @@
     }
   }
 
-  async function loadAnalytics() {
-    analyticsLoading = true
-    analyticsError = ""
-    const end = new Date()
-    const to = end.toISOString().slice(0, 10)
-    let from = ""
-    if (analyticsPeriod === "custom") {
-      from = analyticsFrom
-    } else {
-      const days = Number(analyticsPeriod)
-      const begin = new Date(end)
-      begin.setDate(begin.getDate() - Math.max(0, days - 1))
-      from = begin.toISOString().slice(0, 10)
-    }
-    try {
-      analytics = await ADMIN.analytics(from, analyticsPeriod === "custom" ? analyticsTo : to)
-    } catch (e) {
-      analyticsError = e instanceof Error ? e.message : String(e)
-    } finally {
-      analyticsLoading = false
-    }
-  }
-
   function searchAllTime() {
     regFrom = ""
     regTo = ""
@@ -176,7 +154,7 @@
 
   async function switchSection(next: Section) {
     section = next
-    if (next !== "overview" && next !== "tournaments" && next !== "events" && next !== "claims") await switchView(next)
+    if (!selfManaged.includes(next)) await switchView(next as View)
   }
 
   async function openUser(user: AdminUserSummary) {
@@ -418,7 +396,6 @@
 
   USER.me().then(value => {
     me = value
-    if (value.isAdmin) void loadAnalytics()
     if (!value.isAdmin) {
       error = "当前账号没有管理员权限"
       loading = false
@@ -430,8 +407,16 @@
     loading = false
   })
 
-  $: trendMaxPlayers = analytics ? Math.max(1, ...analytics.trend.map(item => item.players)) : 1
-  $: trendMaxGuests = analytics ? Math.max(1, ...analytics.trend.map(item => item.guestPlayers)) : 1
+  const sections: { id: Section, label: string, icon: string }[] = [
+    { id: "overview", label: "数据概览", icon: "solar:chart-2-bold-duotone" },
+    { id: "users", label: "用户管理", icon: "solar:user-id-bold-duotone" },
+    { id: "cards", label: "卡片管理", icon: "solar:card-bold-duotone" },
+    { id: "tournaments", label: "大赛管理", icon: "solar:cup-star-bold-duotone" },
+    { id: "events", label: "活动管理", icon: "solar:calendar-mark-bold-duotone" },
+    { id: "announcements", label: "公告管理", icon: "solar:bell-bing-bold-duotone" },
+    { id: "circles", label: "圈子管理", icon: "solar:users-group-rounded-bold-duotone" },
+    { id: "claims", label: "理赔记录", icon: "solar:hand-money-bold-duotone" },
+  ]
 </script>
 
 <main class="page page-wide admin-page">
@@ -444,85 +429,39 @@
   {/if}
 
   {#if me?.isAdmin}
-    <div class="console-bar">
-      <div class="tabs" role="tablist" aria-label="管理分类">
-        <button type="button" role="tab" aria-selected={section === "overview"} on:click={() => switchSection("overview")}><Icon icon="solar:chart-2-bold-duotone" />数据概览</button>
-        <button type="button" role="tab" aria-selected={section === "users"} on:click={() => switchSection("users")}><Icon icon="solar:user-id-bold-duotone" />用户管理{#if users.length}<span class="count">{users.length}</span>{/if}</button>
-        <button type="button" role="tab" aria-selected={section === "cards"} on:click={() => switchSection("cards")}><Icon icon="solar:card-bold-duotone" />卡片管理{#if cards.length}<span class="count">{cards.length}</span>{/if}</button>
-        <button type="button" role="tab" aria-selected={section === "tournaments"} on:click={() => switchSection("tournaments")}><Icon icon="solar:cup-star-bold-duotone" />大赛管理</button>
-        <button type="button" role="tab" aria-selected={section === "events"} on:click={() => switchSection("events")}><Icon icon="solar:bell-bing-bold-duotone" />活动管理</button>
-        <button type="button" role="tab" aria-selected={section === "claims"} on:click={() => switchSection("claims")}><Icon icon="solar:hand-money-bold-duotone" />理赔记录</button>
+    <div class="admin-shell">
+      <div class="admin-nav" role="tablist" aria-orientation="vertical" aria-label="管理分类">
+        {#each sections as item (item.id)}
+          <button type="button" role="tab" aria-selected={section === item.id} on:click={() => switchSection(item.id)}>
+            <Icon icon={item.icon} /><span>{item.label}</span>
+            {#if item.id === "users" && users.length}<span class="count">{users.length}</span>{/if}
+            {#if item.id === "cards" && cards.length}<span class="count">{cards.length}</span>{/if}
+          </button>
+        {/each}
       </div>
-      {#if section === "overview"}
-        <button class="btn-ghost btn-sm" type="button" on:click={loadAnalytics} disabled={analyticsLoading}>{#if analyticsLoading}<Spinner />{:else}<Icon icon="solar:refresh-bold" />{/if}刷新数据</button>
-      {:else if section !== "tournaments" && section !== "events"}
-        <button class="btn-ghost btn-sm" type="button" on:click={search} disabled={loading}>{#if loading}<Spinner />{:else}<Icon icon="solar:refresh-bold" />{/if}刷新列表</button>
-      {/if}
-    </div>
 
+      <div class="admin-main">
     {#if section === "overview"}
-    <section class="card analytics">
-      <div class="card-header">
-        <div><h2>游玩数据趋势</h2><p>舞萌 DX 游玩记录 · 达成率按成绩平均值计算</p></div>
-        <div class="analytics-tools">
-          <select bind:value={analyticsPeriod} on:change={loadAnalytics} aria-label="统计时间范围">
-            <option value="1">近 1 日</option><option value="7">近 7 日</option><option value="30">近 30 日</option><option value="custom">自定义</option>
-          </select>
-          {#if analyticsPeriod === "custom"}
-            <input type="date" bind:value={analyticsFrom} aria-label="开始日期" /><span class="subtle">至</span><input type="date" bind:value={analyticsTo} aria-label="结束日期" />
-            <button class="btn-primary" type="button" on:click={loadAnalytics}>查询</button>
-          {/if}
-        </div>
-      </div>
-      {#if analyticsError}
-        <div class="alert alert-danger"><Icon icon="solar:danger-triangle-bold-duotone" /><p>{analyticsError}</p></div>
-      {:else if analyticsLoading && !analytics}
-        <div class="kpis">{#each [1, 2, 3, 4] as _}<span class="skeleton" style="height:76px;border-radius:12px"></span>{/each}</div>
-      {:else if analytics}
-        <div class="kpis">
-          <div><small>游玩人数</small><strong class="num">{analytics.players}</strong></div>
-          <div><small>游客账户人数</small><strong class="num">{analytics.guestPlayers}</strong></div>
-          <div><small>游玩曲目总数</small><strong class="num">{analytics.totalPlays}</strong></div>
-          <div><small>游玩总达成率</small><strong class="num">{analytics.achievementRate.toFixed(2)}%</strong></div>
-        </div>
-        <div class="trend-chart" role="img" aria-label="每日游玩人数和游客人数趋势">
-          {#each analytics.trend as point (point.date)}
-            <div class="trend-day" title={`${point.date} · 游玩 ${point.plays} 次 · 玩家 ${point.players} · 游客 ${point.guestPlayers}`}>
-              <div class="trend-bars">
-                <i style={`height:${Math.max(3, point.players / trendMaxPlayers * 100)}%`}></i>
-                <i class="guest-bar" style={`height:${Math.max(2, point.guestPlayers / trendMaxGuests * 100)}%`}></i>
-              </div>
-              <small class="num">{point.date.slice(5)}</small>
-            </div>
-          {:else}
-            <p class="subtle">所选期间暂无游玩记录</p>
-          {/each}
-        </div>
-        <div class="legend"><span><i></i>游玩人数</span><span><i class="guest-dot"></i>游客人数</span></div>
-        <details class="ranking-details" open>
-          <summary>热门曲目排行（{analytics.ranking.length}）<Icon icon="line-md:chevron-small-down" /></summary>
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead><tr><th>排名</th><th>曲目 ID</th><th class="num">游玩次数</th><th class="num">平均达成率</th></tr></thead>
-              <tbody>
-                {#each analytics.ranking as song}
-                  <tr><td>{song.rank}</td><td class="mono">{song.musicId}</td><td class="num">{song.plays}</td><td class="num">{song.averageAchievement.toFixed(2)}%</td></tr>
-                {:else}
-                  <tr><td colspan="4" class="subtle">暂无曲目记录</td></tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      {/if}
-    </section>
+    <AnalyticsPanel />
     {:else if section === "tournaments"}
-    <TournamentAdmin />
+    <div class="game-tabs tabs" role="tablist" aria-label="游戏">
+      {#each TOURNAMENT_GAMES as item (item.game)}
+        <button type="button" role="tab" aria-selected={tournamentGame === item.game} on:click={() => tournamentGame = item.game}>{item.label}</button>
+      {/each}
+    </div>
+    {#key tournamentGame}<TournamentAdmin game={tournamentGame} />{/key}
     {:else if section === "events"}
     <EventAdmin />
+    {:else if section === "announcements"}
+    <AnnouncementAdmin />
+    {:else if section === "circles"}
+    <CircleAdmin />
     {:else if section === "claims"}
     <ClaimAdmin />
     {:else}
+    <div class="list-actions">
+      <button class="btn-ghost btn-sm" type="button" on:click={search} disabled={loading}>{#if loading}<Spinner />{:else}<Icon icon="solar:refresh-bold" />{/if}刷新列表</button>
+    </div>
     <section class="workspace">
       <aside class="card sidebar">
         <form class="search" on:submit|preventDefault={search} role="search">
@@ -807,13 +746,13 @@
           <section class="card card-flush">
             <div class="card-header padded"><div><h3>最近游玩日志</h3><p>{cardDetail.playlogs.length} 条</p></div></div>
             <div class="table-wrap flush">
-              <table class="data-table">
+              <table class="data-table stack">
                 <thead><tr><th>时间</th><th>机台</th><th>歌曲</th><th class="num">难度</th><th class="num">达成率</th></tr></thead>
                 <tbody>
                   {#each cardDetail.playlogs as playlog}
-                    <tr><td class="num">{playlog.userPlayDate || playlog.playDate || "暂无"}</td><td>{playlog.placeId} · {playlog.placeName || "未知机台"}</td><td class="mono">{playlog.musicId}</td><td class="num">{playlog.level}</td><td class="num">{(playlog.achievement / 10000).toFixed(4)}%</td></tr>
+                    <tr><td data-label="时间" class="num">{playlog.userPlayDate || playlog.playDate || "暂无"}</td><td data-label="机台">{playlog.placeId} · {playlog.placeName || "未知机台"}</td><td data-label="歌曲" class="mono">{playlog.musicId}</td><td data-label="难度" class="num">{playlog.level}</td><td data-label="达成率" class="num">{(playlog.achievement / 10000).toFixed(4)}%</td></tr>
                   {:else}
-                    <tr><td colspan="5" class="subtle">暂无游玩日志</td></tr>
+                    <tr><td colspan="5" data-label="" class="subtle">暂无游玩日志</td></tr>
                   {/each}
                 </tbody>
               </table>
@@ -826,6 +765,8 @@
       </section>
     </section>
     {/if}
+      </div>
+    </div>
   {/if}
 </main>
 
@@ -834,18 +775,66 @@
 <style lang="sass">
   @use "../vars"
 
-  .console-bar
-    display: flex
-    align-items: flex-end
-    justify-content: space-between
-    gap: 12px
-    border-bottom: 1px solid var(--border)
+  // Desktop: a vertical navigation on the left and the page on the right.
+  .admin-shell
+    display: grid
+    grid-template-columns: 200px minmax(0, 1fr)
+    align-items: start
+    gap: 20px
 
-    .tabs
-      border-bottom: 0
+  .admin-nav
+    position: sticky
+    top: calc(var(--nav-height) + 16px)
+    display: grid
+    gap: 4px
+    padding: 8px
+    border: 1px solid var(--border)
+    border-radius: var(--radius)
+    background: var(--surface)
 
     > button
-      margin-bottom: 6px
+      display: flex
+      align-items: center
+      gap: 10px
+      width: 100%
+      min-height: 42px
+      padding: 0 12px
+      border: 0
+      border-radius: calc(var(--radius) - 4px)
+      color: var(--text-2)
+      background: none
+      box-shadow: none
+      font-size: 0.92rem
+      font-weight: 600
+      text-align: left
+      cursor: pointer
+
+      :global(svg)
+        flex: 0 0 auto
+        font-size: 1.15rem
+
+      > span:not(.count)
+        flex: 1
+
+      &:hover
+        color: var(--text)
+        background: var(--surface-hover)
+
+      &[aria-selected="true"]
+        color: var(--primary-soft-text)
+        background: var(--primary-soft)
+
+  .admin-main
+    display: grid
+    gap: 16px
+    min-width: 0
+
+  .list-actions
+    display: flex
+    justify-content: flex-end
+
+  .game-tabs
+    margin-bottom: -4px
 
   .detail-tabs
     display: flex
@@ -860,112 +849,6 @@
     .setting-row
       padding: 0
       border: 0
-
-  .analytics-tools
-    display: flex
-    align-items: center
-    gap: 8px
-    flex-wrap: wrap
-
-    select, input
-      width: auto
-      min-width: 130px
-
-  .kpis
-    display: grid
-    grid-template-columns: repeat(4, minmax(0, 1fr))
-    gap: 12px
-    margin-bottom: 16px
-
-    div
-      display: grid
-      gap: 4px
-      padding: 14px
-      border-radius: var(--radius)
-      background: var(--surface-2)
-
-    small
-      color: var(--text-2)
-
-    strong
-      font-size: 1.4rem
-
-  .trend-chart
-    display: flex
-    align-items: stretch
-    gap: 6px
-    height: 170px
-    padding: 6px 0
-    overflow-x: auto
-
-  .trend-day
-    display: flex
-    flex: 1
-    flex-direction: column
-    align-items: center
-    justify-content: flex-end
-    gap: 6px
-    min-width: 30px
-
-    .trend-bars
-      display: flex
-      align-items: flex-end
-      justify-content: center
-      gap: 3px
-      width: 100%
-      height: 130px
-
-    i
-      width: 9px
-      min-height: 2px
-      border-radius: 4px 4px 0 0
-      background: var(--primary)
-
-    .guest-bar
-      background: var(--accent)
-
-    small
-      color: var(--text-3)
-      font-size: 0.68rem
-      white-space: nowrap
-
-  .legend
-    display: flex
-    gap: 16px
-    margin: 6px 0 12px
-    color: var(--text-2)
-    font-size: 0.82rem
-
-    span
-      display: inline-flex
-      align-items: center
-      gap: 6px
-
-    i
-      width: 9px
-      height: 9px
-      border-radius: 50%
-      background: var(--primary)
-
-    .guest-dot
-      background: var(--accent)
-
-  .ranking-details
-    summary
-      display: inline-flex
-      align-items: center
-      gap: 4px
-      margin-bottom: 10px
-      color: var(--primary)
-      font-weight: 600
-      cursor: pointer
-      list-style: none
-
-      &::-webkit-details-marker
-        display: none
-
-    .table-wrap
-      max-height: 320px
 
   .workspace
     display: grid
@@ -1217,6 +1100,23 @@
     border-radius: 0
 
   @media (max-width: vars.$w-tablet)
+    .admin-shell
+      grid-template-columns: minmax(0, 1fr)
+      gap: 12px
+
+    .admin-nav
+      position: static
+      display: flex
+      overflow-x: auto
+      scrollbar-width: none
+
+      &::-webkit-scrollbar
+        display: none
+
+      > button
+        flex: 0 0 auto
+        width: auto
+
     .workspace
       grid-template-columns: 1fr
 
@@ -1227,7 +1127,7 @@
       max-height: 320px
 
   @media (max-width: vars.$w-mobile)
-    .kpis, .stat-strip, .info-grid
+    .stat-strip, .info-grid
       grid-template-columns: 1fr 1fr
 
     .form-grid, .grant-grid

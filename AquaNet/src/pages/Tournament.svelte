@@ -1,17 +1,28 @@
-<!-- maimai DX tournament (KOP) leaderboard. -->
+<!-- Tournament leaderboard of maimai DX, CHUNITHM or O.N.G.E.K.I. (?game=mai2|chu3|ongeki&id=N). -->
 <script lang="ts">
   import { onMount } from "svelte"
   import PageHeader from "../components/ui/PageHeader.svelte"
   import EmptyState from "../components/ui/EmptyState.svelte"
   import Icon from "../components/ui/Icon.svelte"
-  import { DATA, TOURNAMENT, USER } from "../libs/sdk"
-  import type { Tournament, TournamentRow } from "../libs/sdk"
+  import { DATA, TOURNAMENT, TOURNAMENT_GAMES, USER } from "../libs/sdk"
+  import type { Tournament, TournamentGame, TournamentRow } from "../libs/sdk"
   import type { AllMusic } from "../libs/generalTypes"
   import { DATA_HOST } from "../libs/config"
   import { coverNotFound } from "../libs/ui"
 
-  const levelNames = ["BASIC", "ADVANCED", "EXPERT", "MASTER", "Re:MASTER"]
+  // Difficulty names by game; ONGEKI's LUNATIC is level 10, CHUNITHM's World's End level 5.
+  const levelNames: Record<TournamentGame, Record<number, string>> = {
+    mai2: { 0: "BASIC", 1: "ADVANCED", 2: "EXPERT", 3: "MASTER", 4: "Re:MASTER" },
+    chu3: { 0: "BASIC", 1: "ADVANCED", 2: "EXPERT", 3: "MASTER", 4: "ULTIMA", 5: "WORLD'S END" },
+    ongeki: { 0: "BASIC", 1: "ADVANCED", 2: "EXPERT", 3: "MASTER", 10: "LUNATIC" },
+  }
+  // What breaks a tie, per game.
+  const tieLabel: Record<TournamentGame, string> = { mai2: "DX", chu3: "最大连击", ongeki: "白金分" }
+  const tieRule: Record<TournamentGame, string> = { mai2: "DX 分数", chu3: "最大连击数", ongeki: "白金分" }
 
+  const requested = new URL(window.location.toString()).searchParams.get("game")
+  let game: TournamentGame = TOURNAMENT_GAMES.some(item => item.game === requested) ? requested as TournamentGame : "mai2"
+  let lists: Record<TournamentGame, Tournament[]> = { mai2: [], chu3: [], ongeki: [] }
   let tournaments: Tournament[] = []
   let current: Tournament | null = null
   let ranking: TournamentRow[] | null = null
@@ -22,21 +33,26 @@
 
   if (USER.isLoggedIn()) USER.me().then(m => myUsername = m.username).catch(() => {})
 
-  const coverUrl = (musicId: number) => `${DATA_HOST}/d/mai2/music/00${musicId.toString().padStart(6, "0").substring(2)}.png`
+  $: gamesWithTournaments = TOURNAMENT_GAMES.filter(item => lists[item.game].length > 0)
+  $: gameLabel = TOURNAMENT_GAMES.find(item => item.game === game)?.label ?? ""
+  const coverUrl = (musicId: number) => `${DATA_HOST}/d/${game}/music/00${musicId.toString().padStart(6, "0").substring(2)}.png`
   const songName = (id: number) => music[id]?.name ?? `#${id}`
-  const pct = (v: number) => `${(v / 10000).toFixed(4)}%`
+  // maimai DX scores are achievements in 1/10000 percent; the other games use plain scores.
+  const score = (v: number) => game === "mai2" ? `${(v / 10000).toFixed(4)}%` : v.toLocaleString()
   const day = (s: string) => s ? s.slice(0, 16) : "—"
+  const levelName = (level: number) => levelNames[game][level] ?? String(level)
 
   async function open(id: number) {
     ranking = null
     error = ""
     try {
-      const r = await TOURNAMENT.ranking(id)
+      const r = await TOURNAMENT.ranking(id, game)
       current = r.tournament
       ranking = r.ranking
       const url = new URL(window.location.toString())
-      if (url.searchParams.get("id") !== String(id)) {
+      if (url.searchParams.get("id") !== String(id) || url.searchParams.get("game") !== game) {
         url.searchParams.set("id", String(id))
+        url.searchParams.set("game", game)
         history.replaceState(history.state, "", url)
       }
     } catch (e) {
@@ -44,10 +60,26 @@
     }
   }
 
+  async function openGame(next: TournamentGame) {
+    game = next
+    current = null
+    ranking = null
+    error = ""
+    music = {}
+    DATA.allMusic(game).then(m => music = m).catch(() => {})
+    tournaments = lists[game]
+    if (tournaments[0]) await open(tournaments[0].id)
+  }
+
   onMount(async () => {
-    DATA.allMusic("mai2").then(m => music = m).catch(() => {})
     try {
-      tournaments = await TOURNAMENT.list()
+      const results = await Promise.all(TOURNAMENT_GAMES.map(item => TOURNAMENT.list(item.game).catch(() => [] as Tournament[])))
+      TOURNAMENT_GAMES.forEach((item, i) => lists[item.game] = results[i])
+      lists = lists
+      // Without an explicit game, open the first game that has a running tournament.
+      if (!requested && lists[game].length === 0) game = gamesWithTournaments[0]?.game ?? game
+      DATA.allMusic(game).then(m => music = m).catch(() => {})
+      tournaments = lists[game]
       const wanted = Number(new URL(window.location.toString()).searchParams.get("id"))
       // A specific id may be requested even when it isn't listed (e.g. admins previewing a disabled tournament).
       const id = wanted || tournaments[0]?.id
@@ -62,7 +94,14 @@
 
 <main class="page tournament">
   <PageHeader eyebrow="Tournament" title={current?.name ?? "大赛排行榜"}
-              description={current ? `比赛时间 ${day(current.startDate)} ~ ${day(current.endDate)}` : "舞萌 DX 大赛成绩排行"}>
+              description={current ? `${gameLabel} · 比赛时间 ${day(current.startDate)} ~ ${day(current.endDate)}` : `${gameLabel}大赛成绩排行`}>
+    {#if gamesWithTournaments.length > 1}
+      <nav class="segmented" aria-label="游戏">
+        {#each gamesWithTournaments as item (item.game)}
+          <button type="button" class:active={item.game === game} on:click={() => openGame(item.game)}>{item.label}</button>
+        {/each}
+      </nav>
+    {/if}
     {#if tournaments.length > 1}
       <nav class="segmented" aria-label="大赛">
         {#each tournaments as t (t.id)}
@@ -96,8 +135,8 @@
     </section>
 
     <p class="rules subtle">
-      在同一个 credit 内打完全部课题曲才计入成绩；总分为各曲达成率之和，BASIC / ADVANCED / EXPERT 分别扣 3% / 2% / 1%。
-      每位玩家取最好的一次，同分按 DX 分数、再按更早游玩排序。排行榜每分钟更新一次。
+      在同一个 credit 内打完全部课题曲才计入成绩；总分为各曲{game === "mai2" ? "达成率" : "分数"}之和，BASIC / ADVANCED / EXPERT 分别扣 3% / 2% / 1%。
+      每位玩家取最好的一次，同分按{tieRule[game]}、再按更早游玩排序。排行榜每分钟更新一次。
     </p>
 
     {#if ranking === null}
@@ -120,18 +159,18 @@
               {#if row.rank <= 3}<span class="medal medal-{row.rank}">{row.rank}</span>{:else}<span class="num">#{row.rank}</span>{/if}
             </span>
             <span class="name" role="cell">
-              {#if row.username}<a href="/u/{row.username}/mai2">{row.name}</a>{:else}<span>{row.name}</span>{/if}
+              {#if row.username}<a href="/u/{row.username}/{game}">{row.name}</a>{:else}<span>{row.name}</span>{/if}
               {#if !!myUsername && row.username === myUsername}<span class="badge primary">我</span>{/if}
               <small class="subtle">{day(row.playDate)}</small>
             </span>
             {#each row.songs as s}
-              <span class="song-score num" role="cell" title="{songName(s.musicId)} · {levelNames[s.level] ?? s.level} · DX {s.deluxscore}">
-                {pct(s.achievement)}{#if s.level < 3}<small class="lv lv-{s.level}">{levelNames[s.level]}</small>{/if}
+              <span class="song-score num" role="cell" title="{songName(s.musicId)} · {levelName(s.level)} · {tieLabel[game]} {s.deluxscore}">
+                {score(s.achievement)}{#if s.level < 3}<small class="lv lv-{s.level}">{levelName(s.level)}</small>{/if}
               </span>
             {/each}
             <span class="total num" role="cell">
-              <strong>{pct(row.totalScore)}</strong>
-              <small class="subtle">DX {row.totalDxScore}</small>
+              <strong>{score(row.totalScore)}</strong>
+              <small class="subtle">{tieLabel[game]} {row.totalDxScore}</small>
             </span>
           </div>
         {/each}

@@ -981,6 +981,60 @@ table.data-table
     font-variant-numeric: tabular-nums
     text-align: right
 
+// Portrait / phone layout for wide tables: add class "stack" to the table and a data-label to every <td>.
+// Each row becomes a card and every cell a "label ... value" line.
+@media (max-width: 760px)
+  .table-wrap:has(> table.data-table.stack)
+    overflow: visible
+    border: 0
+    background: none
+
+  table.data-table.stack
+    display: block
+
+    thead
+      display: none
+
+    tbody
+      display: grid
+      gap: 10px
+
+    tr
+      display: grid
+      gap: 6px
+      padding: 12px 14px
+      border: 1px solid var(--border)
+      border-radius: var(--radius)
+      background: var(--surface)
+
+    td
+      display: flex
+      align-items: baseline
+      justify-content: space-between
+      gap: 16px
+      padding: 0
+      border: 0
+      text-align: right
+      white-space: normal
+      overflow-wrap: anywhere
+
+      &::before
+        content: attr(data-label)
+        flex: 0 0 auto
+        color: var(--text-2)
+        font-size: 0.78rem
+        font-weight: 600
+        text-align: left
+
+      &[data-label=""]::before
+        content: none
+
+      &[data-label=""]
+        justify-content: flex-end
+
+    tbody tr:hover td
+      background: none
+
 // ---------------------------------------------------------------------------
 // Legacy overlay (used by a few settings dialogs) renders as a centered modal.
 // ---------------------------------------------------------------------------

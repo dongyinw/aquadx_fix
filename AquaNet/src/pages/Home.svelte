@@ -43,7 +43,7 @@
   // One line under the name: what the player has been up to.
   $: tagline = !gameProfiles ? `@${me?.username ?? ""}`
     : playedGames.length === 0 ? `@${me?.username} · 还没有游戏档案，去机台刷卡开始第一局吧`
-    : `@${me?.username} · 正在游玩 ${playedGames.map(game => gameLabels[game]).join("、")}`;
+    : `@${me?.username}`;
 
   function greeting() {
     const hour = new Date().getHours();

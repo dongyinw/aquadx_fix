@@ -1,4 +1,4 @@
-<!-- Admin console tab: create, edit, toggle and delete maimai DX tournaments (KOP). -->
+<!-- Admin console tab: create, edit, toggle and delete the tournaments of one game (maimai DX KOP, CHUNITHM or O.N.G.E.K.I.). -->
 <script lang="ts">
   import { onMount } from "svelte"
   import Icon from "../ui/Icon.svelte"
@@ -6,9 +6,13 @@
   import EmptyState from "../ui/EmptyState.svelte"
   import { confirmDialog } from "../../libs/confirm"
   import { errorMessage, toast } from "../../libs/toast"
-  import { DATA, TOURNAMENT } from "../../libs/sdk"
-  import type { Tournament, TournamentInput } from "../../libs/sdk"
+  import { DATA, TOURNAMENT, TOURNAMENT_GAMES } from "../../libs/sdk"
+  import type { Tournament, TournamentGame, TournamentInput } from "../../libs/sdk"
   import type { AllMusic } from "../../libs/generalTypes"
+
+  /** Each game keeps its own tournaments; the parent remounts this component when the game changes. */
+  export let game: TournamentGame = "mai2"
+  $: gameLabel = TOURNAMENT_GAMES.find(item => item.game === game)?.label ?? game
 
   interface Form {
     isNew: boolean
@@ -47,7 +51,7 @@
 
   async function load() {
     loading = true
-    try { list = await TOURNAMENT.adminList() }
+    try { list = await TOURNAMENT.adminList(game) }
     catch (e) { toast.error(errorMessage(e)) }
     finally { loading = false }
   }
@@ -75,7 +79,7 @@
   async function save(input: TournamentInput, message: string) {
     saving = true
     try {
-      await TOURNAMENT.adminSave(input)
+      await TOURNAMENT.adminSave(input, game)
       toast.success(message)
       await load()
       return true
@@ -110,7 +114,7 @@
   async function remove(t: Tournament) {
     if (!await confirmDialog({ title: "删除大赛", message: `确定删除大赛「${t.name}」吗？游玩记录不会受影响，但排行榜将无法再查看。`, confirmText: "删除", danger: true })) return
     try {
-      await TOURNAMENT.adminDelete(t.id)
+      await TOURNAMENT.adminDelete(t.id, game)
       toast.success(`已删除「${t.name}」`)
       if (form && Number(form.id) === t.id) form = null
       await load()
@@ -120,7 +124,7 @@
   }
 
   onMount(() => {
-    DATA.allMusic("mai2").then(m => music = m).catch(() => {})
+    DATA.allMusic(game).then(m => music = m).catch(() => {})
     load()
   })
 
@@ -130,8 +134,12 @@
 <section class="card tournaments">
   <div class="card-header">
     <div>
-      <h2>大赛管理</h2>
-      <p>启用且未过期的大赛会下发到机台，并在网站导航中显示排行榜入口；公告结束时间（未填则为比赛结束时间）过后自动隐藏。</p>
+      <h2>{gameLabel} · 大赛管理</h2>
+      {#if game === "mai2"}
+        <p>启用且未过期的大赛会下发到机台，并在网站导航中显示排行榜入口；公告结束时间（未填则为比赛结束时间）过后自动隐藏。</p>
+      {:else}
+        <p>启用且未过期的大赛会在网站导航中显示排行榜入口；公告结束时间（未填则为比赛结束时间）过后自动隐藏。{gameLabel}的大赛只在网站上展示排行榜，不会下发到机台。</p>
+      {/if}
     </div>
     <div class="row">
       <button class="btn-ghost btn-sm" type="button" on:click={load} disabled={loading}>{#if loading}<Spinner />{:else}<Icon icon="solar:refresh-bold" />{/if}刷新</button>
@@ -145,20 +153,20 @@
     <EmptyState compact icon="solar:cup-star-bold-duotone" title="还没有大赛" description="点击「新建大赛」创建第一个大赛。" />
   {:else}
     <div class="table-wrap">
-      <table class="data-table">
+      <table class="data-table stack">
         <thead><tr><th>ID</th><th>名称</th><th>状态</th><th>比赛时间</th><th>课题曲</th><th>启用</th><th></th></tr></thead>
         <tbody>
           {#each list as t (t.id)}
             {@const [label, kind] = status(t)}
             <tr>
-              <td class="num">{t.id}</td>
-              <td><strong>{t.name}</strong></td>
-              <td><span class="badge {kind}">{label}</span></td>
-              <td class="mono dates">{t.startDate}<br />{t.endDate}</td>
-              <td class="songs">{#each t.musicIds as id}<span class="truncate" title="#{id}">{songName(id)}</span>{/each}</td>
-              <td><input class="switch" type="checkbox" checked={t.enabled} disabled={saving} on:click|preventDefault={() => toggle(t)} aria-label="启用 {t.name}" /></td>
-              <td class="actions">
-                <a class="btn btn-ghost btn-sm" href="/tournament?id={t.id}" title="查看排行榜"><Icon icon="solar:ranking-bold-duotone" /></a>
+              <td data-label="ID" class="num">{t.id}</td>
+              <td data-label="名称"><strong>{t.name}</strong></td>
+              <td data-label="状态"><span class="badge {kind}">{label}</span></td>
+              <td data-label="比赛时间" class="mono dates">{t.startDate}<br />{t.endDate}</td>
+              <td data-label="课题曲" class="songs">{#each t.musicIds as id}<span class="truncate" title="#{id}">{songName(id)}</span>{/each}</td>
+              <td data-label="启用"><input class="switch" type="checkbox" checked={t.enabled} disabled={saving} on:click|preventDefault={() => toggle(t)} aria-label="启用 {t.name}" /></td>
+              <td data-label="" class="actions">
+                <a class="btn btn-ghost btn-sm" href="/tournament?game={game}&id={t.id}" title="查看排行榜"><Icon icon="solar:ranking-bold-duotone" /></a>
                 <button class="btn-ghost btn-sm" type="button" title="编辑" on:click={() => edit(t)}><Icon icon="solar:pen-bold-duotone" /></button>
                 <button class="btn-ghost btn-sm" type="button" title="删除" on:click={() => remove(t)}><Icon icon="solar:trash-bin-trash-bold-duotone" /></button>
               </td>
@@ -173,7 +181,7 @@
 {#if form}
   <section class="card">
     <div class="card-header">
-      <div><h2>{form.isNew ? "新建大赛" : `编辑大赛 #${form.id}`}</h2><p>时间按服务器时间计算；同一个 credit 内打完全部课题曲才计入成绩。</p></div>
+      <div><h2>{form.isNew ? `新建${gameLabel}大赛` : `编辑${gameLabel}大赛 #${form.id}`}</h2><p>时间按服务器时间计算；同一个 credit 内打完全部课题曲才计入成绩，总分为各曲分数之和（BASIC / ADVANCED / EXPERT 分别扣 3% / 2% / 1%）。{game === "mai2" ? "" : "中二和音击没有 credit 编号，会按曲序重新开始或相隔超过 20 分钟视为新的一局。"}</p></div>
     </div>
     <form class="tournament-form" on:submit|preventDefault={submit}>
       <label class="field"><span class="field-label">大赛 ID</span>

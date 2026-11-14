@@ -294,16 +294,6 @@
     }
   }
 
-  function generateRandom() {
-    inputAC = "";
-    while (inputAC.length < 20) {
-      let digit = Math.floor(Math.random() * 10);
-      if (!((digit == 5 || digit == 3) && inputAC.length == 0))
-        inputAC += digit;
-    };
-    inputACChange();
-  }
-
   function linkQR() {
     if (!acUrl.has()) return;
 
@@ -386,7 +376,6 @@
           {#if errorAC}<p class="field-error" role="alert" transition:slide>{errorAC}</p>{/if}
           {#if warningAC}<div class="alert" transition:slide><Icon icon="solar:danger-triangle-bold-duotone" /><div>{#each warningAC.trim().split("\n") as paragraph}<p>{paragraph}</p>{/each}</div></div>{/if}
           <div class="form-actions">
-            <button class="btn-ghost" type="button" on:click={() => generateRandom()}><Icon icon="tabler:dice" />随机生成</button>
             <button class="btn-primary" type="submit" disabled={!inputAC || state !== 'ready'}>
               {#if state === 'linking-AC'}<Spinner />{:else}<Icon icon="solar:link-bold" />{/if}{t('home.linkcard.link')}
             </button>
