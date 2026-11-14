@@ -981,15 +981,15 @@ table.data-table
     font-variant-numeric: tabular-nums
     text-align: right
 
-// Portrait / phone layout for wide tables: add class "stack" to the table and a data-label to every <td>.
+// Portrait / phone layout for wide tables: add class "table-cards" to the table and a data-label to every <td>.
 // Each row becomes a card and every cell a "label ... value" line.
 @media (max-width: 760px)
-  .table-wrap:has(> table.data-table.stack)
+  .table-wrap:has(> table.data-table.table-cards)
     overflow: visible
     border: 0
     background: none
 
-  table.data-table.stack
+  table.data-table.table-cards
     display: block
 
     thead

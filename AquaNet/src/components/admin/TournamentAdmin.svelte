@@ -153,7 +153,7 @@
     <EmptyState compact icon="solar:cup-star-bold-duotone" title="还没有大赛" description="点击「新建大赛」创建第一个大赛。" />
   {:else}
     <div class="table-wrap">
-      <table class="data-table stack">
+      <table class="data-table table-cards">
         <thead><tr><th>ID</th><th>名称</th><th>状态</th><th>比赛时间</th><th>课题曲</th><th>启用</th><th></th></tr></thead>
         <tbody>
           {#each list as t (t.id)}

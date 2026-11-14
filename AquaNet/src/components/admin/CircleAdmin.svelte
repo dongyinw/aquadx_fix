@@ -144,8 +144,8 @@
 
         <h4>成员（{members.length}）</h4>
         <div class="table-wrap">
-          <table class="data-table stack">
-            <thead><tr><th>玩家 ID</th><th>昵称</th><th class="num">Rating</th><th class="num">圈子点数</th><th>加入时间</th><th>操作</th></tr></thead>
+          <table class="data-table table-cards">
+            <thead><tr><th>玩家 ID</th><th>昵称</th><th class="num">Rating</th><th class="num">圈子点数</th><th>操作</th></tr></thead>
             <tbody>
               {#each members as member (member.extId)}
                 <tr>
@@ -153,16 +153,17 @@
                   <td data-label="昵称">{member.userName || "—"}{#if member.isOwner} <span class="badge primary">圈主</span>{/if}</td>
                   <td data-label="Rating" class="num">{member.playerRating}</td>
                   <td data-label="圈子点数" class="num">{member.point}</td>
-                  <td data-label="加入时间">{member.joinedAt.slice(0, 10)}</td>
                   <td data-label="">
                     {#if !member.isOwner}
-                      <button class="btn-ghost btn-sm" type="button" disabled={saving} on:click={() => makeOwner(member)}>设为圈主</button>
-                      <button class="btn-ghost btn-sm" type="button" disabled={saving} on:click={() => kick(member)}>移出</button>
+                      <span class="row-actions">
+                        <button class="btn-ghost btn-sm" type="button" disabled={saving} on:click={() => makeOwner(member)}>设为圈主</button>
+                        <button class="btn-ghost btn-sm" type="button" disabled={saving} on:click={() => kick(member)}>移出</button>
+                      </span>
                     {/if}
                   </td>
                 </tr>
               {:else}
-                <tr><td colspan="6" data-label="" class="subtle">{membersLoading ? "加载中…" : "暂无成员"}</td></tr>
+                <tr><td colspan="5" data-label="" class="subtle">{membersLoading ? "加载中…" : "暂无成员"}</td></tr>
               {/each}
             </tbody>
           </table>
@@ -211,7 +212,7 @@
 
   .layout
     display: grid
-    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr)
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr)
     align-items: start
     gap: 16px
 
@@ -221,7 +222,10 @@
 
   .circle
     display: grid
+    justify-content: stretch
+    justify-items: stretch
     gap: 6px
+    width: 100%
     padding: 12px 14px
     text-align: left
     border: 1px solid var(--border)
@@ -239,6 +243,7 @@
       gap: 8px
 
     .meta
+      display: block
       color: var(--text-2)
       font-size: 0.86rem
 
@@ -265,6 +270,27 @@
   .editor
     display: grid
     gap: 12px
+
+  .switch-row
+    display: flex
+    align-items: center
+    justify-content: space-between
+    gap: 16px
+    padding: 12px 14px
+    border: 1px solid var(--border)
+    border-radius: var(--radius)
+
+    span
+      display: grid
+      gap: 2px
+
+    small
+      color: var(--text-2)
+
+  .row-actions
+    display: flex
+    flex-wrap: wrap
+    gap: 4px
 
   .danger-zone
     display: flex

@@ -746,7 +746,7 @@
           <section class="card card-flush">
             <div class="card-header padded"><div><h3>最近游玩日志</h3><p>{cardDetail.playlogs.length} 条</p></div></div>
             <div class="table-wrap flush">
-              <table class="data-table stack">
+              <table class="data-table table-cards">
                 <thead><tr><th>时间</th><th>机台</th><th>歌曲</th><th class="num">难度</th><th class="num">达成率</th></tr></thead>
                 <tbody>
                   {#each cardDetail.playlogs as playlog}

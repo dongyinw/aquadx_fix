@@ -126,7 +126,7 @@
         <Icon icon="solar:magnifer-bold-duotone" /><input type="search" bind:value={playerQuery} placeholder="按玩家 ID 或昵称筛选" aria-label="筛选玩家" />
       </div>
       <div class="table-wrap players">
-        <table class="data-table stack">
+        <table class="data-table table-cards">
           <thead><tr><th>玩家 ID</th><th>昵称</th><th>类型</th><th class="num">游玩曲目</th><th class="num">平均达成率</th><th>首次游玩</th><th>最后游玩</th></tr></thead>
           <tbody>
             {#each visiblePlayers as player (player.userId)}
@@ -153,7 +153,7 @@
     <details class="ranking-details" open>
       <summary>热门曲目排行（{analytics.ranking.length}）<Icon icon="line-md:chevron-small-down" /></summary>
       <div class="table-wrap ranking">
-        <table class="data-table stack">
+        <table class="data-table table-cards">
           <thead><tr><th>排名</th><th>曲目 ID</th><th class="num">游玩次数</th><th class="num">平均达成率</th></tr></thead>
           <tbody>
             {#each analytics.ranking as song}
@@ -181,7 +181,7 @@
 
   .kpis
     display: grid
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr))
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr))
     gap: 12px
     margin-bottom: 16px
 

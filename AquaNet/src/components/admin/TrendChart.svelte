@@ -20,11 +20,13 @@
   let width = 640
   let hover = -1
 
-  /** Rounds up to 1, 2 or 5 times a power of ten so the gridlines land on round numbers. */
+  /** Top of the axis: four equal steps of 1, 2 or 5 times a power of ten, so every gridline is a whole number. */
   function niceMax(value: number) {
-    const power = Math.pow(10, Math.floor(Math.log10(Math.max(1, value))))
-    const unit = value / power
-    return (unit <= 1 ? 1 : unit <= 2 ? 2 : unit <= 5 ? 5 : 10) * power
+    const rough = Math.max(1, value) / 4
+    const power = Math.pow(10, Math.floor(Math.log10(rough)))
+    const unit = rough / power
+    const step = Math.max(1, (unit <= 1 ? 1 : unit <= 2 ? 2 : unit <= 5 ? 5 : 10) * power)
+    return step * 4
   }
 
   $: count = labels.length
@@ -139,6 +141,7 @@
   .hit
     fill: transparent
     cursor: pointer
+    outline: none
 
   .tip
     position: absolute

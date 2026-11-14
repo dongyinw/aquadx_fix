@@ -153,6 +153,22 @@
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr))
     gap: 12px
 
+  .switch-row
+    display: flex
+    align-items: center
+    justify-content: space-between
+    gap: 16px
+    padding: 12px 14px
+    border: 1px solid var(--border)
+    border-radius: var(--radius)
+
+    span
+      display: grid
+      gap: 2px
+
+    small
+      color: var(--text-2)
+
   .preview
     display: flex
     align-items: center
