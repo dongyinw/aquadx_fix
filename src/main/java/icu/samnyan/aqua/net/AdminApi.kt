@@ -281,6 +281,35 @@ class AdminApi(
             .setParameter("startDate", start.toLocalDate().toString())
             .setParameter("endDate", end.toLocalDate().toString())
             .singleResult as Array<*>
+        // Players whose very first recorded play falls on each day of the range.
+        val newPlayersByDay = em.createNativeQuery("""
+            SELECT DATE_FORMAT(t.first_day, '%Y-%m-%d'), COUNT(*)
+            FROM (SELECT p.user_id, MIN(STR_TO_DATE(p.user_play_date, '%Y-%m-%d')) AS first_day
+                  FROM maimai2_user_playlog p GROUP BY p.user_id) t
+            WHERE t.first_day >= :startDate AND t.first_day < :endDate
+            GROUP BY 1
+        """.trimIndent())
+            .setParameter("startDate", start.toLocalDate().toString())
+            .setParameter("endDate", end.toLocalDate().toString())
+            .resultList.associate { row ->
+                val values = row as Array<*>
+                values[0].toString() to (values[1] as Number).toLong()
+            }
+        // Plays per hour of the day (cabinet clock), summed over the whole range.
+        val playsByHour = em.createNativeQuery("""
+            SELECT CAST(SUBSTRING(p.user_play_date, 12, 2) AS UNSIGNED) AS play_hour, COUNT(*)
+            FROM maimai2_user_playlog p
+            WHERE STR_TO_DATE(p.user_play_date, '%Y-%m-%d') >= :startDate
+              AND STR_TO_DATE(p.user_play_date, '%Y-%m-%d') < :endDate
+            GROUP BY play_hour
+        """.trimIndent())
+            .setParameter("startDate", start.toLocalDate().toString())
+            .setParameter("endDate", end.toLocalDate().toString())
+            .resultList.associate { row ->
+                val values = row as Array<*>
+                (values[0] as Number).toInt() to (values[1] as Number).toLong()
+            }
+        val hours = (0..23).map { mapOf("hour" to it, "plays" to (playsByHour[it] ?: 0L)) }
         val trend = em.createNativeQuery("""
             SELECT DATE_FORMAT(STR_TO_DATE(p.user_play_date, '%Y-%m-%d'), '%Y-%m-%d'),
                    COUNT(*), COUNT(DISTINCT p.user_id),
@@ -299,6 +328,7 @@ class AdminApi(
                 val values = row as Array<*>
                 mapOf("date" to values[0].toString(), "plays" to (values[1] as Number).toLong(),
                     "players" to (values[2] as Number).toLong(), "guestPlayers" to (values[3] as Number).toLong(),
+                    "newPlayers" to (newPlayersByDay[values[0].toString()] ?: 0L),
                     "averageAchievement" to (values[4] as Number).toDouble() / 10000.0)
             }
         val ranking = em.createNativeQuery("""
@@ -321,7 +351,39 @@ class AdminApi(
             "guestPlayers" to (summary[2] as Number).toLong(),
             "averageAchievement" to (summary[4] as Number).toDouble() / 10000.0,
             "achievementRate" to (summary[3] as Number).toDouble() / (totalPlays.coerceAtLeast(1) * 10000.0),
-            "trend" to trend, "ranking" to ranking)
+            "newPlayers" to newPlayersByDay.values.sum(),
+            "days" to java.time.Duration.between(start, end).toDays(),
+            "trend" to trend, "hours" to hours, "ranking" to ranking)
+    }
+
+    /** The players behind one bar of the trend chart: who played on a day, with their game user ID. */
+    @API("/analytics/day")
+    fun analyticsDay(@RP token: Str, @RP date: Str): List<Map<String, Any?>> {
+        admin(token)
+        val day = try { LocalDate.parse(date.trim()) } catch (_: DateTimeParseException) { 400 - "Date must use YYYY-MM-DD" }
+        return em.createNativeQuery("""
+            SELECT sc.ext_id, md.user_name, sc.is_ghost, COUNT(*), COALESCE(AVG(p.achievement), 0),
+                   MIN(p.user_play_date), MAX(p.user_play_date)
+            FROM maimai2_user_playlog p
+            JOIN maimai2_user_detail md ON md.id = p.user_id
+            JOIN sega_card sc ON sc.id = md.aime_card_id
+            WHERE STR_TO_DATE(p.user_play_date, '%Y-%m-%d') = :day
+            GROUP BY sc.ext_id, md.user_name, sc.is_ghost
+            ORDER BY COUNT(*) DESC, sc.ext_id ASC
+            LIMIT 300
+        """.trimIndent())
+            .setParameter("day", day.toString())
+            .resultList.map { row ->
+                val v = row as Array<*>
+                mapOf(
+                    "userId" to (v[0] as Number).toLong(), "userName" to v[1].toString(),
+                    // The driver returns TINYINT(1) as a Boolean.
+                    "guest" to (v[2] == true || (v[2] is Number && (v[2] as Number).toInt() != 0)),
+                    "plays" to (v[3] as Number).toLong(),
+                    "averageAchievement" to (v[4] as Number).toDouble() / 10000.0,
+                    "firstPlay" to v[5].toString(), "lastPlay" to v[6].toString(),
+                )
+            }
     }
 
     @API("/card")

@@ -84,8 +84,8 @@ class Mai2CircleJoinRequestEntity(
 
 interface Mai2CircleRepo : JpaRepository<Mai2CircleEntity, Long> {
     fun findByCircleCodeIgnoreCase(circleCode: String): Mai2CircleEntity?
-    @Query("select c from Mai2CircleEntity c where c.isPublic = true")
-    fun findPublic(pageable: org.springframework.data.domain.Pageable): org.springframework.data.domain.Page<Mai2CircleEntity>
+    @Query("select c from Mai2CircleEntity c where :q = '' or lower(c.circleName) like lower(concat('%', :q, '%')) or lower(c.circleCode) = lower(:q)")
+    fun search(@Param("q") q: String, pageable: org.springframework.data.domain.Pageable): org.springframework.data.domain.Page<Mai2CircleEntity>
     @Query("select c from Mai2CircleEntity c where c.isPlace = true and c.placeId = :placeId")
     fun findPlace(@Param("placeId") placeId: Int): Mai2CircleEntity?
 }
@@ -220,7 +220,8 @@ class Mai2CircleService(
     @Transactional(readOnly = true)
     suspend fun publicCircles(token: String, aimeId: String, page: Int?): CirclePage<Map<String, Any?>> = withPlayer(token, aimeId) { _, _, _ ->
         val p = pageIndex(page)
-        val result = circles.findPublic(PageRequest.of(p, 10, Sort.by(Sort.Direction.DESC, "createdAt")))
+        // Every circle is listed on the website, whether or not it is flagged public.
+        val result = circles.findAll(PageRequest.of(p, 10, Sort.by(Sort.Direction.DESC, "createdAt")))
         CirclePage(result.content.map(::circleView), result.totalElements, result.totalPages, p)
     }
 
@@ -285,7 +286,6 @@ class Mai2CircleService(
     suspend fun requestJoin(token: String, aimeId: String, circleId: Long): Boolean = withPlayer(token, aimeId) { card, _, _ ->
         requireNoCircle(card.extId)
         val circle = circles.findById(circleId).orElse(null) ?: (404 - "Circle not found")
-        if (!circle.isPublic) (404 - "Circle not found")
         if (circle.isAllowAnyoneJoin) addMember(circle.id, card.extId)
         else {
             val existing = requests.findByAimeExtId(card.extId)

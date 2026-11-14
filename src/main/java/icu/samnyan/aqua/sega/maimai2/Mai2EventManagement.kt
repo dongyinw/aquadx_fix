@@ -22,10 +22,25 @@ data class Mai2EventOverride(
     val deleted: Boolean = false,
 )
 
+/**
+ * One row of the admin list. [custom] events were added by an admin; the others ship with the game data.
+ * [status] is active / upcoming / ended / permanent (shipped with no dates) / disabled.
+ */
+data class Mai2EventView(
+    val id: Long,
+    val type: Int,
+    val startDate: String,
+    val endDate: String,
+    val enabled: Boolean,
+    val custom: Boolean,
+    val status: String,
+)
+
 @Service
 class Mai2EventManagement(val properties: PropertyEntryRepository, val mapper: BasicMapper, val gameData: GameDataService) {
     private val key = "maimai2_event_overrides"
     private val dateFormat = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss")
+    private val extraBuiltinId = 261016011L
 
     fun overrides(): List<Mai2EventOverride> = properties.findByPropertyKey(key)?.let {
         mapper.read<List<Mai2EventOverride>>(it.propertyValue)
@@ -51,6 +66,37 @@ class Mai2EventManagement(val properties: PropertyEntryRepository, val mapper: B
         val entries = events().map { Mai2EventOverride(it.id, it.type, it.startDate ?: "", it.endDate ?: "") }.associateBy { it.id }.toMutableMap()
         overrides().forEach { if (!it.deleted) entries[it.id] = it }
         return entries.values.sortedByDescending { it.id }
+    }
+
+    private fun builtinIds() = gameData.mai2Events.map { it.id }.toSet() + extraBuiltinId
+
+    /** Every event the game can receive, built-in and custom, disabled ones included. */
+    fun overview(now: LocalDateTime = LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai"))): List<Mai2EventView> {
+        val builtin = builtinIds()
+        val current = now.format(dateFormat)
+        return managedEvents().map { e ->
+            // Shipped events without their own dates carry the 2019..2029 placeholder window.
+            val permanent = e.id in builtin && e.startDate.startsWith("2019-01-01") && e.endDate.startsWith("2029-01-01")
+            val status = when {
+                !e.enabled -> "disabled"
+                permanent -> "permanent"
+                current < e.startDate.take(19) -> "upcoming"
+                current > e.endDate.take(19) -> "ended"
+                else -> "active"
+            }
+            Mai2EventView(e.id, e.type, e.startDate.take(19), e.endDate.take(19), e.enabled, e.id !in builtin, status)
+        }
+    }
+
+    /** Switch an event on or off without touching its dates. Shipped events are switched off with an override. */
+    @Synchronized
+    fun setEnabled(id: Long, enabled: Boolean) {
+        val current = managedEvents().find { it.id == id } ?: (404 - "活动不存在")
+        val existing = properties.findByPropertyKey(key) ?: PropertyEntry(key, "[]")
+        val entries = mapper.read<List<Mai2EventOverride>>(existing.propertyValue).filterNot { it.id == id } +
+            current.copy(enabled = enabled, deleted = false)
+        existing.propertyValue = mapper.write(entries)
+        properties.saveAndFlush(existing)
     }
 
     @Synchronized
@@ -83,6 +129,14 @@ class Mai2EventAdminApi(val jwt: JWT, val events: Mai2EventManagement) {
 
     @API("admin/list")
     fun list(@RP token: Str): List<Mai2EventOverride> { admin(token); return events.customEvents() }
+
+    @API("admin/overview")
+    fun overview(@RP token: Str): List<Mai2EventView> { admin(token); return events.overview() }
+
+    @API(value = ["admin/toggle"], method = [RequestMethod.POST])
+    fun toggle(@RP token: Str, @RP id: Long, @RP enabled: Boolean): Map<String, Boolean> {
+        admin(token); events.setEnabled(id, enabled); return mapOf("success" to true)
+    }
 
     @API(value = ["admin/save"], method = [RequestMethod.POST])
     fun save(@RP token: Str, @RB event: Mai2EventOverride): Map<String, Boolean> {
