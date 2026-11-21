@@ -351,6 +351,31 @@ export const ANNOUNCEMENTS = {
   adminDelete: (id: number) => post('/api/v2/admin/announcement/delete', { id }),
 }
 
+export interface BindGameData { name: string; rating: number; lastLogin: string }
+export interface BindPreview {
+  user: { auId: number; username: string; displayName: string; cardCount: number }
+  card: { id: number; luid: string; extId: number; isGhost: boolean; owner: string | null; ownerAuId: number | null } | null
+  newCardId: string | null
+  games: { game: string; label: string; onCard: BindGameData | null; onAccount: BindGameData | null }[]
+}
+export interface BindResult { success: boolean; created: boolean; migrated: string[]; previousOwner?: string | null }
+export const CARD_BIND = {
+  preview: (cardId: string, username: string): Promise<BindPreview> =>
+    post('/api/v2/admin/card-bind/preview', { cardId, username }),
+  bind: (cardId: string, username: string, migrate: string[], force: boolean): Promise<BindResult> =>
+    post('/api/v2/admin/card-bind/bind', { cardId, username, migrate: migrate.join(','), force }),
+}
+
+export interface GhostPoolStatus {
+  enabled: boolean; days: number; perPlayer: number;
+  total: number; recorded: number; fromPlays: number; players: number; running: boolean;
+  last: { finishedAt: string; players: number; written: number; removed: number } | null;
+}
+export const GHOST_ADMIN = {
+  status: (): Promise<GhostPoolStatus> => post('/api/v2/admin/mai2-ghost/status'),
+  seed: (): Promise<GhostPoolStatus> => post('/api/v2/admin/mai2-ghost/seed'),
+}
+
 export interface CircleAdminRow {
   circleId: number; circleName: string; circleCode: string; comment: string;
   ownerExtId: number; ownerName: string; isPublic: boolean; isAllowAnyoneJoin: boolean;

@@ -112,7 +112,7 @@
     if (!canSubmitScore || !picked) return
     if (!await confirmDialog({
       title: "补传成绩",
-      message: `${picked.name}（${levelNames[level]}）\n达成率 ${(achievement / 10000).toFixed(4)}%，DX 分数 ${deluxscore}，${comboNames[combo]} / ${syncNames[sync]}\n\n请确认与机台结算画面一致。该操作会被记录，滥用可能导致账号被封禁。`,
+      message: `${picked.name}（${levelNames[level]}）\n达成率 ${(achievement / 10000).toFixed(4)}%，DX 分数 ${deluxscore}，${comboNames[combo]} / ${syncNames[sync]}\n\n请确认与机台结算画面一致。这首歌现有的最佳成绩会被覆盖，即使它比你填写的更高。该操作会被记录，滥用可能导致账号被封禁。`,
       confirmText: "确认补传",
     })) return
     busy = true
@@ -211,7 +211,7 @@
           {/if}
           <button class="btn-primary" type="submit" disabled={!canSubmitScore}>{#if busy}<Spinner />{/if}补传成绩</button>
         </form>
-        <p class="subtle note">补传只会提高这首歌的最佳成绩，不会降低已有记录，也不会生成游玩记录，不计入大赛。Rating 会在你下次游玩后更新。</p>
+        <p class="subtle note">提交后，这首歌的最佳成绩会改成你填写的内容，已有记录比它高也会被覆盖，请务必核对清楚。不会生成游玩记录，不计入大赛。Rating 会在你下次游玩后更新。</p>
       </section>
     </fieldset>
   {/if}

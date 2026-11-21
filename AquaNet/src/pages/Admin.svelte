@@ -7,6 +7,8 @@
   import AnalyticsPanel from "../components/admin/AnalyticsPanel.svelte"
   import CircleAdmin from "../components/admin/CircleAdmin.svelte"
   import AnnouncementAdmin from "../components/admin/AnnouncementAdmin.svelte"
+  import BindCardAdmin from "../components/admin/BindCardAdmin.svelte"
+  import GhostPoolAdmin from "../components/admin/GhostPoolAdmin.svelte"
   import Icon from "../components/ui/Icon.svelte"
   import PageHeader from "../components/ui/PageHeader.svelte"
   import EmptyState from "../components/ui/EmptyState.svelte"
@@ -26,9 +28,9 @@
   } from "../libs/generalTypes"
 
   type View = "users" | "cards"
-  type Section = "overview" | "tournaments" | "events" | "announcements" | "circles" | "claims" | View
+  type Section = "overview" | "tournaments" | "events" | "announcements" | "circles" | "claims" | "bind" | "ghosts" | View
   // Sections that manage their own data and have no user / card list to refresh.
-  const selfManaged: Section[] = ["overview", "tournaments", "events", "announcements", "circles", "claims"]
+  const selfManaged: Section[] = ["overview", "tournaments", "events", "announcements", "circles", "claims", "bind", "ghosts"]
   type ManagedGame = "mai2" | "chu3" | "ongeki"
 
   USER.ensureLoggedIn()
@@ -70,6 +72,14 @@
   let cardsExpanded = false
   // Tournaments are managed per game.
   let tournamentGame: TournamentGame = "mai2"
+  // The bind-card tab, optionally pre-filled from a user or card page.
+  let bindCardId = ""
+  let bindUsername = ""
+  function openBind(card: string, user: string) {
+    bindCardId = card
+    bindUsername = user
+    section = "bind"
+  }
 
   const gameLabels: Record<ManagedGame, string> = { mai2: "舞萌 DX", chu3: "中二节奏", ongeki: "音击" }
   const gameFields: Record<ManagedGame, string[]> = {
@@ -411,10 +421,12 @@
     { id: "overview", label: "数据概览", icon: "solar:chart-2-bold-duotone" },
     { id: "users", label: "用户管理", icon: "solar:user-id-bold-duotone" },
     { id: "cards", label: "卡片管理", icon: "solar:card-bold-duotone" },
+    { id: "bind", label: "绑定卡片", icon: "solar:link-round-angle-bold-duotone" },
     { id: "tournaments", label: "大赛管理", icon: "solar:cup-star-bold-duotone" },
     { id: "events", label: "活动管理", icon: "solar:calendar-mark-bold-duotone" },
     { id: "announcements", label: "公告管理", icon: "solar:bell-bing-bold-duotone" },
     { id: "circles", label: "圈子管理", icon: "solar:users-group-rounded-bold-duotone" },
+    { id: "ghosts", label: "友人对战", icon: "solar:ghost-bold-duotone" },
     { id: "claims", label: "理赔记录", icon: "solar:hand-money-bold-duotone" },
   ]
 </script>
@@ -458,6 +470,10 @@
     <CircleAdmin />
     {:else if section === "claims"}
     <ClaimAdmin />
+    {:else if section === "bind"}
+    {#key `${bindCardId}|${bindUsername}`}<BindCardAdmin cardId={bindCardId} username={bindUsername} />{/key}
+    {:else if section === "ghosts"}
+    <GhostPoolAdmin />
     {:else}
     <div class="list-actions">
       <button class="btn-ghost btn-sm" type="button" on:click={search} disabled={loading}>{#if loading}<Spinner />{:else}<Icon icon="solar:refresh-bold" />{/if}刷新列表</button>
@@ -590,6 +606,13 @@
             </form>
           </section>
 
+          <section class="card">
+            <div class="setting-row">
+              <div class="setting-text"><span class="name">绑定卡片</span><span class="desc">输入 Aime 卡号，把一张卡绑定给这个用户</span></div>
+              <button class="btn-soft" type="button" on:click={() => openBind("", userDetail?.user.username ?? "")}><Icon icon="solar:link-bold" />绑定卡片</button>
+            </div>
+          </section>
+
           <section class="card danger-zone">
             <div class="card-header"><div><h3>危险操作</h3><p>以下操作不可撤销，请谨慎执行</p></div></div>
             <div class="setting-row">
@@ -709,6 +732,9 @@
             {#if cardDetail.user}
               <button class="btn-soft owner-link" type="button" on:click={openCardOwner}><Icon icon="solar:user-circle-bold-duotone" />绑定用户：{cardDetail.user.displayName || cardDetail.user.username}<Icon icon="line-md:chevron-small-right" /></button>
             {:else}<p class="subtle">未绑定 Net 用户</p>{/if}
+            {#if !cardDetail.card.isGhost}
+              <button class="btn-soft" type="button" on:click={() => openBind(cardDetail?.card.luid ?? "", cardDetail?.user?.username ?? "")}><Icon icon="solar:link-bold" />{cardDetail.user ? "转移到其他用户" : "绑定到用户"}</button>
+            {/if}
           </section>
 
           <section class="card danger-zone">

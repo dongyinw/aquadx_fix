@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import Icon from "../components/ui/Icon.svelte";
   import { CIRCLE, USER } from "../libs/sdk";
-  import type { MikuNetUser, Card } from "../libs/generalTypes";
+  import type { MikuNetUser } from "../libs/generalTypes";
   import PageHeader from "../components/ui/PageHeader.svelte";
   import EmptyState from "../components/ui/EmptyState.svelte";
   import Dialog from "../components/ui/Dialog.svelte";
@@ -35,7 +35,7 @@
   type CircleDraft = Pick<CircleItem, "circleName" | "comment" | "isPublic" | "isAllowAnyoneJoin">;
 
   let me: MikuNetUser | null = null;
-  let cards: Card[] = [];
+  // Circles always use the account's virtual card; physical cards are not offered.
   let selectedCardId = "";
   let circleInfo: any = null;
   let publicCircles: CircleItem[] = [];
@@ -67,9 +67,8 @@
     error = "";
     try {
       me = await USER.me();
-      cards = [...(me.cards ?? [])].sort((a, b) => Number(b.isGhost) - Number(a.isGhost));
-      selectedCardId = cards.find(card => card.isGhost)?.luid ?? cards[0]?.luid ?? "";
-      if (!selectedCardId) throw new Error("账号没有可用的舞萌卡片，请先绑定卡片。");
+      selectedCardId = me.ghostCard?.luid ?? me.cards?.find(card => card.isGhost)?.luid ?? "";
+      if (!selectedCardId) throw new Error("没有找到账户虚拟卡，请先游玩一次舞萌 DX 再来。");
       await reload();
     } catch (e) {
       error = (e as Error).message || String(e);
@@ -117,13 +116,6 @@
 
   function notify(text: string, failed = false) {
     failed ? toast.error(text) : toast.success(text);
-  }
-
-  async function changeCard(event: Event) {
-    selectedCardId = (event.currentTarget as HTMLSelectElement).value;
-    publicPage = memberPage = requestPage = 0;
-    circleInfo = null;
-    await reload();
   }
 
   async function mutate(action: () => Promise<any>, success: string): Promise<boolean> {
@@ -219,18 +211,7 @@
 </script>
 
 <main class="page circle-page">
-  <PageHeader eyebrow="maimai DX" title="圈子" description="创建圈子、申请加入，和同好一起游玩。">
-    {#if cards.length > 1}
-      <label class="field card-picker">
-        <span class="field-label">游戏卡片</span>
-        <select value={selectedCardId} on:change={changeCard} disabled={busy}>
-          {#each cards as card (card.luid)}
-            <option value={card.luid}>{card.isGhost ? "主账号" : "实体卡"} · {card.luid.slice(-8)}</option>
-          {/each}
-        </select>
-      </label>
-    {/if}
-  </PageHeader>
+  <PageHeader eyebrow="maimai DX" title="圈子" description="创建圈子、申请加入，和同好一起游玩。" />
 
   {#if error}
     <div class="alert alert-danger" role="alert"><Icon icon="solar:danger-triangle-bold-duotone" /><p>{error}</p>
@@ -420,9 +401,6 @@
 
 <style lang="sass">
   @use "../vars"
-
-  .card-picker
-    min-width: 220px
 
   .joined
     gap: 18px
@@ -632,7 +610,7 @@
       font-size: 0.82rem
 
   @media (max-width: vars.$w-mobile)
-    .card-picker, .code-join
+    .code-join
       width: 100%
       max-width: none
 
