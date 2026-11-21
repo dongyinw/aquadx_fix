@@ -82,6 +82,20 @@ class Mai2ClaimServiceTest : StringSpec({
         verify(f.logs).save(anyLog())
     }
 
+    "lowering a score is allowed and the audit log keeps the value from before" {
+        val f = Fixture()
+        val stored = icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserMusicDetail().also {
+            it.musicId = 8; it.level = 3; it.achievement = 1005000; it.deluxscoreMax = 1500
+        }
+        `when`(f.music.findByUserAndMusicIdAndLevel(anyUser(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(stored)
+        f.service.claimScore(player(), Mai2Claim.ScoreInput(8, 3, 980000, 1200, 0, 0))
+        stored.achievement shouldBe 980000
+        val captor = org.mockito.ArgumentCaptor.forClass(Mai2UserClaimLog::class.java)
+        verify(f.logs).save(captor.capture() ?: Mai2UserClaimLog())
+        captor.value.oldValue shouldBe 1005000
+        captor.value.newValue shouldBe 980000
+    }
+
     "the daily score limit and invalid songs are refused without touching the profile" {
         val f = Fixture(usedScore = 20)
         status { f.service.claimScore(player(), Mai2Claim.ScoreInput(8, 3, 990000, 1500, 0, 0)) } shouldBe 429

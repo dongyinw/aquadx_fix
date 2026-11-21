@@ -82,6 +82,13 @@ interface Mai2UserGhostRepo : Mai2UserLinked<Mai2UserGhostEntry> {
     fun findByUserAndMusicIdAndDifficulty(user: Mai2UserDetail, musicId: Int, difficulty: Int): Mai2UserGhostEntry?
     fun findByUserOrderByPlayDatetimeDescIdDesc(user: Mai2UserDetail): List<Mai2UserGhostEntry>
 
+    /** Ghosts with a note-by-note recording, and those made from a play's score only. */
+    fun countByResultNumGreaterThan(resultNum: Int): Long
+    fun countByResultNum(resultNum: Int): Long
+
+    @Query("select count(distinct g.user.id) from Mai2UserGhostEntry g")
+    fun countPlayers(): Long
+
     @Query("select g from Mai2UserGhostEntry g where g.user.id <> :userId and g.user.banState = 0 order by g.playDatetime desc, g.id desc")
     fun findRecentOfOthers(userId: Long, page: Pageable): List<Mai2UserGhostEntry>
 }

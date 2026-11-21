@@ -56,19 +56,22 @@ object Mai2Claim {
     }
 
     /**
-     * Applies the submission to the best-score row, never lowering anything. Returns null when nothing would improve.
+     * Sets the song's best-score row to the submitted result, whether that is higher or lower than what is stored,
+     * so a wrong entry can be corrected too. Returns null when the row already has exactly these values.
+     * A song without a row gets one and counts as one play; an existing row keeps its play count.
+     * The row is changed in place, so read any old values before calling this.
      */
     fun merge(user: Mai2UserDetail, existing: Mai2UserMusicDetail?, i: ScoreInput): Mai2UserMusicDetail? {
-        val improves = existing == null || i.achievement > existing.achievement || i.deluxscore > existing.deluxscoreMax ||
-            i.comboStatus > existing.comboStatus || i.syncStatus > existing.syncStatus
-        if (!improves) return null
-        return (existing ?: Mai2UserMusicDetail().also { it.user = user; it.musicId = i.musicId; it.level = i.level }).also {
-            it.achievement = maxOf(it.achievement, i.achievement)
-            it.deluxscoreMax = maxOf(it.deluxscoreMax, i.deluxscore)
-            it.comboStatus = maxOf(it.comboStatus, i.comboStatus)
-            it.syncStatus = maxOf(it.syncStatus, i.syncStatus)
-            it.scoreRank = maxOf(it.scoreRank, scoreRank(it.achievement))
-            it.playCount += 1
+        if (existing != null && i.achievement == existing.achievement && i.deluxscore == existing.deluxscoreMax &&
+            i.comboStatus == existing.comboStatus && i.syncStatus == existing.syncStatus) return null
+        return (existing ?: Mai2UserMusicDetail().also {
+            it.user = user; it.musicId = i.musicId; it.level = i.level; it.playCount = 1
+        }).also {
+            it.achievement = i.achievement
+            it.deluxscoreMax = i.deluxscore
+            it.comboStatus = i.comboStatus
+            it.syncStatus = i.syncStatus
+            it.scoreRank = scoreRank(i.achievement)
         }
     }
 }
@@ -132,14 +135,16 @@ class Mai2ClaimService(
         Mai2Claim.validate(maimai2.musicMapping[input.musicId], input)?.let { 400 - it }
 
         val existing = repos.userMusicDetail.findByUserAndMusicIdAndLevel(user, input.musicId, input.level)
-        val merged = Mai2Claim.merge(user, existing, input)
-            ?: (400 - "这首歌的现有成绩不低于你填写的成绩，无需补传")
+        // merge() edits the stored row in place, so keep what it held for the audit log first.
+        val before = existing?.let { "${it.achievement} DX ${it.deluxscoreMax} combo ${it.comboStatus} sync ${it.syncStatus}" } ?: "无记录"
+        val oldAchievement = existing?.achievement ?: 0
+        val merged = Mai2Claim.merge(user, existing, input) ?: (400 - "这首歌的成绩已经和你填写的完全一致，无需修改")
         if (used(user, Mai2Claim.KIND_SCORE) >= scoreDailyLimit) 429 - "今天补传成绩的次数已用完（每天 $scoreDailyLimit 次）"
 
         repos.userMusicDetail.save(merged)
         val name = maimai2.musicMapping[input.musicId]?.name ?: input.musicId.toString()
-        log(user, Mai2Claim.KIND_SCORE, input.musicId, input.level, existing?.achievement ?: 0, merged.achievement,
-            "$name Lv${input.level} 达成率 ${input.achievement} DX ${input.deluxscore} combo ${input.comboStatus} sync ${input.syncStatus}")
+        log(user, Mai2Claim.KIND_SCORE, input.musicId, input.level, oldAchievement, merged.achievement,
+            "$name Lv${input.level} 达成率 ${input.achievement} DX ${input.deluxscore} combo ${input.comboStatus} sync ${input.syncStatus}（原：$before）")
         return status(user)
     }
 

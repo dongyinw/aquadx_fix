@@ -59,25 +59,26 @@ class Mai2ClaimTest : StringSpec({
         row.playCount shouldBe 1
     }
 
-    "an existing row is only ever raised" {
+    "an existing row can be lowered as well as raised" {
         val user = Mai2UserDetail()
         val old = Mai2UserMusicDetail().also {
             it.musicId = 8; it.level = 3; it.achievement = 995000; it.deluxscoreMax = 1600
             it.comboStatus = 2; it.syncStatus = 0; it.scoreRank = 11; it.playCount = 5
         }
-        // Better FS and DX score, but a lower achievement: the achievement must stay.
-        val row = Mai2Claim.merge(user, old, input(ach = 980000, dx = 1700, combo = 1, sync = 1))!!
-        row.achievement shouldBe 995000
-        row.deluxscoreMax shouldBe 1700
-        row.comboStatus shouldBe 2
+        // Everything lower except FS: the stored values are replaced by the submitted ones.
+        val row = Mai2Claim.merge(user, old, input(ach = 980000, dx = 1400, combo = 1, sync = 1))!!
+        (row === old) shouldBe true
+        row.achievement shouldBe 980000
+        row.deluxscoreMax shouldBe 1400
+        row.comboStatus shouldBe 1
         row.syncStatus shouldBe 1
-        row.scoreRank shouldBe 11
-        row.playCount shouldBe 6
+        row.scoreRank shouldBe 9
+        row.playCount shouldBe 5
     }
 
-    "a submission that improves nothing is ignored" {
+    "a submission identical to the stored row is ignored" {
         val old = Mai2UserMusicDetail().also {
-            it.musicId = 8; it.level = 3; it.achievement = 995000; it.deluxscoreMax = 1600; it.comboStatus = 2; it.syncStatus = 1
+            it.musicId = 8; it.level = 3; it.achievement = 990000; it.deluxscoreMax = 1500; it.comboStatus = 1; it.syncStatus = 1
         }
         Mai2Claim.merge(Mai2UserDetail(), old, input(ach = 990000, dx = 1500, combo = 1, sync = 1)) shouldBe null
     }
