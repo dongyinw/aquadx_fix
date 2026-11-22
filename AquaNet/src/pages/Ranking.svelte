@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { GAME } from "../libs/sdk";
   import type { GenericRanking } from "../libs/generalTypes";
-  import type { GameName } from "../libs/scoring";
+  import { fmtPercent4, type GameName } from "../libs/scoring";
   import { GAME_TITLE } from "../libs/i18n";
   import { t } from "../libs/i18n";
   import UserCard from "../components/UserCard.svelte";
@@ -103,7 +103,7 @@
               {#if !!myUsername && user.username === myUsername}<span class="badge primary">我</span>{/if}
             </span>
             <span class="rating num" role="cell">{formatRating(user.rating)}</span>
-            <span class="accuracy num" role="cell">{(+user.accuracy).toFixed(2)}%</span>
+            <span class="accuracy num" role="cell">{fmtPercent4(+user.accuracy)}%</span>
             <span class="fc num" role="cell">{user.fullCombo}</span>
             <span class="ap num" role="cell">{user.allPerfect}</span>
           </div>

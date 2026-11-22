@@ -297,8 +297,6 @@ const zhSettings: typeof EN_REF_SETTINGS = {
   'settings.fields.chusanMatchingServer.desc': '全国对战服务器的 URL',
   'settings.fields.ongekiInfiniteKaika.name': '无限解花',
   'settings.fields.ongekiInfiniteKaika.desc': '将解花数量设置为 999。',
-  'settings.fields.rounding.name': '分数舍入',
-  'settings.fields.rounding.desc': '把分数四舍五入到一位小数',
   'settings.fields.gameUsername.name': '游戏用户名',
   'settings.fields.gameUsername.desc': '在游戏中显示的用户名',
   'settings.fields.optOutOfLeaderboard.name': '不参与排行榜',

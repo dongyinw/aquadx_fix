@@ -9,6 +9,7 @@
   import type { AllMusic } from "../libs/generalTypes"
   import { DATA_HOST } from "../libs/config"
   import { coverNotFound } from "../libs/ui"
+  import { fmtAchievement } from "../libs/scoring"
 
   // Difficulty names by game; ONGEKI's LUNATIC is level 10, CHUNITHM's World's End level 5.
   const levelNames: Record<TournamentGame, Record<number, string>> = {
@@ -38,7 +39,7 @@
   const coverUrl = (musicId: number) => `${DATA_HOST}/d/${game}/music/00${musicId.toString().padStart(6, "0").substring(2)}.png`
   const songName = (id: number) => music[id]?.name ?? `#${id}`
   // maimai DX scores are achievements in 1/10000 percent; the other games use plain scores.
-  const score = (v: number) => game === "mai2" ? `${(v / 10000).toFixed(4)}%` : v.toLocaleString()
+  const score = (v: number) => game === "mai2" ? `${fmtAchievement(v)}%` : v.toLocaleString()
   const day = (s: string) => s ? s.slice(0, 16) : "—"
   const levelName = (level: number) => levelNames[game][level] ?? String(level)
 

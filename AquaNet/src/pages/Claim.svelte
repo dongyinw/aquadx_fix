@@ -7,6 +7,7 @@
   import type { ClaimStatus } from "../libs/generalTypes"
   import { USER } from "../libs/sdk"
   import { getMaimaiAllMusic } from "../libs/maimai"
+  import { fmtAchievement, parseAchievement } from "../libs/scoring"
   import { confirmDialog } from "../libs/confirm"
   import { errorMessage, toast } from "../libs/toast"
 
@@ -36,7 +37,8 @@
   let mileText = ""
 
   $: results = query.trim() && !picked ? songs.filter(song => song.name.toLowerCase().includes(query.trim().toLowerCase()) || String(song.id) === query.trim()).slice(0, 8) : []
-  $: achievement = Math.round(parseFloat(achievementText) * 10000)
+  // Typed digits beyond the fourth decimal are cut off, never rounded.
+  $: achievement = parseAchievement(achievementText)
   $: achievementOk = Number.isFinite(achievement) && achievement >= 0 && achievement <= 1010000
   $: dxOk = /^\d{1,4}$/.test(deluxscore)
   $: canSubmitScore = !!picked && achievementOk && dxOk && !busy && agreed && !!status?.hasProfile
@@ -112,7 +114,7 @@
     if (!canSubmitScore || !picked) return
     if (!await confirmDialog({
       title: "补传成绩",
-      message: `${picked.name}（${levelNames[level]}）\n达成率 ${(achievement / 10000).toFixed(4)}%，DX 分数 ${deluxscore}，${comboNames[combo]} / ${syncNames[sync]}\n\n请确认与机台结算画面一致。这首歌现有的最佳成绩会被覆盖，即使它比你填写的更高。该操作会被记录，滥用可能导致账号被封禁。`,
+      message: `${picked.name}（${levelNames[level]}）\n达成率 ${fmtAchievement(achievement)}%，DX 分数 ${deluxscore}，${comboNames[combo]} / ${syncNames[sync]}\n\n请确认与机台结算画面一致。这首歌现有的最佳成绩会被覆盖，即使它比你填写的更高。该操作会被记录，滥用可能导致账号被封禁。`,
       confirmText: "确认补传",
     })) return
     busy = true

@@ -261,6 +261,12 @@ export interface GenericGamePlaylog {
   isFullCombo?: boolean
   isAllPerfect?: boolean
   isAllJustice?: boolean
+  /** maimai DX versus result: vsMode 1 = friend battle (a ghost), 2 = map NPC, 3 = boss; vsStatus 1 = won, 2 = lost. */
+  vsMode?: number
+  vsStatus?: number
+  vsUserName?: string
+  vsUserRating?: number
+  vsUserAchievement?: number
   tapCriticalPerfect?: number
   tapPerfect?: number
   tapGreat?: number

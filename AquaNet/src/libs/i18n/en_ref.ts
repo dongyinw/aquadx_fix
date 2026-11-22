@@ -284,8 +284,6 @@ export const EN_REF_SETTINGS = {
   'settings.fields.chusanMatchingServer.desc': 'URL of the national matching server.',
   'settings.fields.ongekiInfiniteKaika.name': 'Infinite Kaika',
   'settings.fields.ongekiInfiniteKaika.desc': 'Set Kaika to 999',
-  'settings.fields.rounding.name': 'Score Rounding',
-  'settings.fields.rounding.desc': 'Round the score to one decimal place',
   'settings.fields.gameUsername.name': 'Player Name',
   'settings.fields.gameUsername.desc': 'Your name shown in game',
   'settings.fields.optOutOfLeaderboard.name': 'Opt Out of Leaderboard',

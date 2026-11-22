@@ -16,13 +16,12 @@
   import moment from "moment";
   import 'chartjs-adapter-moment';
   import { CARD, DATA, GAME, USER } from "../libs/sdk";
-  import { type GameName, getMult, roundFloor } from "../libs/scoring";
+  import { type GameName, fmtAchievement, fmtPercent4, getMult } from "../libs/scoring";
   import StatusOverlays from "../components/StatusOverlays.svelte";
   import Icon from "../components/ui/Icon.svelte";
   import { countryCodeToEmoji, GAME_TITLE, t } from "../libs/i18n";
   import RankDetails from "../components/RankDetails.svelte";
   import RatingComposition from "../components/RatingComposition.svelte";
-  import useLocalStorage from "../libs/hooks/useLocalStorage.svelte";
   import Line from "../components/chart/Line.svelte";
   import ChuniUserboxDisplay from "../components/settings/userbox/ChuniUserboxDisplay.svelte";
   import Dialog from "../components/ui/Dialog.svelte";
@@ -40,7 +39,6 @@
   let calElement: HTMLElement
   let error: string;
   let me: MikuNetUser
-  const rounding = useLocalStorage("rounding", true);
 
   interface MusicAndPlay extends MusicMeta, GenericGamePlaylog {}
 
@@ -76,6 +74,7 @@
   const formatNumber = (value: unknown) => safeNumber(value).toLocaleString()
   const ratingDelta = (score: GenericGamePlaylog) => safeNumber(score.afterRating) - safeNumber(score.beforeRating)
   const scoreAchievement = (score: GenericGamePlaylog) => safeNumber(score.achievement)
+  const isFriendBattle = (score: GenericGamePlaylog) => game === "mai2" && score.vsMode === 1
   const hasJudgments = (score: GenericGamePlaylog) => score.tapCriticalPerfect !== undefined
   const judgmentValue = (score: GenericGamePlaylog, prefix: string, grade: string) =>
     Number((score as unknown as Record<string, unknown>)[`${prefix}${grade}`] ?? 0)
@@ -303,7 +302,7 @@
             <span>{game === 'mai2' ? t("UserHome.HighestDXRating") : t("UserHome.HighestRating")}</span><strong class="num">{formatRating(d.user.ratingHighest)}</strong>
           {/if}
         </div>
-        <div class="stat"><span>{t('UserHome.Accuracy')}</span><strong class="num">{(d.user.accuracy).toFixed(2)}%</strong></div>
+        <div class="stat"><span>{t('UserHome.Accuracy')}</span><strong class="num">{fmtPercent4(d.user.accuracy)}%</strong></div>
         <div class="stat"><span>{t("UserHome.MaxCombo")}</span><strong class="num">{d.user.maxCombo}</strong></div>
         <div class="stat"><span>{t("UserHome.FullCombo")}</span><strong class="num">{d.user.fullCombo}</strong></div>
         <div class="stat"><span>{t("UserHome.AllPerfect")}</span><strong class="num">{d.user.allPerfect}</strong></div>
@@ -407,14 +406,13 @@
                   {:else if r.isFullCombo}
                     <img class="lamp" src="/assets/imgs/Full Combo.png" alt="Full Combo" />
                   {/if}
+                  {#if isFriendBattle(r)}<span class="vs-badge" class:win={r.vsStatus === 1} class:lose={r.vsStatus === 2}>友人对战{r.vsStatus === 1 ? " 胜" : r.vsStatus === 2 ? " 负" : ""}</span>{/if}
                   <span class="subtle num">{moment(r.userPlayDate ?? r.playDate).format("MM-DD HH:mm")}</span>
                 </span>
               </span>
               <span class="score-result">
                 <span class={`rank-${getMult(r.achievement, game)[2].toString()[0]} rank-text`}>{rankLabel(r.achievement)}</span>
-                <span class="num achievement" use:tooltip={(r.achievement / 10000).toFixed(4)}>
-                  {rounding.value ? roundFloor(r.achievement, game, 1) : (r.achievement / 10000).toFixed(4)}%
-                </span>
+                <span class="num achievement">{fmtAchievement(r.achievement)}%</span>
               </span>
               <span class="dx-change num" class:increased={r.afterRating - r.beforeRating > 0}>
                 {r.afterRating === r.beforeRating ? '–' : (r.afterRating - r.beforeRating > 0 ? "+" : "") + (r.afterRating - r.beforeRating).toFixed(0)}
@@ -470,11 +468,37 @@
     </div>
 
     <div class="detail-stats">
-      <div><span>达成率</span><strong class="num">{(scoreAchievement(selectedScore) / 10000).toFixed(4)}%</strong><small>{rankLabel(scoreAchievement(selectedScore))}</small></div>
+      <div><span>达成率</span><strong class="num">{fmtAchievement(scoreAchievement(selectedScore))}%</strong><small>{rankLabel(scoreAchievement(selectedScore))}</small></div>
       <div><span>DX 分</span><strong class="num">{formatNumber(selectedScore.deluxscore ?? selectedScore.totalDxScore)}</strong></div>
       <div><span>最大连击</span><strong class="num">{formatNumber(selectedScore.maxCombo)}<small> / {formatNumber(selectedScore.totalCombo)}</small></strong></div>
       <div><span>Rating 变化</span><strong class="num" class:positive={ratingDelta(selectedScore) > 0}>{ratingDelta(selectedScore) > 0 ? "+" : ""}{ratingDelta(selectedScore)}</strong></div>
     </div>
+
+    {#if isFriendBattle(selectedScore)}
+      {@const mine = scoreAchievement(selectedScore)}
+      {@const theirs = safeNumber(selectedScore.vsUserAchievement)}
+      {@const won = selectedScore.vsStatus === 1}
+      <section class="vs" aria-label="友人对战">
+        <header>
+          <strong>友人对战</strong>
+          {#if selectedScore.vsStatus === 1 || selectedScore.vsStatus === 2}<span class="badge" class:success={won} class:danger={!won}>{won ? "胜利" : "落败"}</span>{/if}
+        </header>
+        <div class="vs-sides">
+          <div class="vs-side" class:winner={selectedScore.vsStatus === 1}>
+            <small>{d?.user?.name ?? "我"}</small>
+            <strong class="num">{fmtAchievement(mine)}%</strong>
+            <small>{rankLabel(mine)}</small>
+          </div>
+          <span class="vs-mark">VS</span>
+          <div class="vs-side" class:winner={selectedScore.vsStatus === 2}>
+            <small>{selectedScore.vsUserName || "对手"}</small>
+            <strong class="num">{fmtAchievement(theirs)}%</strong>
+            <small>{rankLabel(theirs)}{selectedScore.vsUserRating ? ` · Rating ${selectedScore.vsUserRating}` : ""}</small>
+          </div>
+        </div>
+        <p class="vs-diff num">{mine === theirs ? "成绩相同" : `${mine > theirs ? "领先" : "落后"} ${fmtAchievement(Math.abs(mine - theirs))}%`}</p>
+      </section>
+    {/if}
 
     {#if detailLoading}
       <div class="detail-message"><Spinner />正在读取逐项判定…</div>
@@ -810,6 +834,78 @@
     display: grid
     justify-items: start
     gap: 6px
+
+// Friend battle: who played whom, both scores and who won.
+.vs-badge
+  padding: 1px 8px
+  border-radius: 999px
+  background: var(--surface-3)
+  color: var(--text-2)
+  font-size: 0.72rem
+  font-weight: 600
+  white-space: nowrap
+
+  &.win
+    background: var(--success-soft)
+    color: var(--success)
+
+  &.lose
+    background: color-mix(in srgb, var(--danger) 12%, transparent)
+    color: var(--danger)
+
+.vs
+  display: grid
+  gap: 10px
+  margin-bottom: 16px
+  padding: 12px 14px
+  border: 1px solid var(--border)
+  border-radius: var(--radius)
+
+  header
+    display: flex
+    align-items: center
+    gap: 8px
+
+.vs-sides
+  display: grid
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)
+  align-items: stretch
+  gap: 10px
+
+.vs-side
+  display: grid
+  align-content: center
+  gap: 2px
+  min-width: 0
+  padding: 10px 12px
+  border: 2px solid transparent
+  border-radius: var(--radius)
+  background: var(--surface-2)
+  text-align: center
+
+  small
+    color: var(--text-2)
+    overflow: hidden
+    text-overflow: ellipsis
+    white-space: nowrap
+
+  strong
+    font-size: 1.15rem
+
+  &.winner
+    border-color: var(--success)
+    background: var(--success-soft)
+
+.vs-mark
+  align-self: center
+  color: var(--text-3)
+  font-weight: 800
+  letter-spacing: 0.05em
+
+.vs-diff
+  margin: 0
+  color: var(--text-2)
+  text-align: center
 
 .detail-stats
   display: grid

@@ -15,6 +15,7 @@
   import Spinner from "../components/ui/Spinner.svelte"
   import { confirmDialog } from "../libs/confirm"
   import { toast } from "../libs/toast"
+  import { fmtAchievement } from "../libs/scoring"
   import { ADMIN, TOURNAMENT_GAMES, USER } from "../libs/sdk"
   import type { TournamentGame } from "../libs/sdk"
   import type {
@@ -776,7 +777,7 @@
                 <thead><tr><th>时间</th><th>机台</th><th>歌曲</th><th class="num">难度</th><th class="num">达成率</th></tr></thead>
                 <tbody>
                   {#each cardDetail.playlogs as playlog}
-                    <tr><td data-label="时间" class="num">{playlog.userPlayDate || playlog.playDate || "暂无"}</td><td data-label="机台">{playlog.placeId} · {playlog.placeName || "未知机台"}</td><td data-label="歌曲" class="mono">{playlog.musicId}</td><td data-label="难度" class="num">{playlog.level}</td><td data-label="达成率" class="num">{(playlog.achievement / 10000).toFixed(4)}%</td></tr>
+                    <tr><td data-label="时间" class="num">{playlog.userPlayDate || playlog.playDate || "暂无"}</td><td data-label="机台">{playlog.placeId} · {playlog.placeName || "未知机台"}</td><td data-label="歌曲" class="mono">{playlog.musicId}</td><td data-label="难度" class="num">{playlog.level}</td><td data-label="达成率" class="num">{fmtAchievement(playlog.achievement)}%</td></tr>
                   {:else}
                     <tr><td colspan="5" data-label="" class="subtle">暂无游玩日志</td></tr>
                   {/each}

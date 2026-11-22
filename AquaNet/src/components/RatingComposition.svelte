@@ -39,7 +39,7 @@
     {#if !collapsed}
       <div class="song-grid" transition:slide={{ duration: 180 }}>
         {#each visible as p}
-          <RatingCompSong {p} {game}/>
+          <RatingCompSong {p} />
         {/each}
       </div>
       {#if mustResize}

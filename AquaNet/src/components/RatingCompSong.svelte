@@ -1,13 +1,9 @@
 <script lang="ts">
   import { t } from "../libs/i18n";
-  import { type GameName, type ParsedComposition, roundFloor } from "../libs/scoring";
+  import { type ParsedComposition, fmtAchievement } from "../libs/scoring";
   import { coverNotFound } from "../libs/ui";
-  import { tooltip } from "../libs/ui";
-  import useLocalStorage from "../libs/hooks/useLocalStorage.svelte";
 
-  export let game: GameName
   export let p: ParsedComposition
-  const rounding = useLocalStorage("rounding", true)
 </script>
 
 <div class="song">
@@ -20,9 +16,7 @@
     <div class="second-line">
       <span class="score">
         <span class={`rank-${p.rank[0]} rank-text`}>{p.rank.replace("p", "+")}</span>
-        <span class="num" use:tooltip={(p.score / 10000).toFixed(4)}>
-          {rounding.value ? roundFloor(p.score, game, 1) : (p.score / 10000).toFixed(4)}%
-        </span>
+        <span class="num">{fmtAchievement(p.score)}%</span>
       </span>
       {#if p.ratingChange !== undefined}
         <span class="rating num">{p.ratingChange}</span>

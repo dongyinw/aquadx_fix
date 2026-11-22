@@ -81,13 +81,30 @@ export function getMult(achievement: number, game: GameName) {
   return [ 0, 0, 0 ]
 }
 
-export function roundFloor(achievement: number, game: GameName, digits = 2) {
-  // Round, but if the rounded number reaches the next rank, use floor instead
-  const mult = getMult(achievement, game);
-  achievement /= 10000
-  const rounded = achievement.toFixed(digits);
-  if (getMult(+rounded * 10000, game)[2] === mult[2] && rounded !== '101.0') return rounded;
-  return (+rounded - Math.pow(10, -digits)).toFixed(digits);
+/**
+ * An achievement stored as an integer in 1/10000 percent, written with exactly four decimals ("99.1234").
+ * Done with integer arithmetic so nothing is ever rounded.
+ */
+export function fmtAchievement(value: number): string {
+  const n = Math.trunc(Number(value) || 0)
+  const abs = Math.abs(n)
+  return `${n < 0 ? "-" : ""}${Math.floor(abs / 10000)}.${String(abs % 10000).padStart(4, "0")}`
+}
+
+/** A percentage that is already a decimal number, such as an average, cut (not rounded) to four decimals. */
+export function fmtPercent4(percent: number): string {
+  // The tiny offset only absorbs floating point noise such as 98.12339999999999.
+  return fmtAchievement(Math.floor(Number(percent) * 10000 + 1e-7))
+}
+
+/**
+ * Reads an achievement typed as a percentage into 1/10000 percent. Digits after the fourth decimal are cut off,
+ * not rounded. Returns NaN when the text is not a number.
+ */
+export function parseAchievement(text: string): number {
+  const match = text.trim().match(/^(\d{1,3})(?:\.(\d*))?$/)
+  if (!match) return NaN
+  return Number(match[1]) * 10000 + Number(((match[2] ?? "") + "0000").slice(0, 4))
 }
 
 export function chusanRating(lv: number, score: number) {

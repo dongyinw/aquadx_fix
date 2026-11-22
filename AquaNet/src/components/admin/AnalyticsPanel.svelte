@@ -7,6 +7,7 @@
   import { ADMIN } from "../../libs/sdk"
   import type { AdminAnalytics, AnalyticsDayPlayer } from "../../libs/sdk"
   import { errorMessage, toast } from "../../libs/toast"
+  import { fmtPercent4 } from "../../libs/scoring"
 
   let analytics: AdminAnalytics | null = null
   let loading = false
@@ -99,7 +100,7 @@
       <div><small>新增玩家</small><strong class="num">{analytics.newPlayers}</strong></div>
       <div><small>游玩曲目总数</small><strong class="num">{analytics.totalPlays}</strong></div>
       <div><small>日均游玩曲目</small><strong class="num">{perDay.toFixed(1)}</strong></div>
-      <div><small>游玩总达成率</small><strong class="num">{analytics.achievementRate.toFixed(2)}%</strong></div>
+      <div><small>游玩总达成率</small><strong class="num">{fmtPercent4(analytics.achievementRate)}%</strong></div>
     </div>
 
     <h3 class="chart-title">每日游玩曲目数</h3>
@@ -135,7 +136,7 @@
                 <td data-label="昵称">{player.userName}</td>
                 <td data-label="类型">{player.guest ? "游客账户" : "玩家"}</td>
                 <td data-label="游玩曲目" class="num">{player.plays}</td>
-                <td data-label="平均达成率" class="num">{player.averageAchievement.toFixed(2)}%</td>
+                <td data-label="平均达成率" class="num">{fmtPercent4(player.averageAchievement)}%</td>
                 <td data-label="首次游玩">{player.firstPlay.slice(11, 19)}</td>
                 <td data-label="最后游玩">{player.lastPlay.slice(11, 19)}</td>
               </tr>
@@ -157,7 +158,7 @@
           <thead><tr><th>排名</th><th>曲目 ID</th><th class="num">游玩次数</th><th class="num">平均达成率</th></tr></thead>
           <tbody>
             {#each analytics.ranking as song}
-              <tr><td data-label="排名">{song.rank}</td><td data-label="曲目 ID" class="mono">{song.musicId}</td><td data-label="游玩次数" class="num">{song.plays}</td><td data-label="平均达成率" class="num">{song.averageAchievement.toFixed(2)}%</td></tr>
+              <tr><td data-label="排名">{song.rank}</td><td data-label="曲目 ID" class="mono">{song.musicId}</td><td data-label="游玩次数" class="num">{song.plays}</td><td data-label="平均达成率" class="num">{fmtPercent4(song.averageAchievement)}%</td></tr>
             {:else}
               <tr><td colspan="4" data-label="" class="subtle">暂无曲目记录</td></tr>
             {/each}

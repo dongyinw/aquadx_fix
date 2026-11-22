@@ -1,17 +1,11 @@
 <script lang="ts">
   import { t, ts } from "../../libs/i18n";
-  import useLocalStorage from "../../libs/hooks/useLocalStorage.svelte";
   import RegionSelector from "./RegionSelector.svelte";
   import { USER } from "../../libs/sdk";
   import type { MikuNetUser } from "../../libs/generalTypes";
   import StatusOverlays from "../StatusOverlays.svelte";
   import Icon from "../ui/Icon.svelte";
   import { toast, errorMessage } from "../../libs/toast";
-
-  const rounding = useLocalStorage("rounding", true);
-  // Local mirror so the switch reflects the stored value reactively.
-  let roundingValue = rounding.value;
-  $: rounding.value = roundingValue;
 
   let me: MikuNetUser;
   let submitting = "";
@@ -39,13 +33,6 @@
       <h3>网站显示</h3>
       <div class="alert alert-info"><Icon icon="solar:info-circle-bold-duotone" /><p>{ts("settings.siteNotice")}</p></div>
       <div class="setting-group">
-        <div class="setting-row">
-          <label class="setting-text" for="rounding">
-            <span class="name">{ts(`settings.fields.rounding.name`)}</span>
-            <span class="desc">{ts(`settings.fields.rounding.desc`)}</span>
-          </label>
-          <input id="rounding" type="checkbox" class="switch" bind:checked={roundingValue}/>
-        </div>
         <div class="setting-row">
           <label class="setting-text" for="displayCandidates">
             <span class="name">{ts(`settings.fields.displayCandidates.name`)}</span>
