@@ -1,5 +1,7 @@
 package icu.samnyan.aqua.net.games.diva
 
+import icu.samnyan.aqua.net.Feature
+import icu.samnyan.aqua.net.FeatureSwitches
 import ext.*
 import icu.samnyan.aqua.net.db.AquaUserServices
 import icu.samnyan.aqua.sega.diva.DivaRepos
@@ -10,9 +12,11 @@ import org.springframework.web.bind.annotation.RestController
 class DivaExport(
     val us: AquaUserServices,
     val repos: DivaRepos,
+    val features: FeatureSwitches,
 ) {
     @API("export")
     fun exportUserData(@RP token: Str) = us.jwt.auth(token) { account ->
+        features.require(Feature.EXPORT)
         val profile = repos.profile.findByPdId(account.ghostCard.extId).orElse(null)
             ?: (404 - "User not found")
 

@@ -1,5 +1,7 @@
 package icu.samnyan.aqua.net.games
 
+import icu.samnyan.aqua.net.Feature
+import icu.samnyan.aqua.net.FeatureSwitches
 import tools.jackson.core.JacksonException
 import ext.*
 import icu.samnyan.aqua.net.Fedy
@@ -86,6 +88,7 @@ abstract class ImportController<ExportModel: IExportClass<UserModel>, UserModel:
     @Autowired lateinit var transManager: PlatformTransactionManager
     val trans by lazy { TransactionTemplate(transManager) }
     @Autowired lateinit var cardService: CardService
+    @Autowired lateinit var features: FeatureSwitches
 
     init {
         artemisRenames.values.forEach {
@@ -112,6 +115,7 @@ abstract class ImportController<ExportModel: IExportClass<UserModel>, UserModel:
 
     @API("export")
     fun exportUserData(@RP token: Str) = us.jwt.auth(token) { u ->
+        features.require(Feature.EXPORT)
         log.info("Exporting user data for ${u.auId}")
         formatExport(export(u))
     }

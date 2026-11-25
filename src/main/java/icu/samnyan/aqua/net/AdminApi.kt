@@ -58,6 +58,9 @@ class AdminApi(
     companion object {
         private val log = LoggerFactory.getLogger(AdminApi::class.java)
         private val keychipPattern = Regex("^[A-Z\\d]{15}$")
+        private const val DEFAULT_MAI2_ICON = 1
+        /** Icon 10 makes the cabinet show the user's custom portrait. */
+        private const val CUSTOM_PORTRAIT_ICON = 10
     }
 
     private fun admin(token: Str): AquaNetUser = jwt.auth(token).also {
@@ -523,6 +526,38 @@ class AdminApi(
             else -> 400 - "Unsupported game"
         }
         log.info("Admin {} changed {} profile {} field {}", actor.auId, game, target.auId, field)
+        return mapOf("success" to true)
+    }
+
+    /** Puts the user's maimai DX icon back to the default one. */
+    @Transactional
+    @API("/user/mai2-reset-icon")
+    fun mai2ResetIcon(@RP token: Str, @RP auId: Long): Map<String, Any> {
+        val actor = admin(token)
+        val target = user(auId)
+        val data = mai2Profile(target.auId) ?: (404 - "Maimai profile not found")
+        data.iconId = DEFAULT_MAI2_ICON
+        mai2.userData.save(data)
+        log.info("Admin {} reset the maimai icon of user {}", actor.auId, target.auId)
+        return mapOf("success" to true, "iconId" to DEFAULT_MAI2_ICON)
+    }
+
+    /**
+     * Removes the user's custom portrait: the picture uploaded on the website (which the cabinet shows as the custom
+     * portrait) and the pictures cabinets uploaded for the user's cards. An icon set to the custom portrait goes back
+     * to the default one, since there is nothing left to show.
+     */
+    @Transactional
+    @API("/user/mai2-reset-custom-portrait")
+    fun mai2ResetCustomPortrait(@RP token: Str, @RP auId: Long): Map<String, Any> {
+        val actor = admin(token)
+        val target = user(auId)
+        accountDeletion.resetCustomPortrait(target, cardRepo.findAllByAquaUserAuId(target.auId).map { it.extId })
+        mai2Profile(target.auId)?.takeIf { it.iconId == CUSTOM_PORTRAIT_ICON }?.let {
+            it.iconId = DEFAULT_MAI2_ICON
+            mai2.userData.save(it)
+        }
+        log.info("Admin {} reset the custom portrait of user {}", actor.auId, target.auId)
         return mapOf("success" to true)
     }
 

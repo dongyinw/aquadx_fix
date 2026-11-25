@@ -45,7 +45,7 @@ private class Fixture(usedScore: Long = 0, usedMile: Long = 0) {
         `when`(maimai2.musicMapping).thenReturn(mapOf(8 to GenericMusicMeta("Song", "Ver1.00.00", List(4) { GenericNoteMeta(8.0) })))
         `when`(logs.countByUserAndKindAndCreatedAtGreaterThanEqual(anyUser(), anyString(), anyOf(LocalDateTime::class.java, LocalDateTime.now())))
             .thenAnswer { if (it.getArgument<String>(1) == Mai2Claim.KIND_SCORE) usedScore else usedMile }
-        service = Mai2ClaimService(repos, maimai2, scoreDailyLimit = 20, mileDailyLimit = 3)
+        service = Mai2ClaimService(repos, maimai2, testSwitches(), scoreDailyLimit = 20, mileDailyLimit = 3)
     }
 }
 
@@ -94,6 +94,14 @@ class Mai2ClaimServiceTest : StringSpec({
         verify(f.logs).save(captor.capture() ?: Mai2UserClaimLog())
         captor.value.oldValue shouldBe 1005000
         captor.value.newValue shouldBe 980000
+    }
+
+    "the claim tools are refused while the admin has switched them off" {
+        val f = Fixture()
+        val off = Mai2ClaimService(f.repos, f.maimai2, testSwitches(icu.samnyan.aqua.net.Feature.CLAIM), scoreDailyLimit = 20, mileDailyLimit = 3)
+        status { off.claimMile(player(), 600) } shouldBe 403
+        status { off.claimScore(player(), Mai2Claim.ScoreInput(8, 3, 990000, 1500, 0, 0)) } shouldBe 403
+        verify(f.music, never()).save(anyMusic())
     }
 
     "the daily score limit and invalid songs are refused without touching the profile" {

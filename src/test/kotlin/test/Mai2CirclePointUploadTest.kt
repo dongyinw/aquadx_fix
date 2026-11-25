@@ -25,7 +25,7 @@ class Mai2CirclePointUploadTest : StringSpec({
         `when`(userRepo.findByCardExtId(userId)).thenReturn(current)
         doAnswer { it.getArgument<Mai2UserDetail>(0) }.`when`(userRepo).saveAndFlush(any(Mai2UserDetail::class.java))
         `when`(members.findByAimeExtId(userId)).thenReturn(member)
-        val handler = UpsertUserAllHandler(BasicMapper(), mock(CardService::class.java), repos, members)
+        val handler = UpsertUserAllHandler(BasicMapper(), mock(CardService::class.java), repos, members, testSwitches())
         fun upload(points: List<Map<String, Any>>) = handler.handle(mapOf(
             "userId" to userId,
             "upsertUserAll" to mapOf("userData" to listOf(mapOf("userName" to "TEST")), "userCirclePointDataList" to points),

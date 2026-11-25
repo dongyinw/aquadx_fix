@@ -2,6 +2,8 @@ package icu.samnyan.aqua.net.games
 
 import ext.*
 import icu.samnyan.aqua.net.BotProps
+import icu.samnyan.aqua.net.Feature
+import icu.samnyan.aqua.net.FeatureSwitches
 import icu.samnyan.aqua.net.db.AquaUserServices
 import icu.samnyan.aqua.net.utils.SUCCESS
 import icu.samnyan.aqua.sega.allnet.UserKeychipRepo
@@ -33,6 +35,7 @@ abstract class GameApiController<T : IUserData>(val name: String, userDataClass:
     open val gettableFields: Set<String> = setOf()
 
     @Autowired lateinit var cardService: CardService
+    @Autowired lateinit var features: FeatureSwitches
     @Autowired lateinit var userKeychipRepo: UserKeychipRepo
 
     @API("trend")
@@ -136,6 +139,7 @@ abstract class GameApiController<T : IUserData>(val name: String, userDataClass:
     @API("user-detail-set")
     suspend fun userDetailSet(@RP token: String, @RP field: String, @RP value: String): Any {
         val prop = settableFields[field] ?: (400 - "Invalid field $field")
+        if (field == "userName") features.require(Feature.RENAME)
 
         return us.jwt.auth(token) { u ->
             val user = async { userDataRepo.findByCard(u.ghostCard) } ?: (404 - "User not found")

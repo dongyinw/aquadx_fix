@@ -16,6 +16,8 @@ import java.time.format.DateTimeFormatter
  */
 object Mai2MagicalPass {
     const val TICKET_ITEM_ID = 40001
+    /** Tickets that come with one pass, as in the original game. */
+    const val TICKETS_PER_PASS = 5
     const val VALID_DAYS = 14L
     val GAME_DAY_START: LocalTime = LocalTime.of(7, 0)
     val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S")

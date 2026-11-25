@@ -2,6 +2,8 @@ package icu.samnyan.aqua.sega.maimai2
 
 import ext.jstNow
 import ext.minus
+import icu.samnyan.aqua.net.Feature
+import icu.samnyan.aqua.net.FeatureSwitches
 import icu.samnyan.aqua.net.games.GenericMusicMeta
 import icu.samnyan.aqua.net.games.mai2.Maimai2
 import icu.samnyan.aqua.sega.maimai2.model.Mai2Repos
@@ -80,6 +82,7 @@ object Mai2Claim {
 class Mai2ClaimService(
     val repos: Mai2Repos,
     val maimai2: Maimai2,
+    val features: FeatureSwitches,
     @Value("\${game.maimai2.claim.score-daily-limit:20}") val scoreDailyLimit: Int,
     @Value("\${game.maimai2.claim.mile-daily-limit:3}") val mileDailyLimit: Int,
 ) {
@@ -89,6 +92,7 @@ class Mai2ClaimService(
         repos.userClaimLog.countByUserAndKindAndCreatedAtGreaterThanEqual(user, kind, startOfToday()).toInt()
 
     private fun requireUsable(user: Mai2UserDetail) {
+        features.require(Feature.CLAIM)
         if (user.banState != 0) 403 - "账号已被限制，无法使用该功能"
     }
 

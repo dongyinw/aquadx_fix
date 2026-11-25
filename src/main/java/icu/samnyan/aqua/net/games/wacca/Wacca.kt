@@ -1,5 +1,6 @@
 package icu.samnyan.aqua.net.games.wacca
 
+import icu.samnyan.aqua.net.Feature
 import ext.*
 import icu.samnyan.aqua.net.db.AquaUserServices
 import icu.samnyan.aqua.net.games.*
@@ -37,6 +38,7 @@ class Wacca(
 
     @API("export")
     fun exportUserData(@RP token: Str) = us.jwt.auth(token) { account ->
+        features.require(Feature.EXPORT)
         val user = repos.user.findByCard(account.ghostCard) ?: (404 - "User not found")
         WaccaDataExport(
             userData = user,

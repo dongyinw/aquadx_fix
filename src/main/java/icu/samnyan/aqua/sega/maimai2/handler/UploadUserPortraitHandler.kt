@@ -1,5 +1,7 @@
 package icu.samnyan.aqua.sega.maimai2.handler
 
+import icu.samnyan.aqua.net.Feature
+import icu.samnyan.aqua.net.FeatureSwitches
 import ext.div
 import ext.logger
 import ext.parsing
@@ -21,6 +23,7 @@ import kotlin.io.path.writeText
 @Component("Maimai2UploadUserPortraitHandler")
 class UploadUserPortraitHandler(
     val mapper: BasicMapper,
+    val features: FeatureSwitches,
     paths: PathProps,
     @param:Value("\${game.maimai2.userPhoto.enable:true}") val enable: Boolean,
     @param:Value("\${game.maimai2.userPhoto.divMaxLength:32}") val divMaxLength: Long
@@ -30,7 +33,7 @@ class UploadUserPortraitHandler(
     val fail = """{"returnCode":-1,"apiName":"com.sega.maimai2servlet.api.UploadUserPortraitApi"}"""
 
     override fun handle(request: Map<String, Any>): String {
-        if (!enable) return success
+        if (!enable || !features.enabled(Feature.CUSTOM_AVATAR)) return success
 
         // Maimai DX sends split base64 data for one jpeg image.
         // So, make a temp file and keep append bytes until last part received.

@@ -1,5 +1,6 @@
 package icu.samnyan.aqua.net.games.mai2
 
+import icu.samnyan.aqua.net.Feature
 import ext.*
 import icu.samnyan.aqua.net.db.AquaUserServices
 import icu.samnyan.aqua.net.games.*
@@ -118,6 +119,7 @@ class Maimai2(
 
     @PostMapping("change-name")
     suspend fun changeName(@RP token: String, @RP newName: String) = us.jwt.auth(token) { u ->
+        features.require(Feature.RENAME)
         val newNameFull = toFullWidth(newName)
         us.cardByName(u.username) { card ->
             val user = userDataRepo.findByCard(card) ?: (404 - "User not found")

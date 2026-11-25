@@ -306,7 +306,7 @@ fun Maimai2ServletController.initApis() {
                     itemKind = 12
                     itemId = 40001
                 }
-            ticket.stock += 1
+            ticket.stock += Mai2MagicalPass.TICKETS_PER_PASS
             ticket.isValid = true
             awardedTicketStock = ticket.stock
             db.userItem.save(ticket)

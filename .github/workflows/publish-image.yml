@@ -38,6 +38,7 @@ jobs:
             --tests test.Mai2ClaimServiceTest \
             --tests test.GameTournamentTest \
             --tests test.Mai2GhostSeedTest \
+            --tests test.FeatureSwitchesTest \
             --tests test.Mai2ImportSocialRetentionTest \
             --tests test.ImportTransactionTest \
             --tests test.ImportExportParityTest \

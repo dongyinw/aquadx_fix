@@ -1,5 +1,7 @@
 package icu.samnyan.aqua.sega.maimai2.handler
 
+import icu.samnyan.aqua.net.Feature
+import icu.samnyan.aqua.net.FeatureSwitches
 import ext.invoke
 import ext.logger
 import icu.samnyan.aqua.net.utils.PathProps
@@ -16,6 +18,7 @@ import java.util.*
 @Component("Maimai2GetUserPortraitHandler")
 class GetUserPortraitHandler(
     val cardRepo: CardRepository,
+    val features: FeatureSwitches,
 
     @param:Value("\${game.maimai2.userPhoto.enable:true}") val enable: Boolean,
 
@@ -25,7 +28,7 @@ class GetUserPortraitHandler(
     val log = logger()
 
     override fun handle(request: Map<String, Any>): Any? {
-        if (!enable) return """{"length":0,"userPortraitList":[]}"""
+        if (!enable || !features.enabled(Feature.CUSTOM_AVATAR)) return """{"length":0,"userPortraitList":[]}"""
 
         val uid = (request["userId"] as Number).toLong()
         val list = ArrayList<Mai2UserPortrait>()

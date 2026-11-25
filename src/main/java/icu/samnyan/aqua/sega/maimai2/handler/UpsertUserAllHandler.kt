@@ -4,6 +4,8 @@ import tools.jackson.core.JacksonException
 import ext.mapApply
 import ext.minus
 import ext.unique
+import icu.samnyan.aqua.net.Feature
+import icu.samnyan.aqua.net.FeatureSwitches
 import icu.samnyan.aqua.sega.general.BaseHandler
 import icu.samnyan.aqua.sega.general.model.CardStatus
 import icu.samnyan.aqua.sega.general.service.CardService
@@ -27,7 +29,8 @@ class UpsertUserAllHandler(
     val mapper: BasicMapper,
     val cardService: CardService,
     val repos: Mai2Repos,
-    val circleMembers: Mai2CircleMemberRepo
+    val circleMembers: Mai2CircleMemberRepo,
+    val features: FeatureSwitches,
 ) : BaseHandler {
     fun String.isValidUsername() = isNotBlank() && length <= 8
 
@@ -47,6 +50,9 @@ class UpsertUserAllHandler(
             isNetMember = 1
 
             userData?.let { current -> keepCurrentCollectionIfUploadReset(this, current) }
+
+            // With renaming switched off a name changed on the cabinet is not kept.
+            if (userData != null && !features.enabled(Feature.RENAME)) userName = userData.userName
 
             // Validate username
             if (!userName.isValidUsername())
@@ -212,6 +218,11 @@ class UpsertUserAllHandler(
         uploaded.titleId = keepIfReset(uploaded.titleId, current.titleId, setOf(0, 1))
         uploaded.partnerId = keepIfReset(uploaded.partnerId, current.partnerId, setOf(0, 1, 38))
         uploaded.frameId = keepIfReset(uploaded.frameId, current.frameId, setOf(0, 1))
+
+        // Icon 10 is the custom portrait; while it is switched off nobody can select it (or stay on it).
+        if (!features.enabled(Feature.CUSTOM_AVATAR) && uploaded.iconId == 10) {
+            uploaded.iconId = if (current.iconId != 10) current.iconId else 1
+        }
     }
 
     fun saveRating(itemList: List<Mai2UserRate>, u: Mai2UserDetail, key: String) {

@@ -21,7 +21,7 @@ private class WaccaExportFixture {
         mock(WcUserFriendRepo::class.java), mock(WcUserGateRepo::class.java), mock(WcUserItemRepo::class.java),
         mock(WcUserBestScoreRepo::class.java), mock(WcUserPlayLogRepo::class.java), mock(WcUserStageUpRepo::class.java),
     )
-    val api = Wacca(us, repos.playLog, repos.user, repos.bestScore, repos)
+    val api = Wacca(us, repos.playLog, repos.user, repos.bestScore, repos).also { it.features = testSwitches() }
 
     init {
         `when`(us.jwt).thenReturn(jwt)

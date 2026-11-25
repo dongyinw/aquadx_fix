@@ -65,6 +65,7 @@ class UserRegistrar(
     val accountDeletion: AccountDeletionService,
     val mai2: Mai2Repos,
     val cardService: CardService,
+    val features: FeatureSwitches,
 ) {
     val portraitPath = paths.aquaNetPortrait.path()
 
@@ -358,7 +359,7 @@ class UserRegistrar(
                 itemKind = 12
                 itemId = 40001
             }
-        ticket.stock += 1
+        ticket.stock += Mai2MagicalPass.TICKETS_PER_PASS
         ticket.isValid = true
         mai2.userItem.save(ticket)
 
@@ -465,6 +466,7 @@ class UserRegistrar(
     @API("/upload-pfp", consumes = ["multipart/form-data"])
     @Doc("Upload a profile picture for the user.", "Success message")
     suspend fun uploadPfp(@RP token: Str, @RP file: MultipartFile) = jwt.auth(token) { u ->
+        features.require(Feature.CUSTOM_AVATAR)
         // Processing the image would lead to many open factors for attack
         // (e.g. the JFIF Pixel Flood attack that ImageIO is vulnerable to)
         // So we check file magic, then store the image without any processing
@@ -578,6 +580,22 @@ class AccountDeletionService(
                 .forEach { (Path("data") / it).deleteIfExists() }
         } catch (e: Exception) {
             log.error("Failed to delete one or more uploaded files for deleted user ${cleanup.gameUserId}", e)
+        }
+    }
+
+    /** Removes the custom portrait: the website profile picture and the pictures cabinets uploaded for these cards. */
+    @Transactional
+    fun resetCustomPortrait(user: AquaNetUser, cardExtIds: List<Long>) {
+        val file = user.profilePicture
+        // A blank name means "no picture": the cabinet and the website both fall back to the default.
+        user.profilePicture = ""
+        userRepo.save(user)
+        try {
+            file?.takeIf { it.isNotBlank() && Path(it).name == it }
+                ?.let { (Path(paths.aquaNetPortrait) / it).deleteIfExists() }
+            cardExtIds.forEach { deleteFilesStartingWith(Path(paths.mai2Portrait), "$it-") }
+        } catch (e: Exception) {
+            log.error("Failed to delete the custom portrait files of user ${user.auId}", e)
         }
     }
 

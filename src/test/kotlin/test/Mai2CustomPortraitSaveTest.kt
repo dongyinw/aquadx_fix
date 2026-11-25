@@ -1,5 +1,7 @@
 package test
 
+import icu.samnyan.aqua.net.Feature
+import icu.samnyan.aqua.net.FeatureSwitches
 import icu.samnyan.aqua.sega.general.model.Card
 import icu.samnyan.aqua.sega.general.service.CardService
 import icu.samnyan.aqua.sega.maimai2.handler.UpsertUserAllHandler
@@ -16,7 +18,7 @@ import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 
-private fun savePortraitChoice(savedIcon: Int, uploadedIcon: Int): Mai2UserDetail {
+private fun savePortraitChoice(savedIcon: Int, uploadedIcon: Int, uploadedName: String = "TEST", switches: FeatureSwitches = testSwitches()): Mai2UserDetail {
     val userId = 123456789L
     val current = Mai2UserDetail(
         card = Card().apply { extId = userId },
@@ -35,12 +37,12 @@ private fun savePortraitChoice(savedIcon: Int, uploadedIcon: Int): Mai2UserDetai
     doAnswer { it.getArgument<Mai2UserDetail>(0) }
         .`when`(userRepo).saveAndFlush(any(Mai2UserDetail::class.java))
 
-    val handler = UpsertUserAllHandler(BasicMapper(), mock(CardService::class.java), repos, mock(icu.samnyan.aqua.net.games.mai2.circle.Mai2CircleMemberRepo::class.java))
+    val handler = UpsertUserAllHandler(BasicMapper(), mock(CardService::class.java), repos, mock(icu.samnyan.aqua.net.games.mai2.circle.Mai2CircleMemberRepo::class.java), switches)
     handler.handle(mapOf(
         "userId" to userId,
         "upsertUserAll" to mapOf(
             "userData" to listOf(mapOf(
-                "userName" to "TEST",
+                "userName" to uploadedName,
                 "iconId" to uploadedIcon,
                 "plateId" to 1,
                 "titleId" to 1,
@@ -70,6 +72,19 @@ class Mai2CustomPortraitSaveTest : StringSpec({
 
     "game settlement can switch back from a custom portrait to a regular icon" {
         savePortraitChoice(10, 706605).iconId shouldBe 706605
+    }
+
+    "with the custom portrait switched off icon 10 cannot be selected or kept" {
+        val off = testSwitches(Feature.CUSTOM_AVATAR)
+        savePortraitChoice(706605, 10, switches = off).iconId shouldBe 706605
+        savePortraitChoice(10, 10, switches = off).iconId shouldBe 1
+        // Regular icons are not affected.
+        savePortraitChoice(706605, 800001, switches = off).iconId shouldBe 800001
+    }
+
+    "a name changed on the cabinet is saved unless renaming is switched off" {
+        savePortraitChoice(706605, 706605, uploadedName = "NEW").userName shouldBe "NEW"
+        savePortraitChoice(706605, 706605, uploadedName = "NEW", switches = testSwitches(Feature.RENAME)).userName shouldBe "TEST"
     }
 
     "an empty icon upload still preserves the saved icon" {
