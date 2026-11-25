@@ -253,6 +253,7 @@ export interface AnalyticsDayPlayer {
 }
 
 export const ADMIN = {
+  resetGameName: (auId: number, game: string): Promise<{ success: boolean, userName: string }> => post('/api/v2/admin/user/game-reset-name', { auId, game }),
   resetMai2Icon: (auId: number): Promise<{ success: boolean }> => post('/api/v2/admin/user/mai2-reset-icon', { auId }),
   resetMai2CustomPortrait: (auId: number): Promise<{ success: boolean }> => post('/api/v2/admin/user/mai2-reset-custom-portrait', { auId }),
   claimLog: (): Promise<ClaimLogEntry[]> => post('/api/v2/user/mai2-claim/admin/log', {}),

@@ -315,6 +315,21 @@
     }
   }
 
+  /** Puts the in-game name of the selected game back to the default name. */
+  async function resetGameName() {
+    if (!userDetail) return
+    const game = selectedGame
+    const confirmed = await confirmDialog({ title: "重置名称", message: `确定把 ${userDetail.user.computedName} 的${gameLabels[game]}游戏名称重置为 maimai 吗？`, confirmText: "重置", danger: true })
+    if (!confirmed) return
+    try {
+      await ADMIN.resetGameName(userDetail.user.auId, game)
+      await openUser(selectedUser!)
+      notice = `${gameLabels[game]} 游戏名称已重置为 maimai`
+    } catch (e) {
+      fail(e)
+    }
+  }
+
   async function saveCardMaiProfile() {
     if (!cardDetail?.mai2) return
     try {
@@ -659,13 +674,16 @@
                 <label class="field"><span class="field-label">字段值</span>{#if gameField === "banState"}<select bind:value={gameValue}><option value="0">0 · 正常</option><option value="1">1 · 限制</option><option value="2">2 · 封禁</option></select>{:else}<input bind:value={gameValue} />{/if}</label>
                 <button class="btn-primary" type="submit"><Icon icon="solar:check-circle-bold" />保存档案</button>
               </form>
-              {#if selectedGame === "mai2"}
-                <div class="picture-reset">
+              <div class="picture-reset">
+                <button class="btn-soft" type="button" on:click={resetGameName}><Icon icon="solar:pen-new-square-bold-duotone" />重置名称</button>
+                {#if selectedGame === "mai2"}
                   <button class="btn-soft" type="button" on:click={() => resetMaiPicture("icon")}><Icon icon="solar:user-circle-bold-duotone" />重置头像</button>
                   <button class="btn-soft" type="button" on:click={() => resetMaiPicture("portrait")}><Icon icon="solar:gallery-remove-bold-duotone" />重置自定义头像</button>
-                  <small class="subtle">重置头像：换回默认头像；重置自定义头像：删除玩家上传的头像图片。</small>
-                </div>
-              {/if}
+                  <small class="subtle">重置名称：改回 maimai；重置头像：换回默认头像；重置自定义头像：删除玩家上传的头像图片。</small>
+                {:else}
+                  <small class="subtle">重置名称：把游戏名称改回 maimai。</small>
+                {/if}
+              </div>
               <div class="stats"><span class="badge">Rating {currentProfile?.playerRating ?? 0}</span><span class="badge">最高 {currentProfile?.highestRating ?? 0}</span><span class="badge">游玩 {currentProfile?.playCount ?? 0} 次</span><span class="badge">最近机台 {currentProfile?.lastClientId || "暂无"}</span></div>
             {:else}
               <p class="subtle">该用户还没有 {gameLabels[selectedGame]} 用户资料。</p>

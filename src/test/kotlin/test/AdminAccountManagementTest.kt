@@ -77,6 +77,14 @@ class AdminAccountManagementTest : StringSpec({
         verifyNoInteractions(f.users, f.sessions, f.resets)
     }
 
+    "resetting a game name needs an admin, an existing account and a supported game" {
+        val f = AdminFixture()
+        shouldThrow<ApiException> { f.api.gameResetName("admin-token", 2, "wacca") }.code shouldBe 400
+        shouldThrow<ApiException> { f.api.gameResetName("admin-token", 999, "mai2") }.code shouldBe 404
+        f.actor.isAdmin = false
+        shouldThrow<ApiException> { f.api.gameResetName("admin-token", 2, "mai2") }.code shouldBe 403
+    }
+
     "a missing account or invalid password leaves credentials and sessions unchanged" {
         val f = AdminFixture()
         shouldThrow<ApiException> {

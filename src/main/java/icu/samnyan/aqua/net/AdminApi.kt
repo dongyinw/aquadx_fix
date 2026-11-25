@@ -59,6 +59,8 @@ class AdminApi(
         private val log = LoggerFactory.getLogger(AdminApi::class.java)
         private val keychipPattern = Regex("^[A-Z\\d]{15}$")
         private const val DEFAULT_MAI2_ICON = 1
+        /** The name a profile gets when an admin resets it. */
+        private const val DEFAULT_GAME_NAME = "maimai"
         /** Icon 10 makes the cabinet show the user's custom portrait. */
         private const val CUSTOM_PORTRAIT_ICON = 10
     }
@@ -527,6 +529,22 @@ class AdminApi(
         }
         log.info("Admin {} changed {} profile {} field {}", actor.auId, game, target.auId, field)
         return mapOf("success" to true)
+    }
+
+    /** Puts the user's in-game name of the given game back to the fixed default name. */
+    @Transactional
+    @API("/user/game-reset-name")
+    fun gameResetName(@RP token: Str, @RP auId: Long, @RP game: Str): Map<String, Any> {
+        val actor = admin(token)
+        val target = user(auId)
+        when (game) {
+            "mai2" -> mai2.userData.save((mai2Profile(target.auId) ?: (404 - "Maimai profile not found")).apply { userName = DEFAULT_GAME_NAME })
+            "chu3" -> chu3.userData.save((chu3Profile(target.auId) ?: (404 - "Chuni profile not found")).apply { userName = DEFAULT_GAME_NAME })
+            "ongeki" -> ongeki.u.data.save((ongekiProfile(target.auId) ?: (404 - "Ongeki profile not found")).apply { userName = DEFAULT_GAME_NAME })
+            else -> 400 - "Unsupported game"
+        }
+        log.info("Admin {} reset the {} name of user {}", actor.auId, game, target.auId)
+        return mapOf("success" to true, "userName" to DEFAULT_GAME_NAME)
     }
 
     /** Puts the user's maimai DX icon back to the default one. */
