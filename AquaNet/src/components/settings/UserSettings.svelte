@@ -9,6 +9,7 @@
   import { pfpNotFound, pfpUrl } from "../../libs/ui";
   import { t, ts } from "../../libs/i18n";
   import { toast, errorMessage } from "../../libs/toast";
+  import { FEATURE_FLAGS } from "../../libs/features";
   import { confirmDialog } from "../../libs/confirm";
   import Cropper from "svelte-easy-crop";
 
@@ -124,15 +125,16 @@
 
 {#if me}
   <div class="user-settings">
+    {#if !$FEATURE_FLAGS.customAvatar}<div class="alert" role="status"><Icon icon="solar:info-circle-bold-duotone" /><p>管理员暂时关闭了自定义头像，现在不能上传。</p></div>{/if}
     <div class="avatar-row">
-      <button class="avatar-btn" type="button" on:click={() => pfpField.click()} aria-label={t('settings.profile.upload-new')} disabled={!!submitting}>
+      <button class="avatar-btn" type="button" on:click={() => pfpField.click()} aria-label={t('settings.profile.upload-new')} disabled={!!submitting || !$FEATURE_FLAGS.customAvatar}>
         <img src={avatarSrc} alt="" on:error={pfpNotFound} />
         <span class="avatar-overlay">{#if submitting === 'profilePicture'}<Spinner />{:else}<Icon icon="solar:camera-bold-duotone" />{/if}</span>
       </button>
       <div class="avatar-copy">
         <strong>{t('settings.profile.picture')}</strong>
         <small>支持 PNG / JPEG / WebP（可裁剪）与 GIF</small>
-        <button class="btn-sm" type="button" on:click={() => pfpField.click()} disabled={!!submitting}><Icon icon="solar:upload-minimalistic-bold-duotone" />{t('settings.profile.upload-new')}</button>
+        <button class="btn-sm" type="button" on:click={() => pfpField.click()} disabled={!!submitting || !$FEATURE_FLAGS.customAvatar}><Icon icon="solar:upload-minimalistic-bold-duotone" />{t('settings.profile.upload-new')}</button>
       </div>
     </div>
 

@@ -7,6 +7,7 @@
   import type { ClaimStatus } from "../libs/generalTypes"
   import { USER } from "../libs/sdk"
   import { getMaimaiAllMusic } from "../libs/maimai"
+  import { FEATURE_FLAGS } from "../libs/features"
   import { fmtAchievement, parseAchievement } from "../libs/scoring"
   import { confirmDialog } from "../libs/confirm"
   import { errorMessage, toast } from "../libs/toast"
@@ -149,6 +150,9 @@
     </div>
   </div>
 
+  {#if !$FEATURE_FLAGS.claim}
+    <div class="alert alert-danger" role="status"><Icon icon="solar:danger-triangle-bold-duotone" /><p>管理员暂时关闭了创哥理赔，现在不能使用。</p></div>
+  {/if}
   {#if error}
     <div class="alert alert-danger" role="alert"><Icon icon="solar:danger-triangle-bold-duotone" /><p>{error}</p></div>
   {/if}
@@ -160,7 +164,7 @@
   {:else}
     {#if loading}<p class="subtle"><Spinner /> 正在读取…</p>{/if}
 
-    <fieldset class="tools" disabled={!agreed || !status?.hasProfile}>
+    <fieldset class="tools" disabled={!agreed || !status?.hasProfile || !$FEATURE_FLAGS.claim}>
       <section class="card">
         <div class="card-header"><div><h3>修改舞里程</h3><p>当前 {status?.point ?? "—"} · 今天已用 {status?.mileUsed ?? 0}/{status?.mileLimit ?? 0} 次</p></div></div>
         <form class="row" on:submit|preventDefault={submitMile}>

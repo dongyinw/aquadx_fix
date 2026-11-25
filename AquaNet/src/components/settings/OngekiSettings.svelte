@@ -7,6 +7,7 @@
   import Icon from "../ui/Icon.svelte";
   import { t } from "../../libs/i18n";
   import StatusOverlays from "../StatusOverlays.svelte";
+  import { FEATURE_FLAGS } from "../../libs/features";
 
   let userNameField: any
 
@@ -33,14 +34,17 @@
 {#if !loading}
   <div class="game-settings">
     <div class="setting-group">
-      <InputField bind:field={userNameField}
-        callback={() => SETTING.detailSet('ongeki', 'userName', userNameField.value).then(() => true)}/>
+      {#if !$FEATURE_FLAGS.rename}<div class="alert" role="status"><Icon icon="solar:info-circle-bold-duotone" /><p>管理员暂时关闭了修改名字。</p></div>{/if}
+      <fieldset class="plain" disabled={!$FEATURE_FLAGS.rename}>
+        <InputField bind:field={userNameField}
+          callback={() => SETTING.detailSet('ongeki', 'userName', userNameField.value).then(() => true)}/>
+      </fieldset>
     </div>
     <GameSettingFields game="ongeki"/>
     <div class="setting-section">
       <h3>数据导出</h3>
       <div class="row">
-        <button type="button" on:click={exportData} disabled={!!submitting}>
+        <button type="button" on:click={exportData} disabled={!!submitting || !$FEATURE_FLAGS.export}>
           {#if submitting === "export"}<Spinner />{:else}<Icon icon="bxs:file-export"/>{/if}
           {t('settings.export')}
         </button>

@@ -9,6 +9,7 @@
   import AnnouncementAdmin from "../components/admin/AnnouncementAdmin.svelte"
   import BindCardAdmin from "../components/admin/BindCardAdmin.svelte"
   import GhostPoolAdmin from "../components/admin/GhostPoolAdmin.svelte"
+  import FeatureSwitchAdmin from "../components/admin/FeatureSwitchAdmin.svelte"
   import Icon from "../components/ui/Icon.svelte"
   import PageHeader from "../components/ui/PageHeader.svelte"
   import EmptyState from "../components/ui/EmptyState.svelte"
@@ -29,9 +30,9 @@
   } from "../libs/generalTypes"
 
   type View = "users" | "cards"
-  type Section = "overview" | "tournaments" | "events" | "announcements" | "circles" | "claims" | "bind" | "ghosts" | View
+  type Section = "overview" | "tournaments" | "events" | "announcements" | "circles" | "claims" | "bind" | "ghosts" | "switches" | View
   // Sections that manage their own data and have no user / card list to refresh.
-  const selfManaged: Section[] = ["overview", "tournaments", "events", "announcements", "circles", "claims", "bind", "ghosts"]
+  const selfManaged: Section[] = ["overview", "tournaments", "events", "announcements", "circles", "claims", "bind", "ghosts", "switches"]
   type ManagedGame = "mai2" | "chu3" | "ongeki"
 
   USER.ensureLoggedIn()
@@ -297,6 +298,23 @@
     }
   }
 
+  /** Puts the maimai DX icon back to the default one, or removes the custom portrait. */
+  async function resetMaiPicture(kind: "icon" | "portrait") {
+    if (!userDetail) return
+    const name = userDetail.user.computedName
+    const confirmed = kind === "icon"
+      ? await confirmDialog({ title: "重置头像", message: `确定把 ${name} 的舞萌头像重置为默认头像吗？`, confirmText: "重置", danger: true })
+      : await confirmDialog({ title: "重置自定义头像", message: `确定删除 ${name} 的自定义头像吗？网站头像和机台上显示的自定义头像都会被清除，如果头像正选用自定义头像，也会换回默认头像。`, confirmText: "删除", danger: true })
+    if (!confirmed) return
+    try {
+      await (kind === "icon" ? ADMIN.resetMai2Icon(userDetail.user.auId) : ADMIN.resetMai2CustomPortrait(userDetail.user.auId))
+      await openUser(selectedUser!)
+      notice = kind === "icon" ? "头像已重置为默认头像" : "自定义头像已重置"
+    } catch (e) {
+      fail(e)
+    }
+  }
+
   async function saveCardMaiProfile() {
     if (!cardDetail?.mai2) return
     try {
@@ -429,6 +447,7 @@
     { id: "circles", label: "圈子管理", icon: "solar:users-group-rounded-bold-duotone" },
     { id: "ghosts", label: "友人对战", icon: "solar:ghost-bold-duotone" },
     { id: "claims", label: "理赔记录", icon: "solar:hand-money-bold-duotone" },
+    { id: "switches", label: "功能开关", icon: "solar:tuning-2-bold-duotone" },
   ]
 </script>
 
@@ -475,6 +494,8 @@
     {#key `${bindCardId}|${bindUsername}`}<BindCardAdmin cardId={bindCardId} username={bindUsername} />{/key}
     {:else if section === "ghosts"}
     <GhostPoolAdmin />
+    {:else if section === "switches"}
+    <FeatureSwitchAdmin />
     {:else}
     <div class="list-actions">
       <button class="btn-ghost btn-sm" type="button" on:click={search} disabled={loading}>{#if loading}<Spinner />{:else}<Icon icon="solar:refresh-bold" />{/if}刷新列表</button>
@@ -638,6 +659,13 @@
                 <label class="field"><span class="field-label">字段值</span>{#if gameField === "banState"}<select bind:value={gameValue}><option value="0">0 · 正常</option><option value="1">1 · 限制</option><option value="2">2 · 封禁</option></select>{:else}<input bind:value={gameValue} />{/if}</label>
                 <button class="btn-primary" type="submit"><Icon icon="solar:check-circle-bold" />保存档案</button>
               </form>
+              {#if selectedGame === "mai2"}
+                <div class="picture-reset">
+                  <button class="btn-soft" type="button" on:click={() => resetMaiPicture("icon")}><Icon icon="solar:user-circle-bold-duotone" />重置头像</button>
+                  <button class="btn-soft" type="button" on:click={() => resetMaiPicture("portrait")}><Icon icon="solar:gallery-remove-bold-duotone" />重置自定义头像</button>
+                  <small class="subtle">重置头像：换回默认头像；重置自定义头像：删除玩家上传的头像图片。</small>
+                </div>
+              {/if}
               <div class="stats"><span class="badge">Rating {currentProfile?.playerRating ?? 0}</span><span class="badge">最高 {currentProfile?.highestRating ?? 0}</span><span class="badge">游玩 {currentProfile?.playCount ?? 0} 次</span><span class="badge">最近机台 {currentProfile?.lastClientId || "暂无"}</span></div>
             {:else}
               <p class="subtle">该用户还没有 {gameLabels[selectedGame]} 用户资料。</p>
@@ -859,6 +887,13 @@
   .list-actions
     display: flex
     justify-content: flex-end
+
+  .picture-reset
+    display: flex
+    align-items: center
+    flex-wrap: wrap
+    gap: 8px
+    margin-top: 12px
 
   .game-tabs
     margin-bottom: -4px

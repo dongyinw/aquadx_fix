@@ -27,6 +27,7 @@
   import Toaster from "./components/ui/Toaster.svelte";
   import ConfirmHost from "./components/ui/ConfirmHost.svelte";
   import { primaryNav } from "./components/layout/nav";
+  import { FEATURE_FLAGS } from "./libs/features";
   import { currentLocation, inSection, interceptLinks } from "./libs/router";
   import "./libs/theme";
 
@@ -104,7 +105,7 @@
 
   $: path = $currentLocation.split("?")[0]
   $: authPage = path === "/" || path === "/verify" || path === "/reset-password"
-  $: navItems = primaryNav(me, playedMai, recentGame, hasTournament)
+  $: navItems = primaryNav(me, playedMai, recentGame, hasTournament, $FEATURE_FLAGS.claim)
   $: showTabBar = loggedIn && !authPage
 </script>
 

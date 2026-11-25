@@ -6,6 +6,7 @@
   import StatusOverlays from "../components/StatusOverlays.svelte";
   import { t } from "../libs/i18n";
   import ImportDataAction from "./Home/ImportDataAction.svelte";
+  import { FEATURE_FLAGS } from "../libs/features";
   import DashboardTabs from "../components/DashboardTabs.svelte";
   import Spinner from "../components/ui/Spinner.svelte";
   import { pfp } from "../libs/ui";
@@ -129,7 +130,7 @@
         <a class="tile" href="/ranking"><span class="tile-icon tone-blue"><Icon icon="solar:ranking-bold-duotone" /></span><span class="tile-copy"><strong>排行榜</strong><small>看看你在服务器里排第几</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
         {#if gameProfiles?.mai2}
           <a class="tile" href="/friends"><span class="tile-icon tone-teal"><Icon icon="solar:users-group-two-rounded-bold-duotone" /></span><span class="tile-copy"><strong>好友与劲敌</strong><small>添加好友，设置游戏内劲敌</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
-          <a class="tile" href="/claim"><span class="tile-icon tone-gold"><Icon icon="solar:hand-money-bold-duotone" /></span><span class="tile-copy"><strong>创哥理赔</strong><small>服务异常时，自行补传成绩或修改舞里程</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
+          {#if $FEATURE_FLAGS.claim}<a class="tile" href="/claim"><span class="tile-icon tone-gold"><Icon icon="solar:hand-money-bold-duotone" /></span><span class="tile-copy"><strong>创哥理赔</strong><small>服务异常时，自行补传成绩或修改舞里程</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>{/if}
           <a class="tile" href="/circle"><span class="tile-icon tone-pink"><Icon icon="solar:users-group-rounded-bold-duotone" /></span><span class="tile-copy"><strong>圈子</strong><small>加入同好圈子，一起累积点数</small></span><Icon class="arrow" icon="line-md:chevron-small-right" /></a>
         {/if}
         {#if me.isAdmin}
@@ -142,9 +143,9 @@
       <div class="section-header"><div><h2>存档备份</h2><p>迁移存档或导出备份，换服、换机都不怕丢数据</p></div></div>
       <div class="tile-grid">
         <ImportDataAction />
-        <button class="tile" type="button" on:click={exportData} disabled={!gameProfiles?.mai2 || exportLoading}>
+        <button class="tile" type="button" on:click={exportData} disabled={!gameProfiles?.mai2 || exportLoading || !$FEATURE_FLAGS.export}>
           <span class="tile-icon tone-blue">{#if exportLoading}<Spinner />{:else}<Icon icon="solar:file-download-bold-duotone" />{/if}</span>
-          <span class="tile-copy"><strong>{exportLoading ? "正在导出…" : "导出舞萌 DX 存档"}</strong><small>{gameProfiles ? (gameProfiles.mai2 ? "下载 JSON 文件，可用于备份或迁移" : "还没有舞萌 DX 存档可导出") : "正在读取存档…"}</small></span>
+          <span class="tile-copy"><strong>{exportLoading ? "正在导出…" : "导出舞萌 DX 存档"}</strong><small>{!$FEATURE_FLAGS.export ? "管理员暂时关闭了数据导出" : gameProfiles ? (gameProfiles.mai2 ? "下载 JSON 文件，可用于备份或迁移" : "还没有舞萌 DX 存档可导出") : "正在读取存档…"}</small></span>
           <Icon class="arrow" icon="solar:download-minimalistic-bold-duotone" />
         </button>
       </div>

@@ -29,6 +29,7 @@
   import EmptyState from "../components/ui/EmptyState.svelte";
   import { theme } from "../libs/theme";
   import { toast } from "../libs/toast";
+  import { FEATURE_FLAGS } from "../libs/features";
 
   const TREND_DAYS = 60
 
@@ -263,7 +264,7 @@
           </button>
         {/if}
         {#if isSelf}
-          <button type="button" disabled={exportLoading} on:click={exportData}>
+          <button type="button" disabled={exportLoading || !$FEATURE_FLAGS.export} on:click={exportData}>
             {#if exportLoading}<Spinner />{:else}<Icon icon="solar:download-minimalistic-bold-duotone" />{/if}
             {exportLoading ? t("UserHome.ExportingData") : t("UserHome.ExportData", { game: GAME_TITLE[game] })}
           </button>

@@ -1214,3 +1214,13 @@ table.data-table
     transition-duration: 0.01ms !important
     animation-duration: 0.01ms !important
     animation-iteration-count: 1 !important
+
+// A fieldset used only to disable a group of controls at once, without the browser's box.
+fieldset.plain
+  margin: 0
+  padding: 0
+  border: 0
+  min-width: 0
+
+  &:disabled
+    opacity: 0.55

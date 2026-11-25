@@ -99,7 +99,7 @@
     if (!selectedCardId || !state?.hasProfile || purchasing) return
     if (!await confirmDialog({
       title: `发放${selectedOption.title}`,
-      message: `确认给 ${cardName(cards.find(card => card.luid === selectedCardId) as Card)} 发放${selectedOption.title}（Pass ID ${selectedOption.charaId}）吗？\n同时会获得 1 张票券 40001。`,
+      message: `确认给 ${cardName(cards.find(card => card.luid === selectedCardId) as Card)} 发放${selectedOption.title}（Pass ID ${selectedOption.charaId}）吗？\n同时会获得 5 张票券 40001。`,
       confirmText: "确认发放",
     })) return
 
@@ -109,7 +109,7 @@
     try {
       const result = await USER.mai2PassPurchase(selectedCardId, selectedOption.passTypeId, selectedOption.packId, selectedOption.charaId) as MagicalPassState & { success?: boolean }
       state = { ...result, hasProfile: true }
-      notice = `${selectedOption.title}已发放，同时获得 1 张票券 40001。`
+      notice = `${selectedOption.title}已发放，同时获得 5 张票券 40001。`
       toast.success(notice)
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
@@ -421,7 +421,7 @@
             {#if purchasing}<Spinner />{:else}<Icon icon="solar:cart-large-2-bold-duotone" />{/if}
             {purchasing ? "正在发放…" : `发放${selectedOption.title}`}
           </button>
-          <p class="subtle note">每次发放 Pass 会同步增加 1 张 40001 票券，票券有效期与本次 Pass 相同。</p>
+          <p class="subtle note">每次发放 Pass 会同步增加 5 张 40001 票券，票券有效期与本次 Pass 相同。</p>
         </section>
       </aside>
     </div>

@@ -253,6 +253,8 @@ export interface AnalyticsDayPlayer {
 }
 
 export const ADMIN = {
+  resetMai2Icon: (auId: number): Promise<{ success: boolean }> => post('/api/v2/admin/user/mai2-reset-icon', { auId }),
+  resetMai2CustomPortrait: (auId: number): Promise<{ success: boolean }> => post('/api/v2/admin/user/mai2-reset-custom-portrait', { auId }),
   claimLog: (): Promise<ClaimLogEntry[]> => post('/api/v2/user/mai2-claim/admin/log', {}),
   analyticsDay: (date: string): Promise<AnalyticsDayPlayer[]> => post('/api/v2/admin/analytics/day', { date }),
   analytics: (from = "", to = ""): Promise<AdminAnalytics> => post('/api/v2/admin/analytics', { ...(from ? { from } : {}), ...(to ? { to } : {}) }),
@@ -349,6 +351,13 @@ export const ANNOUNCEMENTS = {
   adminList: (): Promise<Announcement[]> => post('/api/v2/admin/announcement/list'),
   adminSave: (a: AnnouncementInput): Promise<Announcement> => post('/api/v2/admin/announcement/save', {}, { json: a }),
   adminDelete: (id: number) => post('/api/v2/admin/announcement/delete', { id }),
+}
+
+export interface FeatureSwitch { key: string; label: string; enabled: boolean }
+export const FEATURES = {
+  list: (): Promise<Record<string, boolean>> => post('/api/v2/switches/list'),
+  adminList: (): Promise<FeatureSwitch[]> => post('/api/v2/admin/switches/list'),
+  adminSet: (key: string, enabled: boolean): Promise<FeatureSwitch[]> => post('/api/v2/admin/switches/set', { key, enabled }),
 }
 
 export interface BindGameData { name: string; rating: number; lastLogin: string }

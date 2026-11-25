@@ -10,7 +10,7 @@ export interface NavItem {
   match: string[]
 }
 
-export function primaryNav(me: MikuNetUser | undefined, playedMai: boolean, recentGame: string, hasTournament = false): NavItem[] {
+export function primaryNav(me: MikuNetUser | undefined, playedMai: boolean, recentGame: string, hasTournament = false, claimEnabled = true): NavItem[] {
   const items: (NavItem | false)[] = [
     { href: "/home", label: t("navigation.home"), icon: "solar:home-2-bold-duotone", match: ["/home", "/cards", "/setup"] },
     { href: `/ranking/${recentGame}`, label: t("navigation.rankings"), icon: "solar:ranking-bold-duotone", match: ["/ranking"] },
@@ -20,7 +20,7 @@ export function primaryNav(me: MikuNetUser | undefined, playedMai: boolean, rece
     playedMai && { href: "/circle", label: t("navigation.circle"), icon: "solar:users-group-rounded-bold-duotone", match: ["/circle"] },
     // Magical Pass issuing is restricted to admins.
     !!me?.isAdmin && { href: "/pass", label: t("navigation.pass"), icon: "solar:ticket-bold-duotone", match: ["/pass"] },
-    playedMai && { href: "/claim", label: t("navigation.claim"), icon: "solar:hand-money-bold-duotone", match: ["/claim"] },
+    playedMai && claimEnabled && { href: "/claim", label: t("navigation.claim"), icon: "solar:hand-money-bold-duotone", match: ["/claim"] },
     playedMai && { href: "/pictures", label: t("navigation.photos"), icon: "solar:gallery-bold-duotone", match: ["/pictures"] },
     !!me?.isAdmin && { href: "/admin", label: t("navigation.admin"), icon: "solar:shield-user-bold-duotone", match: ["/admin"] },
   ]
