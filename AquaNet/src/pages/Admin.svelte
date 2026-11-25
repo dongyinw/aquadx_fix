@@ -315,16 +315,18 @@
     }
   }
 
-  /** Puts the in-game name of the selected game back to the default name. */
+  const defaultGameNames: Record<ManagedGame, string> = { mai2: "maimai", chu3: "CHUNITHM", ongeki: "ONGEKI" }
+
+  /** Puts the in-game name of the selected game back to that game's default name. */
   async function resetGameName() {
     if (!userDetail) return
     const game = selectedGame
-    const confirmed = await confirmDialog({ title: "重置名称", message: `确定把 ${userDetail.user.computedName} 的${gameLabels[game]}游戏名称重置为 maimai 吗？`, confirmText: "重置", danger: true })
+    const confirmed = await confirmDialog({ title: "重置名称", message: `确定把 ${userDetail.user.computedName} 的${gameLabels[game]}游戏名称重置为 ${defaultGameNames[game]} 吗？`, confirmText: "重置", danger: true })
     if (!confirmed) return
     try {
       await ADMIN.resetGameName(userDetail.user.auId, game)
       await openUser(selectedUser!)
-      notice = `${gameLabels[game]} 游戏名称已重置为 maimai`
+      notice = `${gameLabels[game]} 游戏名称已重置为 ${defaultGameNames[game]}`
     } catch (e) {
       fail(e)
     }
@@ -681,7 +683,7 @@
                   <button class="btn-soft" type="button" on:click={() => resetMaiPicture("portrait")}><Icon icon="solar:gallery-remove-bold-duotone" />重置自定义头像</button>
                   <small class="subtle">重置名称：改回 maimai；重置头像：换回默认头像；重置自定义头像：删除玩家上传的头像图片。</small>
                 {:else}
-                  <small class="subtle">重置名称：把游戏名称改回 maimai。</small>
+                  <small class="subtle">重置名称：把游戏名称改回 {defaultGameNames[selectedGame]}。</small>
                 {/if}
               </div>
               <div class="stats"><span class="badge">Rating {currentProfile?.playerRating ?? 0}</span><span class="badge">最高 {currentProfile?.highestRating ?? 0}</span><span class="badge">游玩 {currentProfile?.playCount ?? 0} 次</span><span class="badge">最近机台 {currentProfile?.lastClientId || "暂无"}</span></div>
