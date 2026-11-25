@@ -60,7 +60,10 @@ class AdminApi(
         private val keychipPattern = Regex("^[A-Z\\d]{15}$")
         private const val DEFAULT_MAI2_ICON = 1
         /** The name a profile gets when an admin resets it, per game. */
-        private val DEFAULT_GAME_NAMES = mapOf("mai2" to "maimai", "chu3" to "CHUNITHM", "ongeki" to "ONGEKI")
+        private val PLACEHOLDER_CARD_PREFIXES = listOf("Migrated data of ", "Unmigrated data of ")
+    private fun isPlaceholderCard(card: Card) = !card.isGhost && PLACEHOLDER_CARD_PREFIXES.any { card.luid.startsWith(it) }
+
+    private val DEFAULT_GAME_NAMES = mapOf("mai2" to "maimai", "chu3" to "CHUNITHM", "ongeki" to "ONGEKI")
         /** Icon 10 makes the cabinet show the user's custom portrait. */
         private const val CUSTOM_PORTRAIT_ICON = 10
     }
@@ -246,6 +249,8 @@ class AdminApi(
         return cardRepo.findAll().sortedWith(compareByDescending<Card> { it.registerTime }.thenByDescending { it.id }).asSequence()
             .filter { card ->
                 val owner = card.aquaUser
+                // Placeholder cards that only hold migrated/orphaned old profiles are hidden unless searched for
+                (q.isNotBlank() || !isPlaceholderCard(card)) &&
                 inDateRange(card.registerTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), from, to) &&
                 (q.isBlank() || listOf(
                     card.id.toString(), card.extId.toString(), card.luid, card.status.name,
