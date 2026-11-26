@@ -1,6 +1,7 @@
 package test
 
 import icu.samnyan.aqua.sega.maimai2.Mai2FriendSeason
+import icu.samnyan.aqua.sega.maimai2.Mai2GhostServed
 import icu.samnyan.aqua.sega.maimai2.Mai2VsGhost
 import icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserDetail
 import icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserFriendSeasonRanking
@@ -9,8 +10,9 @@ import icu.samnyan.aqua.sega.maimai2.model.userdata.Mai2UserGhostEntry
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 
-private fun ghost(userId: Long, rate: Int, music: Int = 100, played: String = "2026-11-12 10:00:00.0") =
+private fun ghost(userId: Long, rate: Int, music: Int = 100, played: String = "2026-11-12 10:00:00.0", ghostId: Long = userId * 1000 + music) =
     Mai2UserGhostEntry().apply {
+        id = ghostId
         user = Mai2UserDetail().apply { id = userId }
         this.rate = rate
         musicId = music
@@ -60,6 +62,29 @@ class Mai2VsGhostTest : StringSpec({
     "never more than the limit" {
         val recent = (1L..40L).map { ghost(it, 10000 + it.toInt()) }
         Mai2VsGhost.select(recent, 10000).size shouldBe Mai2VsGhost.MAX_RETURNED
+    }
+
+    "ghosts already given to the other player of the cabinet are skipped" {
+        val recent = (1L..4L).map { ghost(it, 10000 + it.toInt()) }
+        val first = Mai2VsGhost.select(recent, 10000, limit = 2)
+        first.map { it.user.id } shouldBe listOf(1L, 2L)
+        val second = Mai2VsGhost.select(recent, 10000, first.map { it.id }.toSet(), limit = 2)
+        second.map { it.user.id } shouldBe listOf(3L, 4L)
+    }
+
+    "avoided ghosts are still used when there are not enough others" {
+        val recent = listOf(ghost(1, 10000), ghost(2, 10010))
+        val picked = Mai2VsGhost.select(recent, 10000, avoid = setOf(recent[0].id), limit = 15)
+        picked.map { it.user.id } shouldBe listOf(2L, 1L)
+    }
+
+    "the cabinet record only affects other players and only for a short time" {
+        val served = Mai2GhostServed(windowMillis = 1000)
+        served.record("1.2.3.4", userId = 1, ids = setOf(10L, 11L), now = 0)
+        served.avoid("1.2.3.4", userId = 2, now = 500) shouldBe setOf(10L, 11L)
+        served.avoid("1.2.3.4", userId = 1, now = 500) shouldBe emptySet()   // asking again is not a second player
+        served.avoid("5.6.7.8", userId = 2, now = 500) shouldBe emptySet()   // another cabinet
+        served.avoid("1.2.3.4", userId = 2, now = 1500) shouldBe emptySet()  // too long ago
     }
 
     "season rank is one more than the players ahead, and zero without points" {

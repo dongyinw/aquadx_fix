@@ -62,6 +62,17 @@ object Mai2VsGhost {
         return picked
     }
 
+    /**
+     * Like [select], but ghosts in [avoid] (already given to another player of the same cabinet) are only used
+     * when there are not enough others, so a small server still hands out real ghosts instead of NPCs.
+     */
+    fun select(recent: List<Mai2UserGhostEntry>, myRating: Int, avoid: Set<Long>, limit: Int = MAX_RETURNED): List<Mai2UserGhostEntry> {
+        if (avoid.isEmpty()) return select(recent, myRating, limit)
+        val (used, fresh) = recent.partition { it.id in avoid }
+        val picked = select(fresh, myRating, limit)
+        return if (picked.size >= limit) picked else picked + select(used, myRating, limit - picked.size)
+    }
+
     fun toResponse(g: Mai2UserGhostEntry): Map<String, Any?> = mapOf(
         "name" to g.name,
         "iconId" to g.iconId,
@@ -98,4 +109,33 @@ object Mai2FriendSeason {
         "userName" to row.userName,
         "recordDate" to row.recordDate,
     )
+}
+
+/**
+ * In 2P mode both players of a cabinet ask for ghosts within seconds of each other, and with similar ratings they
+ * would get the same opponents. This remembers what was just given out per cabinet address so the next player
+ * of that address gets different ones. In memory only: it only matters for the next minute or so.
+ */
+class Mai2GhostServed(private val windowMillis: Long = 90_000) {
+    private class Served(val at: Long, val ids: Set<Long>)
+
+    private val byCabinet = HashMap<String, MutableMap<Long, Served>>()
+
+    /** Ghost ids given to other players of [cabinet] within the window. */
+    @Synchronized
+    fun avoid(cabinet: String, userId: Long, now: Long = System.currentTimeMillis()): Set<Long> {
+        expire(now)
+        return byCabinet[cabinet].orEmpty().filterKeys { it != userId }.values.flatMapTo(HashSet()) { it.ids }
+    }
+
+    @Synchronized
+    fun record(cabinet: String, userId: Long, ids: Set<Long>, now: Long = System.currentTimeMillis()) {
+        expire(now)
+        byCabinet.getOrPut(cabinet) { HashMap() }[userId] = Served(now, ids)
+    }
+
+    private fun expire(now: Long) {
+        byCabinet.values.forEach { it.values.removeIf { s -> now - s.at > windowMillis } }
+        byCabinet.values.removeIf { it.isEmpty() }
+    }
 }

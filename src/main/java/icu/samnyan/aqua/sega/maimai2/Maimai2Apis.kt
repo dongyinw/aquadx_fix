@@ -14,6 +14,8 @@ import java.time.LocalDate
 import kotlin.random.Random
 import org.springframework.data.domain.PageRequest
 
+private val ghostServed = Mai2GhostServed()
+
 fun Maimai2ServletController.initApis() {
     val log = logger()
     val magicalPassStoreKey = "aquadx.magical_pass"
@@ -334,7 +336,11 @@ fun Maimai2ServletController.initApis() {
         val me = db.userData.findByCardExtId(uid)
         if (me == null) empty else {
             val recent = db.userGhost.findRecentOfOthers(me.id, PageRequest.of(0, 300))
-            Mai2VsGhost.select(recent, me.playerRating).map(Mai2VsGhost::toResponse)
+            // 2P: the other player of this cabinet must not get the same opponents.
+            val cabinet = req.getHeader("CF-Connecting-IP") ?: req.remoteAddr ?: ""
+            val picked = Mai2VsGhost.select(recent, me.playerRating, ghostServed.avoid(cabinet, uid))
+            ghostServed.record(cabinet, uid, picked.mapTo(HashSet()) { it.id })
+            picked.map(Mai2VsGhost::toResponse)
         }
     }
     "GetUserFriendBonus" { mapOf("userId" to uid, "returnCode" to 0, "getMiles" to 0) }
