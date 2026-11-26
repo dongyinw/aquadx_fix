@@ -37,7 +37,7 @@ private fun savePortraitChoice(savedIcon: Int, uploadedIcon: Int, uploadedName: 
     doAnswer { it.getArgument<Mai2UserDetail>(0) }
         .`when`(userRepo).saveAndFlush(any(Mai2UserDetail::class.java))
 
-    val handler = UpsertUserAllHandler(BasicMapper(), mock(CardService::class.java), repos, mock(icu.samnyan.aqua.net.games.mai2.circle.Mai2CircleMemberRepo::class.java), switches)
+    val handler = UpsertUserAllHandler(BasicMapper(), mock(CardService::class.java), repos, mock(icu.samnyan.aqua.net.games.mai2.circle.Mai2CircleMemberRepo::class.java), switches, mock(icu.samnyan.aqua.sega.maimai2.Mai2GhostSeeder::class.java))
     handler.handle(mapOf(
         "userId" to userId,
         "upsertUserAll" to mapOf(

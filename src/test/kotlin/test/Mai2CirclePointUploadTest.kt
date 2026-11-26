@@ -14,6 +14,20 @@ import io.kotest.matchers.shouldBe
 import org.mockito.Mockito.*
 
 class Mai2CirclePointUploadTest : StringSpec({
+    "an upload refreshes that player's friend battle ghosts right away" {
+        val userId = 123456789L
+        val current = Mai2UserDetail(card = Card().apply { extId = userId }, userName = "TEST").also { it.id = 77 }
+        val userRepo = mock(Mai2UserDataRepo::class.java)
+        val repos = mock(Mai2Repos::class.java)
+        val seeder = mock(icu.samnyan.aqua.sega.maimai2.Mai2GhostSeeder::class.java)
+        `when`(repos.userData).thenReturn(userRepo)
+        `when`(userRepo.findByCardExtId(userId)).thenReturn(current)
+        doAnswer { it.getArgument<Mai2UserDetail>(0) }.`when`(userRepo).saveAndFlush(any(Mai2UserDetail::class.java))
+        val handler = UpsertUserAllHandler(BasicMapper(), mock(CardService::class.java), repos, mock(Mai2CircleMemberRepo::class.java), testSwitches(), seeder)
+        handler.handle(mapOf("userId" to userId, "upsertUserAll" to mapOf("userData" to listOf(mapOf("userName" to "TEST")))))
+        verify(seeder, times(1)).refreshPlayer(77L)
+    }
+
     "settlement saves only valid points for the player's current circle" {
         val userId = 123456789L
         val current = Mai2UserDetail(card = Card().apply { extId = userId }, userName = "TEST")
@@ -25,7 +39,7 @@ class Mai2CirclePointUploadTest : StringSpec({
         `when`(userRepo.findByCardExtId(userId)).thenReturn(current)
         doAnswer { it.getArgument<Mai2UserDetail>(0) }.`when`(userRepo).saveAndFlush(any(Mai2UserDetail::class.java))
         `when`(members.findByAimeExtId(userId)).thenReturn(member)
-        val handler = UpsertUserAllHandler(BasicMapper(), mock(CardService::class.java), repos, members, testSwitches())
+        val handler = UpsertUserAllHandler(BasicMapper(), mock(CardService::class.java), repos, members, testSwitches(), mock(icu.samnyan.aqua.sega.maimai2.Mai2GhostSeeder::class.java))
         fun upload(points: List<Map<String, Any>>) = handler.handle(mapOf(
             "userId" to userId,
             "upsertUserAll" to mapOf("userData" to listOf(mapOf("userName" to "TEST")), "userCirclePointDataList" to points),

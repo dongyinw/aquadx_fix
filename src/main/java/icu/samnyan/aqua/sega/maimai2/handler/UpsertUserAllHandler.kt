@@ -10,6 +10,7 @@ import icu.samnyan.aqua.sega.general.BaseHandler
 import icu.samnyan.aqua.sega.general.model.CardStatus
 import icu.samnyan.aqua.sega.general.service.CardService
 import icu.samnyan.aqua.net.games.mai2.circle.Mai2CircleMemberRepo
+import icu.samnyan.aqua.sega.maimai2.Mai2GhostSeeder
 import icu.samnyan.aqua.sega.maimai2.Mai2VsGhost
 import icu.samnyan.aqua.sega.maimai2.handler.UploadUserPlaylogHandler.Companion.playBacklog
 import icu.samnyan.aqua.sega.maimai2.model.Mai2Repos
@@ -31,6 +32,7 @@ class UpsertUserAllHandler(
     val repos: Mai2Repos,
     val circleMembers: Mai2CircleMemberRepo,
     val features: FeatureSwitches,
+    val ghostSeeder: Mai2GhostSeeder,
 ) : BaseHandler {
     fun String.isValidUsername() = isNotBlank() && length <= 8
 
@@ -203,6 +205,9 @@ class UpsertUserAllHandler(
             }
 
         u.card?.let { cardService.updateCardTimestamp(it, "mai2") }
+
+        // The plays of this credit are saved now, so friend battle opponents can use them straight away.
+        ghostSeeder.refreshPlayer(u.id)
 
         return SUCCESS
     }

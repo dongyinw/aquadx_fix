@@ -122,39 +122,66 @@ class Mai2GhostSeeder(
         }
     }
 
-    private fun seed(): Result {
-        val since = LocalDate.now().minusDays(days.toLong()).toString()
-        val eligible = em.createQuery(
+    private fun eligibleQuery(since: String, onlyUserId: Long?): List<Mai2UserDetail> =
+        em.createQuery(
             """select u from Maimai2UserData u join fetch u.card c left join fetch c.aquaUser a
                where u.banState = 0 and u.lastPlayDate >= :since and c.rankingBanned = false
-               and (a is null or a.optOutOfLeaderboard = false)""", Mai2UserDetail::class.java)
-            .setParameter("since", since).resultList
+               and (a is null or a.optOutOfLeaderboard = false)""" + (if (onlyUserId != null) " and u.id = :uid" else ""),
+            Mai2UserDetail::class.java)
+            .setParameter("since", since).also { q -> onlyUserId?.let { q.setParameter("uid", it) } }
+            .resultList
             .filter { it.card?.status?.isNormal == true }
-        val eligibleIds = eligible.map { it.id }.toSet()
+
+    private fun sinceDate() = LocalDate.now().minusDays(days.toLong()).toString()
+
+    /** Writes the score-only ghosts of one player's recent plays; returns how many were written. */
+    private fun seedPlayer(profile: Mai2UserDetail, since: String): Int {
+        val plays = em.createQuery(
+            """select p.musicId, p.level, p.achievement, p.userPlayDate, p.placeId from Mai2UserPlaylog p
+               where p.user.id = :uid and p.userPlayDate >= :since and p.isPlayTutorial = false
+               order by p.userPlayDate desc""", Array<Any>::class.java)
+            .setParameter("uid", profile.id).setParameter("since", since).setMaxResults(300).resultList
+            .map { Mai2GhostSeed.Play((it[0] as Number).toInt(), (it[1] as Number).toInt(), (it[2] as Number).toInt(), it[3].toString(), (it[4] as Number).toInt()) }
+        val picked = Mai2GhostSeed.pick(plays, perPlayer)
+        if (picked.isEmpty()) return 0
 
         var written = 0
-        for (profile in eligible) {
-            val plays = em.createQuery(
-                """select p.musicId, p.level, p.achievement, p.userPlayDate, p.placeId from Mai2UserPlaylog p
-                   where p.user.id = :uid and p.userPlayDate >= :since and p.isPlayTutorial = false
-                   order by p.userPlayDate desc""", Array<Any>::class.java)
-                .setParameter("uid", profile.id).setParameter("since", since).setMaxResults(300).resultList
-                .map { Mai2GhostSeed.Play((it[0] as Number).toInt(), (it[1] as Number).toInt(), (it[2] as Number).toInt(), it[3].toString(), (it[4] as Number).toInt()) }
-            val picked = Mai2GhostSeed.pick(plays, perPlayer)
-            if (picked.isEmpty()) continue
-
-            val udemae = repos.userUdemae.findSingleByUser_Card_ExtId(profile.card!!.extId)
-            for (play in picked) {
-                val entry = Mai2GhostSeed.build(
-                    profile, udemae?.classValue ?: 0, udemae?.rate ?: 0, play,
-                    repos.userGhost.findByUserAndMusicIdAndDifficulty(profile, play.musicId, play.level),
-                ) ?: continue
-                repos.userGhost.save(entry)
-                written++
-            }
-            // Keep each player to the same number of ghosts as the uploads do.
-            repos.userGhost.deleteAll(repos.userGhost.findByUserOrderByPlayDatetimeDescIdDesc(profile).drop(Mai2VsGhost.MAX_STORED_PER_USER))
+        val udemae = repos.userUdemae.findSingleByUser_Card_ExtId(profile.card!!.extId)
+        for (play in picked) {
+            val entry = Mai2GhostSeed.build(
+                profile, udemae?.classValue ?: 0, udemae?.rate ?: 0, play,
+                repos.userGhost.findByUserAndMusicIdAndDifficulty(profile, play.musicId, play.level),
+            ) ?: continue
+            repos.userGhost.save(entry)
+            written++
         }
+        // Keep each player to the same number of ghosts as the uploads do.
+        repos.userGhost.deleteAll(repos.userGhost.findByUserOrderByPlayDatetimeDescIdDesc(profile).drop(Mai2VsGhost.MAX_STORED_PER_USER))
+        return written
+    }
+
+    /**
+     * Refreshes one player's ghosts right after their cabinet uploaded, so friend battle opponents are up to date
+     * without waiting for the daily pass. Never throws: a failure here must not fail the upload.
+     */
+    fun refreshPlayer(userId: Long) {
+        if (!enabled) return
+        try {
+            tx.execute {
+                val profile = eligibleQuery(sinceDate(), userId).firstOrNull() ?: return@execute
+                seedPlayer(profile, sinceDate())
+            }
+        } catch (e: Exception) {
+            log.warn("Ghost refresh of user {} failed", userId, e)
+        }
+    }
+
+    private fun seed(): Result {
+        val since = sinceDate()
+        val eligible = eligibleQuery(since, null)
+        val eligibleIds = eligible.map { it.id }.toSet()
+
+        val written = eligible.sumOf { seedPlayer(it, since) }
 
         // Players who became ineligible (banned, hidden, opted out) must not keep appearing as opponents.
         val stale = repos.userGhost.findAll().filter { it.resultNum == 0 && it.user.id !in eligibleIds }
