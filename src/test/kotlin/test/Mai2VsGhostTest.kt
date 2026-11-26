@@ -72,6 +72,17 @@ class Mai2VsGhostTest : StringSpec({
         second.map { it.user.id } shouldBe listOf(3L, 4L)
     }
 
+    "other players come first, then other songs of the same players, then the avoided ghosts" {
+        val a1 = ghost(1, 10000, music = 100); val a2 = ghost(1, 10000, music = 200)
+        val b1 = ghost(2, 10010, music = 100); val c1 = ghost(3, 10020, music = 100)
+        val recent = listOf(a1, a2, b1, c1)
+        // limit 2: the two players that were not avoided
+        Mai2VsGhost.select(recent, 10000, avoid = setOf(a1.id), limit = 2).map { it.user.id } shouldBe listOf(2L, 3L)
+        // limit 4: then the other song of the avoided player, then the avoided ghost itself
+        Mai2VsGhost.select(recent, 10000, avoid = setOf(a1.id), limit = 4).map { it.id } shouldBe
+            listOf(b1.id, c1.id, a2.id, a1.id)
+    }
+
     "avoided ghosts are still used when there are not enough others" {
         val recent = listOf(ghost(1, 10000), ghost(2, 10010))
         val picked = Mai2VsGhost.select(recent, 10000, avoid = setOf(recent[0].id), limit = 15)
@@ -79,12 +90,19 @@ class Mai2VsGhostTest : StringSpec({
     }
 
     "the cabinet record only affects other players and only for a short time" {
-        val served = Mai2GhostServed(windowMillis = 1000)
+        val served = Mai2GhostServed(windowMillis = 1000, ownWindowMillis = 10_000)
         served.record("1.2.3.4", userId = 1, ids = setOf(10L, 11L), now = 0)
         served.avoid("1.2.3.4", userId = 2, now = 500) shouldBe setOf(10L, 11L)
-        served.avoid("1.2.3.4", userId = 1, now = 500) shouldBe emptySet()   // asking again is not a second player
         served.avoid("5.6.7.8", userId = 2, now = 500) shouldBe emptySet()   // another cabinet
         served.avoid("1.2.3.4", userId = 2, now = 1500) shouldBe emptySet()  // too long ago
+    }
+
+    "a player is not given the same ghosts again at the next credit" {
+        val served = Mai2GhostServed(windowMillis = 1000, ownWindowMillis = 10_000)
+        served.record("1.2.3.4", userId = 1, ids = setOf(10L, 11L), now = 0)
+        served.avoid("1.2.3.4", userId = 1, now = 5000) shouldBe setOf(10L, 11L)  // same player, later
+        served.avoid("9.9.9.9", userId = 1, now = 5000) shouldBe setOf(10L, 11L)  // even from another cabinet
+        served.avoid("1.2.3.4", userId = 1, now = 20_000) shouldBe emptySet()      // forgotten after a while
     }
 
     "season rank is one more than the players ahead, and zero without points" {

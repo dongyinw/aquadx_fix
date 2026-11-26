@@ -63,14 +63,24 @@ object Mai2VsGhost {
     }
 
     /**
-     * Like [select], but ghosts in [avoid] (already given to another player of the same cabinet) are only used
-     * when there are not enough others, so a small server still hands out real ghosts instead of NPCs.
+     * Like [select], but ghosts in [avoid] (just given to another player of the cabinet, or to this player last
+     * time) come last: first other players, then other songs of the same players, and only when that is still
+     * not enough the avoided ghosts themselves, so a small server still hands out real ghosts instead of NPCs.
      */
     fun select(recent: List<Mai2UserGhostEntry>, myRating: Int, avoid: Set<Long>, limit: Int = MAX_RETURNED): List<Mai2UserGhostEntry> {
         if (avoid.isEmpty()) return select(recent, myRating, limit)
-        val (used, fresh) = recent.partition { it.id in avoid }
-        val picked = select(fresh, myRating, limit)
-        return if (picked.size >= limit) picked else picked + select(used, myRating, limit - picked.size)
+        val avoidedPlayers = recent.filter { it.id in avoid }.mapTo(HashSet()) { it.user.id }
+        val tiers = listOf(
+            recent.filter { it.user.id !in avoidedPlayers },
+            recent.filter { it.user.id in avoidedPlayers && it.id !in avoid },
+            recent.filter { it.id in avoid },
+        )
+        val picked = mutableListOf<Mai2UserGhostEntry>()
+        for (tier in tiers) {
+            if (picked.size >= limit) break
+            picked += select(tier, myRating, limit - picked.size)
+        }
+        return picked
     }
 
     fun toResponse(g: Mai2UserGhostEntry): Map<String, Any?> = mapOf(
@@ -112,30 +122,37 @@ object Mai2FriendSeason {
 }
 
 /**
- * In 2P mode both players of a cabinet ask for ghosts within seconds of each other, and with similar ratings they
- * would get the same opponents. This remembers what was just given out per cabinet address so the next player
- * of that address gets different ones. In memory only: it only matters for the next minute or so.
+ * Remembers which ghosts were just given out, to vary the opponents:
+ *  - per cabinet address, for [windowMillis]: in 2P mode both players ask within seconds of each other and, with
+ *    similar ratings, would get the same opponents, so the next player of that address gets different ones;
+ *  - per player, for [ownWindowMillis]: the next time the same player asks (next credit) the opponents change too.
+ * In memory only: it is just a hint, losing it on restart is harmless.
  */
-class Mai2GhostServed(private val windowMillis: Long = 90_000) {
+class Mai2GhostServed(private val windowMillis: Long = 90_000, private val ownWindowMillis: Long = 6 * 3600_000L) {
     private class Served(val at: Long, val ids: Set<Long>)
 
     private val byCabinet = HashMap<String, MutableMap<Long, Served>>()
+    private val byUser = HashMap<Long, Served>()
 
-    /** Ghost ids given to other players of [cabinet] within the window. */
+    /** Ghost ids to avoid for [userId]: just given to other players of [cabinet], or to [userId] last time. */
     @Synchronized
     fun avoid(cabinet: String, userId: Long, now: Long = System.currentTimeMillis()): Set<Long> {
         expire(now)
-        return byCabinet[cabinet].orEmpty().filterKeys { it != userId }.values.flatMapTo(HashSet()) { it.ids }
+        val others = byCabinet[cabinet].orEmpty().filterKeys { it != userId }.values.flatMapTo(HashSet()) { it.ids }
+        return others + byUser[userId]?.ids.orEmpty()
     }
 
     @Synchronized
     fun record(cabinet: String, userId: Long, ids: Set<Long>, now: Long = System.currentTimeMillis()) {
         expire(now)
-        byCabinet.getOrPut(cabinet) { HashMap() }[userId] = Served(now, ids)
+        val served = Served(now, ids)
+        byCabinet.getOrPut(cabinet) { HashMap() }[userId] = served
+        byUser[userId] = served
     }
 
     private fun expire(now: Long) {
         byCabinet.values.forEach { it.values.removeIf { s -> now - s.at > windowMillis } }
         byCabinet.values.removeIf { it.isEmpty() }
+        byUser.values.removeIf { now - it.at > ownWindowMillis }
     }
 }
