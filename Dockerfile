@@ -30,6 +30,11 @@ RUN ./gradlew build -x test
 # Start with a fresh image for the runtime
 FROM eclipse-temurin:25-jre-alpine
 
+# The JRE image runs in UTC. LocalDateTime.now() and the log timestamps follow the container clock, so use UTC+8.
+# Override with -e TZ=... if the server is somewhere else.
+ENV TZ=Asia/Shanghai
+RUN apk add --no-cache tzdata
+
 # Set the deployment directory
 WORKDIR /app
 
