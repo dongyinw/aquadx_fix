@@ -111,10 +111,10 @@ class NameReviewTest : StringSpec({
         val f = ReviewFixture()
         val req = f.service.submit(f.player, "mai2", "旧名字", "新名字")
         val at = req.submittedAt
-        f.service.autoApprove(at + NameReviewService.AUTO_APPROVE_MS - 1)
+        f.service.autoApproveAt(at + NameReviewService.AUTO_APPROVE_MS - 1)
         req.status shouldBe NameReviewService.PENDING
         f.stored shouldBe "旧名字"
-        f.service.autoApprove(at + NameReviewService.AUTO_APPROVE_MS)
+        f.service.autoApproveAt(at + NameReviewService.AUTO_APPROVE_MS)
         req.status shouldBe NameReviewService.APPROVED
         req.autoApproved shouldBe true
         req.reviewerAuId shouldBe null

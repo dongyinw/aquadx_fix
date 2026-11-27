@@ -138,7 +138,9 @@ class NameReviewService(
 
     /** Approves everything that has waited long enough. Runs even if the switch was turned off meanwhile. */
     @Scheduled(fixedDelay = 10 * 60 * 1000, initialDelay = 60 * 1000)
-    fun autoApprove(now: Long = System.currentTimeMillis()) {
+    fun autoApprove() = autoApproveAt(System.currentTimeMillis())
+
+    fun autoApproveAt(now: Long) {
         requests.findByStatusAndSubmittedAtLessThanEqual(PENDING, now - AUTO_APPROVE_MS).forEach {
             try { approve(it.id, null, auto = true) } catch (e: Exception) { log.warn("Auto approving name request {} failed: {}", it.id, e.message) }
         }
