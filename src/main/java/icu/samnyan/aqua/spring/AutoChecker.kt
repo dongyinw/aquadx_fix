@@ -6,8 +6,6 @@ import org.apache.hc.client5.http.impl.classic.HttpClients
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder
 import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier
-import org.apache.hc.client5.http.ssl.TrustAllStrategy
-import org.apache.hc.core5.ssl.SSLContextBuilder
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.ResourceLoader
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory
@@ -15,6 +13,11 @@ import org.springframework.stereotype.Component
 import org.springframework.web.client.RestTemplate
 import java.lang.System.err
 import java.net.Socket
+import java.security.cert.X509Certificate
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLEngine
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509ExtendedTrustManager
 
 /**
  * A simple boot check to warn user if there is some wrong config
@@ -42,6 +45,31 @@ class AutoChecker(
     companion object {
         const val SUCCESS = "✅"
         const val ERROR = "❌"
+
+        /**
+         * Trusts every certificate. It has to be an X509ExtendedTrustManager: for a plain X509TrustManager the JDK
+         * wraps it and still checks the host name against the certificate (HTTPS endpoint identification), which
+         * fails with "No subject alternative names present" on the self-signed certificate without a SAN.
+         */
+        private object TrustAll : X509ExtendedTrustManager() {
+            override fun checkClientTrusted(chain: Array<X509Certificate>?, authType: String?) {}
+            override fun checkServerTrusted(chain: Array<X509Certificate>?, authType: String?) {}
+            override fun checkClientTrusted(chain: Array<X509Certificate>?, authType: String?, socket: Socket?) {}
+            override fun checkServerTrusted(chain: Array<X509Certificate>?, authType: String?, socket: Socket?) {}
+            override fun checkClientTrusted(chain: Array<X509Certificate>?, authType: String?, engine: SSLEngine?) {}
+            override fun checkServerTrusted(chain: Array<X509Certificate>?, authType: String?, engine: SSLEngine?) {}
+            override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+        }
+
+        /** Do not validate SSL certificate (self-signed ib cert) */
+        fun trustAllRestTemplate(): RestTemplate = HttpComponentsClientHttpRequestFactory().apply {
+            val ssl = SSLContext.getInstance("TLS").apply { init(null, arrayOf<TrustManager>(TrustAll), null) }
+            httpClient = HttpClients.custom()
+                .setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
+                    .setTlsSocketStrategy(ClientTlsStrategyBuilder.create()
+                        .setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+                        .setSslContext(ssl).buildClassic()).build()).build()
+        }.let { RestTemplate(it) }
     }
 
     /**
@@ -67,16 +95,7 @@ class AutoChecker(
         if (!BILLING_ENABLED) return println("SKIP (DISABLED)")
 
         try {
-            // Do not validate SSL certificate (self-signed ib cert)
-            val rt = HttpComponentsClientHttpRequestFactory().apply {
-                httpClient = HttpClients.custom()
-                    .setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
-                        .setTlsSocketStrategy(ClientTlsStrategyBuilder.create()
-                            .setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-                            .setSslContext(SSLContextBuilder.create()
-                                .loadTrustMaterial(TrustAllStrategy.INSTANCE)
-                                .build()).buildClassic()).build()).build()
-            }.let { RestTemplate(it) }
+            val rt = trustAllRestTemplate()
 
             val url = "https://${aimedb.address}:$BILLING_PORT/sys/test"
             val resp = rt.getForEntity(url, String::class.java)
