@@ -98,6 +98,13 @@ class AquaNetUser(
     @Column(nullable = false)
     var isAdmin: Boolean = false,
 
+    /**
+     * The one account that manages the other admins. Only the database migration sets it: no API grants or removes
+     * it, so nobody can promote themselves and the super admin can never be demoted.
+     */
+    @Column(nullable = false)
+    var isSuperAdmin: Boolean = false,
+
     @OneToOne(cascade = [CascadeType.ALL])
     @JoinColumn(name = "gameOptions", unique = true, nullable = true)
     var gameOptions: AquaGameOptions? = null,

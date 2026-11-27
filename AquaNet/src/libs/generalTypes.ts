@@ -80,6 +80,7 @@ export interface MikuNetUser {
   optOutOfLeaderboard: boolean,
   canModifyKeychips: boolean,
   isAdmin: boolean,
+  isSuperAdmin?: boolean,
   hideCountry: boolean,
   displayCandidates: boolean
 }
@@ -92,6 +93,7 @@ export interface AdminUserSummary {
   lastLogin: number
   keychipCount: number
   isAdmin: boolean
+  isSuperAdmin?: boolean
   regTime?: number
 }
 
@@ -115,6 +117,7 @@ export interface AdminUserDetail {
     emailConfirmed: boolean
     canModifyKeychips: boolean
     isAdmin: boolean
+    isSuperAdmin?: boolean
     lastLogin: number
     regTime: number
   }

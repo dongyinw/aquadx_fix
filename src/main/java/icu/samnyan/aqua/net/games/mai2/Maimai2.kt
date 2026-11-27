@@ -121,6 +121,14 @@ class Maimai2(
     suspend fun changeName(@RP token: String, @RP newName: String) = us.jwt.auth(token) { u ->
         features.require(Feature.RENAME)
         val newNameFull = toFullWidth(newName)
+        if (nameReview.enabled) {
+            // With review on the name is only recorded here; it is written once an admin approves it.
+            if (newNameFull.isBlank()) 400 - "Username cannot be blank"
+            if (newNameFull.length > 8) 400 - "Username too long"
+            val current = us.cardByName(u.username) { card -> (userDataRepo.findByCard(card) ?: (404 - "User not found")).userName }
+            nameReview.submit(u, name, current, newNameFull)
+            return@auth mapOf("newName" to newNameFull, "pending" to true)
+        }
         us.cardByName(u.username) { card ->
             val user = userDataRepo.findByCard(card) ?: (404 - "User not found")
             user.userName = newNameFull

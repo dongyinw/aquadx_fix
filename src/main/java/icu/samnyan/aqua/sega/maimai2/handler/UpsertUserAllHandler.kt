@@ -53,8 +53,8 @@ class UpsertUserAllHandler(
 
             userData?.let { current -> keepCurrentCollectionIfUploadReset(this, current) }
 
-            // With renaming switched off a name changed on the cabinet is not kept.
-            if (userData != null && !features.enabled(Feature.RENAME)) userName = userData.userName
+            // With renaming switched off, or name review on, a name changed on the cabinet is not kept.
+            if (userData != null && (!features.enabled(Feature.RENAME) || features.enabled(Feature.NAME_REVIEW))) userName = userData.userName
 
             // Validate username
             if (!userName.isValidUsername())

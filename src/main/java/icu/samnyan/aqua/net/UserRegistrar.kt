@@ -503,6 +503,7 @@ class UserRegistrar(
     @API("/delete-account")
     @Doc("Permanently delete the current user's account and all associated game data.", "Success message")
     fun deleteAccount(@RP token: Str) = jwt.auth(token) { user ->
+        if (user.isSuperAdmin) 400 - "超级管理员账号不能删除"
         val cleanup = accountDeletion.deleteDatabaseData(user.auId)
         accountDeletion.deleteUploadedFiles(cleanup)
         SUCCESS

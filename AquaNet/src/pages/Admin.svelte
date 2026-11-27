@@ -10,6 +10,7 @@
   import BindCardAdmin from "../components/admin/BindCardAdmin.svelte"
   import GhostPoolAdmin from "../components/admin/GhostPoolAdmin.svelte"
   import FeatureSwitchAdmin from "../components/admin/FeatureSwitchAdmin.svelte"
+  import NameReviewAdmin from "../components/admin/NameReviewAdmin.svelte"
   import Icon from "../components/ui/Icon.svelte"
   import PageHeader from "../components/ui/PageHeader.svelte"
   import EmptyState from "../components/ui/EmptyState.svelte"
@@ -30,9 +31,9 @@
   } from "../libs/generalTypes"
 
   type View = "users" | "cards"
-  type Section = "overview" | "tournaments" | "events" | "announcements" | "circles" | "claims" | "bind" | "ghosts" | "switches" | View
+  type Section = "overview" | "tournaments" | "events" | "announcements" | "circles" | "claims" | "bind" | "ghosts" | "switches" | "nameReview" | View
   // Sections that manage their own data and have no user / card list to refresh.
-  const selfManaged: Section[] = ["overview", "tournaments", "events", "announcements", "circles", "claims", "bind", "ghosts", "switches"]
+  const selfManaged: Section[] = ["overview", "tournaments", "events", "announcements", "circles", "claims", "bind", "ghosts", "switches", "nameReview"]
   type ManagedGame = "mai2" | "chu3" | "ongeki"
 
   USER.ensureLoggedIn()
@@ -274,8 +275,9 @@
   async function setBoolean(field: string, event: Event) {
     if (!userDetail) return
     const checked = (event.currentTarget as HTMLInputElement).checked
-    if (field === "isAdmin" && isSelf(userDetail.user) && !checked) {
-      notice = "不能取消当前登录账号的管理员权限"
+    if (field === "isAdmin" && (!me?.isSuperAdmin || userDetail.user.isSuperAdmin)) {
+      notice = "只有超级管理员可以更改管理员权限，且超级管理员本身不能被更改"
+      await openUser(selectedUser!)
       return
     }
     try {
@@ -464,6 +466,7 @@
     { id: "circles", label: "圈子管理", icon: "solar:users-group-rounded-bold-duotone" },
     { id: "ghosts", label: "友人对战", icon: "solar:ghost-bold-duotone" },
     { id: "claims", label: "理赔记录", icon: "solar:hand-money-bold-duotone" },
+    { id: "nameReview", label: "名称审核", icon: "solar:user-check-rounded-bold-duotone" },
     { id: "switches", label: "功能开关", icon: "solar:tuning-2-bold-duotone" },
   ]
 </script>
@@ -511,6 +514,8 @@
     {#key `${bindCardId}|${bindUsername}`}<BindCardAdmin cardId={bindCardId} username={bindUsername} />{/key}
     {:else if section === "ghosts"}
     <GhostPoolAdmin />
+    {:else if section === "nameReview"}
+    <NameReviewAdmin />
     {:else if section === "switches"}
     <FeatureSwitchAdmin />
     {:else}
@@ -543,7 +548,7 @@
               <button class="result-row" class:selected={selectedUser?.auId === user.auId} type="button" on:click={() => openUser(user)}>
                 <span class="result-icon"><Icon icon="solar:user-circle-bold-duotone" /></span>
                 <span class="result-copy">
-                  <strong class="truncate">{user.displayName || user.username}{#if user.isAdmin}<span class="badge primary admin-badge">ADMIN</span>{/if}</strong>
+                  <strong class="truncate">{user.displayName || user.username}{#if user.isSuperAdmin}<span class="badge primary admin-badge">SUPER ADMIN</span>{:else if user.isAdmin}<span class="badge primary admin-badge">ADMIN</span>{/if}</strong>
                   <small class="truncate">#{user.auId} · {user.username}</small>
                   <small class="truncate">{user.email}</small>
                   <small class="truncate">注册 {formatTime(user.regTime)}</small>
@@ -579,7 +584,7 @@
               <h2 class="truncate">{userDetail.user.computedName}</h2>
               <span class="muted truncate">{userDetail.user.email} · @{userDetail.user.username}</span>
               <div class="row tags">
-                {#if userDetail.user.isAdmin}<span class="badge primary">ADMIN</span>{/if}
+                {#if userDetail.user.isSuperAdmin}<span class="badge primary">SUPER ADMIN</span>{:else if userDetail.user.isAdmin}<span class="badge primary">ADMIN</span>{/if}
                 {#if userDetail.mai2}<span class="badge">MAI2</span>{/if}
                 {#if userDetail.chu3}<span class="badge">CHU3</span>{/if}
                 {#if userDetail.ongeki}<span class="badge">ONGEKI</span>{/if}
@@ -629,9 +634,10 @@
               <div class="setting-row">
                 <label class="setting-text" for="adm-admin">
                   <span class="name">管理员权限</span>
-                  {#if isSelf(userDetail.user)}<span class="desc">不能取消当前登录账号的管理员权限</span>{/if}
+                  {#if userDetail.user.isSuperAdmin}<span class="desc">超级管理员的权限不能被更改</span>
+                  {:else if !me?.isSuperAdmin}<span class="desc">只有超级管理员可以授予或取消管理员权限</span>{/if}
                 </label>
-                <input id="adm-admin" type="checkbox" class="switch" checked={userDetail.user.isAdmin} disabled={isSelf(userDetail.user)} on:change={(e) => setBoolean("isAdmin", e)} />
+                <input id="adm-admin" type="checkbox" class="switch" checked={userDetail.user.isAdmin} disabled={!me?.isSuperAdmin || !!userDetail.user.isSuperAdmin} on:change={(e) => setBoolean("isAdmin", e)} />
               </div>
             </div>
           </section>

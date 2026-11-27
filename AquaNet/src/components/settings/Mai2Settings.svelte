@@ -11,6 +11,8 @@
   import type { GameUserOption } from "../../libs/generalTypes";
   import InputField from "../ui/InputField.svelte";
   import { FEATURE_FLAGS } from "../../libs/features";
+  import NameReviewNotice from "./NameReviewNotice.svelte";
+  import { refreshNameRequests } from "../../libs/nameReview";
 
   let userNameField: any
 
@@ -212,9 +214,10 @@
 <div class="game-settings">
   <div class="setting-group">
     {#if !$FEATURE_FLAGS.rename}<div class="alert" role="status"><Icon icon="solar:info-circle-bold-duotone" /><p>管理员暂时关闭了修改名字。</p></div>{/if}
+    <NameReviewNotice game="mai2" />
     <fieldset class="plain" disabled={!$FEATURE_FLAGS.rename}>
       <InputField bind:field={userNameField}
-        callback={() => GAME.changeName('mai2', userNameField.value).then(() => true)}/>
+        callback={() => GAME.changeName('mai2', userNameField.value).then(() => { refreshNameRequests(); return true })}/>
     </fieldset>
   </div>
 

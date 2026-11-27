@@ -7,9 +7,10 @@ export interface FeatureFlags {
   customAvatar: boolean
   claim: boolean
   export: boolean
+  nameReview: boolean
 }
 
-export const FEATURE_DEFAULTS: FeatureFlags = { rename: true, customAvatar: true, claim: true, export: true }
+export const FEATURE_DEFAULTS: FeatureFlags = { rename: true, customAvatar: true, claim: true, export: true, nameReview: false }
 
 export const FEATURE_FLAGS = writable<FeatureFlags>({ ...FEATURE_DEFAULTS })
 

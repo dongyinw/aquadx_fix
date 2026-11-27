@@ -15,6 +15,11 @@
       on: "玩家可以在网站设置里，或在机台上修改游戏昵称。",
       off: "玩家不能再改昵称：网站上的修改会被拒绝，机台上改的名字也不会被保存。管理员仍可在用户管理里修改。",
     },
+    nameReview: {
+      icon: "solar:user-check-rounded-bold-duotone",
+      on: "玩家提交的新游戏名字需要管理员在「名称审核」里通过后才会生效；机台上改的名字不会被保存。",
+      off: "玩家改名立即生效，不需要审核。已经提交、还没处理的申请仍可在「名称审核」里处理。",
+    },
     customAvatar: {
       icon: "solar:user-circle-bold-duotone",
       on: "玩家可以上传自定义头像，并在游戏里把头像设为自定义头像。",
@@ -43,7 +48,9 @@
 
   async function toggle(item: FeatureSwitch) {
     // Turning something off affects every player at once, so ask first.
-    if (item.enabled && !await confirmDialog({ title: `关闭「${item.label}」`, message: `关闭后，全服玩家都不能再使用「${item.label}」。随时可以重新打开。`, confirmText: "关闭", danger: true })) return
+    if (item.key === "nameReview") {
+      if (!item.enabled && !await confirmDialog({ title: `打开「${item.label}」`, message: "打开后，全服玩家改名都要经过审核才会生效。随时可以重新关闭。", confirmText: "打开" })) return
+    } else if (item.enabled && !await confirmDialog({ title: `关闭「${item.label}」`, message: `关闭后，全服玩家都不能再使用「${item.label}」。随时可以重新打开。`, confirmText: "关闭", danger: true })) return
     saving = item.key
     try {
       items = await FEATURES.adminSet(item.key, !item.enabled)

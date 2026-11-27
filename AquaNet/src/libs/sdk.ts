@@ -355,6 +355,19 @@ export const ANNOUNCEMENTS = {
 }
 
 export interface FeatureSwitch { key: string; label: string; enabled: boolean }
+export interface NameRequestMine { game: string; newName: string; status: "PENDING" | "APPROVED" | "REJECTED"; rejectReason: string; submittedAt: number }
+export interface NameRequestAdmin {
+  id: number; auId: number; username: string | null; game: string; oldName: string; newName: string
+  status: "PENDING" | "APPROVED" | "REJECTED"; submittedAt: number; reviewedAt: number | null
+  reviewer: string | null; autoApproved: boolean; rejectReason: string
+}
+export const NAME_REVIEW = {
+  status: (): Promise<{ enabled: boolean, requests: NameRequestMine[] }> => post('/api/v2/name-review/status'),
+  adminList: (all = false): Promise<{ enabled: boolean, requests: NameRequestAdmin[] }> => post('/api/v2/admin/name-review/list', { all }),
+  adminApprove: (id: number): Promise<NameRequestAdmin> => post('/api/v2/admin/name-review/approve', { id }),
+  adminReject: (id: number, reason: string): Promise<NameRequestAdmin> => post('/api/v2/admin/name-review/reject', { id, reason }),
+}
+
 export const FEATURES = {
   list: (): Promise<Record<string, boolean>> => post('/api/v2/switches/list'),
   adminList: (): Promise<FeatureSwitch[]> => post('/api/v2/admin/switches/list'),

@@ -75,6 +75,11 @@ class AdminApi(
     private fun user(auId: Long): AquaNetUser =
         userRepo.findByAuId(auId) ?: (404 - "User not found")
 
+    /** Only the super admin may touch the super admin's account (password, profile). */
+    private fun guardSuperAdmin(actor: AquaNetUser, target: AquaNetUser) {
+        if (target.isSuperAdmin && !actor.isSuperAdmin) 403 - "Only the super admin can modify the super admin"
+    }
+
     private fun userSummary(u: AquaNetUser): Map<String, Any?> = mapOf(
         "auId" to u.auId,
         "username" to u.username,
@@ -84,6 +89,7 @@ class AdminApi(
         "regTime" to u.regTime,
         "keychipCount" to u.keychips.size,
         "isAdmin" to u.isAdmin,
+        "isSuperAdmin" to u.isSuperAdmin,
     )
 
     private fun mai2Payload(profile: Mai2UserDetail): Map<String, Any?> = mapOf(
@@ -441,6 +447,7 @@ class AdminApi(
                 "emailConfirmed" to u.emailConfirmed,
                 "canModifyKeychips" to u.canModifyKeychips,
                 "isAdmin" to u.isAdmin,
+                "isSuperAdmin" to u.isSuperAdmin,
                 "lastLogin" to u.lastLogin,
                 "regTime" to u.regTime,
             ),
@@ -464,6 +471,7 @@ class AdminApi(
     ): Map<String, Any> {
         val actor = admin(token)
         val target = user(auId)
+        guardSuperAdmin(actor, target)
         target.pwHash = userServices.checkPwHash(request.password)
         userRepo.save(target)
         userServices.clearAllSessions(target)
@@ -482,6 +490,7 @@ class AdminApi(
     ): Map<String, Any> {
         val actor = admin(token)
         val target = user(auId)
+        guardSuperAdmin(actor, target)
         when (field) {
             "displayName" -> target.displayName = value
             "profileLocation" -> target.profileLocation = value
@@ -492,7 +501,9 @@ class AdminApi(
             "canModifyKeychips" -> target.canModifyKeychips = parseBoolean(value)
             "isAdmin" -> {
                 val enabled = parseBoolean(value)
-                if (actor.auId == target.auId && !enabled) 400 - "You cannot remove your own admin permission"
+                // Admin permissions are the super admin's to give and take; the super admin's own can never change.
+                if (!actor.isSuperAdmin) 403 - "Only the super admin can change admin permissions"
+                if (target.isSuperAdmin && !enabled) 400 - "The super admin cannot be demoted"
                 target.isAdmin = enabled
             }
             else -> 400 - "Unsupported profile field"
@@ -734,6 +745,10 @@ class AdminApi(
     fun userDelete(@RP token: Str, @RP auId: Long): Map<String, Any> {
         val actor = admin(token)
         if (actor.auId == auId) 400 - "You cannot delete your own account"
+        val target = user(auId)
+        if (target.isSuperAdmin) 400 - "The super admin account cannot be deleted"
+        // Deleting an admin account would take their admin permission away.
+        if (target.isAdmin && !actor.isSuperAdmin) 403 - "Only the super admin can delete another admin"
         val cleanup = accountDeletion.deleteDatabaseData(auId)
         accountDeletion.deleteUploadedFiles(cleanup)
         log.info("Admin {} deleted user {}", actor.auId, auId)

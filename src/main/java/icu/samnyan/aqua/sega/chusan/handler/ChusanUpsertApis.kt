@@ -1,6 +1,7 @@
 package icu.samnyan.aqua.sega.chusan.handler
 
 import ext.*
+import icu.samnyan.aqua.net.Feature
 import icu.samnyan.aqua.sega.chusan.ChusanController
 import icu.samnyan.aqua.sega.chusan.model.request.Chu3UserAll
 import icu.samnyan.aqua.sega.chusan.model.userdata.*
@@ -37,6 +38,9 @@ fun ChusanController.upsertApiInit() {
                     userName.fromChusanUsername()
                 }
                 userNameEx = ""
+
+                // Names only change through the website while name review is on.
+                if (oldUser != null && chusan.features.enabled(Feature.NAME_REVIEW)) userName = oldUser.userName
             }.also { db.userData.saveAndFlush(it) }
 
             // If the user was previously migrated to Minato, saving would mark them "migrated and then cleared".

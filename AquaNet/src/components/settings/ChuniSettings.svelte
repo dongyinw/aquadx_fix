@@ -25,6 +25,8 @@
   import ChuniMatchingSettings from "./ChuniMatchingSettings.svelte";
   import InputField from "../ui/InputField.svelte";
   import { FEATURE_FLAGS } from "../../libs/features";
+  import NameReviewNotice from "./NameReviewNotice.svelte";
+  import { refreshNameRequests } from "../../libs/nameReview";
   import UserOptionSlider from "./UserOptionSlider.svelte";
 
   let user: MikuNetUser
@@ -320,9 +322,10 @@
 
   <div class="setting-group">
     {#if !$FEATURE_FLAGS.rename}<div class="alert" role="status"><Icon icon="solar:info-circle-bold-duotone" /><p>管理员暂时关闭了修改名字。</p></div>{/if}
+    <NameReviewNotice game="chu3" />
     <fieldset class="plain" disabled={!$FEATURE_FLAGS.rename}>
       <InputField bind:field={userNameField}
-        callback={() => USERBOX.setUserBox({ field: "userName", value: userNameField.value }).then(() => true)}/>
+        callback={() => USERBOX.setUserBox({ field: "userName", value: userNameField.value }).then(() => { refreshNameRequests(); return true })}/>
     </fieldset>
   </div>
 

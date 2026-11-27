@@ -8,6 +8,8 @@
   import { t } from "../../libs/i18n";
   import StatusOverlays from "../StatusOverlays.svelte";
   import { FEATURE_FLAGS } from "../../libs/features";
+  import NameReviewNotice from "./NameReviewNotice.svelte";
+  import { refreshNameRequests } from "../../libs/nameReview";
 
   let userNameField: any
 
@@ -35,9 +37,10 @@
   <div class="game-settings">
     <div class="setting-group">
       {#if !$FEATURE_FLAGS.rename}<div class="alert" role="status"><Icon icon="solar:info-circle-bold-duotone" /><p>管理员暂时关闭了修改名字。</p></div>{/if}
+      <NameReviewNotice game="ongeki" />
       <fieldset class="plain" disabled={!$FEATURE_FLAGS.rename}>
         <InputField bind:field={userNameField}
-          callback={() => SETTING.detailSet('ongeki', 'userName', userNameField.value).then(() => true)}/>
+          callback={() => SETTING.detailSet('ongeki', 'userName', userNameField.value).then(() => { refreshNameRequests(); return true })}/>
       </fieldset>
     </div>
     <GameSettingFields game="ongeki"/>

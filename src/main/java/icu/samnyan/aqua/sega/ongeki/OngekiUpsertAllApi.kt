@@ -4,6 +4,7 @@ import ext.int
 import ext.invoke
 import ext.mapApply
 import ext.minus
+import icu.samnyan.aqua.net.Feature
 import icu.samnyan.aqua.sega.general.model.CardStatus
 import icu.samnyan.aqua.sega.ongeki.model.OngekiUpsertUserAll
 import icu.samnyan.aqua.sega.ongeki.model.UserData
@@ -29,6 +30,9 @@ fun OngekiController.initUpsertAll() {
         val u: UserData = all.userData?.get(0)?.apply {
             id = oldUser?.id ?: 0
             card = oldUser?.card ?: us.cardRepo.findByExtId(uid) ?: (404 - "Card not found")
+
+            // Names only change through the website while name review is on.
+            if (oldUser != null && features.enabled(Feature.NAME_REVIEW)) userName = oldUser.userName
 
             // Set eventWatchedDate with lastPlayDate, because client doesn't update it
             eventWatchedDate = oldUser?.lastPlayDate ?: ""

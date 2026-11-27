@@ -1,6 +1,7 @@
 package icu.samnyan.aqua.sega.ongeki
 
 import ext.*
+import icu.samnyan.aqua.net.FeatureSwitches
 import icu.samnyan.aqua.net.db.AquaUserServices
 import icu.samnyan.aqua.net.utils.simpleDescribe
 import icu.samnyan.aqua.sega.allnet.TokenChecker
@@ -27,6 +28,7 @@ class OngekiController(
     val us: AquaUserServices,
     val pop: GameMusicPopularity,
     val cardService: CardService,
+    val features: FeatureSwitches,
 ): MeowApi(
     { _, resp -> if (resp is String) resp else mapper.write(resp) },
     @OptIn(ExperimentalStdlibApi::class)

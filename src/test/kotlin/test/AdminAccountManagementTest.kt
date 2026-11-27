@@ -45,10 +45,11 @@ private class AdminFixture {
         mock(AllNetProps::class.java), jwt, mock(EntityManager::class.java),
         mock(GameMusicPopularity::class.java), mock(CardService::class.java), sessions,
     )
+    val accountDeletion = mock(AccountDeletionService::class.java)
     val api = AdminApi(
         jwt, users, mock(CardRepository::class.java), mock(UserKeychipRepo::class.java),
         mock(KeychipSessionRepo::class.java), mock(Mai2Repos::class.java), mock(Chu3Repos::class.java),
-        mock(OngekiRepos::class.java), mock(AccountDeletionService::class.java), userServices, resets,
+        mock(OngekiRepos::class.java), accountDeletion, userServices, resets,
     )
 
     init {
@@ -168,5 +169,52 @@ class AdminAccountManagementTest : StringSpec({
         }.code shouldBe 400
         shouldThrow<ApiException> { f.api.cards("admin-token", regTo = "2026-02-30") }.code shouldBe 400
         verify(f.users, never()).findAll()
+    }
+
+    "only the super admin can grant or revoke admin permissions" {
+        val f = AdminFixture()
+        val other = AquaNetUser(auId = 3, username = "other", isAdmin = true)
+        `when`(f.users.findByAuId(3)).thenReturn(other)
+        shouldThrow<ApiException> { f.api.profileSet("admin-token", 2, "isAdmin", "true") }.code shouldBe 403
+        shouldThrow<ApiException> { f.api.profileSet("admin-token", 3, "isAdmin", "false") }.code shouldBe 403
+        f.target.isAdmin shouldBe false
+        other.isAdmin shouldBe true
+
+        f.actor.isSuperAdmin = true
+        f.api.profileSet("admin-token", 2, "isAdmin", "true")
+        f.target.isAdmin shouldBe true
+        f.api.profileSet("admin-token", 3, "isAdmin", "false")
+        other.isAdmin shouldBe false
+    }
+
+    "the super admin can never be demoted or edited by other admins" {
+        val f = AdminFixture()
+        val boss = AquaNetUser(auId = 9, username = "boss", isAdmin = true, isSuperAdmin = true, pwHash = "boss-hash")
+        `when`(f.users.findByAuId(9)).thenReturn(boss)
+        // an ordinary admin cannot touch the super admin at all
+        shouldThrow<ApiException> { f.api.profileSet("admin-token", 9, "displayName", "x") }.code shouldBe 403
+        shouldThrow<ApiException> { f.api.profileSet("admin-token", 9, "isAdmin", "false") }.code shouldBe 403
+        shouldThrow<ApiException> { f.api.resetUserPassword("admin-token", 9, AdminPasswordResetRequest("new-password")) }.code shouldBe 403
+        shouldThrow<ApiException> { f.api.userDelete("admin-token", 9) }.code shouldBe 400
+        boss.pwHash shouldBe "boss-hash"
+
+        // not even the super admin can demote themselves, and there is no way to make anyone else a super admin
+        f.actor.isSuperAdmin = true
+        `when`(f.users.findByAuId(1)).thenReturn(f.actor)
+        shouldThrow<ApiException> { f.api.profileSet("admin-token", 1, "isAdmin", "false") }.code shouldBe 400
+        shouldThrow<ApiException> { f.api.profileSet("admin-token", 9, "isAdmin", "false") }.code shouldBe 400
+        shouldThrow<ApiException> { f.api.profileSet("admin-token", 2, "isSuperAdmin", "true") }.code shouldBe 400
+        boss.isAdmin shouldBe true
+        f.target.isSuperAdmin shouldBe false
+    }
+
+    "only the super admin can delete another admin" {
+        val f = AdminFixture()
+        f.target.isAdmin = true
+        shouldThrow<ApiException> { f.api.userDelete("admin-token", 2) }.code shouldBe 403
+        verifyNoInteractions(f.accountDeletion)
+        f.actor.isSuperAdmin = true
+        f.api.userDelete("admin-token", 2)
+        verify(f.accountDeletion).deleteDatabaseData(2)
     }
 })

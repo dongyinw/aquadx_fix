@@ -4,6 +4,7 @@ import ext.*
 import icu.samnyan.aqua.net.BotProps
 import icu.samnyan.aqua.net.Feature
 import icu.samnyan.aqua.net.FeatureSwitches
+import icu.samnyan.aqua.net.NameReviewService
 import icu.samnyan.aqua.net.db.AquaUserServices
 import icu.samnyan.aqua.net.utils.SUCCESS
 import icu.samnyan.aqua.sega.allnet.UserKeychipRepo
@@ -36,6 +37,7 @@ abstract class GameApiController<T : IUserData>(val name: String, userDataClass:
 
     @Autowired lateinit var cardService: CardService
     @Autowired lateinit var features: FeatureSwitches
+    @Autowired lateinit var nameReview: NameReviewService
     @Autowired lateinit var userKeychipRepo: UserKeychipRepo
 
     @API("trend")
@@ -143,6 +145,15 @@ abstract class GameApiController<T : IUserData>(val name: String, userDataClass:
 
         return us.jwt.auth(token) { u ->
             val user = async { userDataRepo.findByCard(u.ghostCard) } ?: (404 - "User not found")
+            if (field == "userName" && nameReview.enabled) {
+                // With review on the name is only checked here; it is written once an admin approves it.
+                val current = user.userName
+                prop(user, value)
+                val requested = user.userName
+                user.userName = current
+                nameReview.submit(u, name, current, requested)
+                return@auth mapOf("success" to true, "pending" to true, "newName" to requested)
+            }
             prop(user, value)
             async { userDataRepo.save(user) }
             cardService.updateCardTimestamp(u.ghostCard, name)

@@ -7,9 +7,10 @@ import icu.samnyan.aqua.sega.general.model.PropertyEntry
 import org.springframework.stereotype.Service
 import org.springframework.web.bind.annotation.RestController
 
-/** Server-wide switches an admin can flip for every player. A feature is on unless it was switched off. */
-enum class Feature(val key: String, val label: String, val offMessage: String) {
+/** Server-wide switches an admin can flip for every player. A feature is on unless it was switched off, except those with `defaultOn = false`. */
+enum class Feature(val key: String, val label: String, val offMessage: String, val defaultOn: Boolean = true) {
     RENAME("rename", "修改名字", "管理员已关闭修改名字"),
+    NAME_REVIEW("nameReview", "游戏名称审核", "", defaultOn = false),
     CUSTOM_AVATAR("customAvatar", "上传 / 使用自定义头像", "管理员已关闭自定义头像"),
     CLAIM("claim", "创哥理赔", "管理员已关闭创哥理赔"),
     EXPORT("export", "数据导出", "管理员已关闭数据导出"),
@@ -18,16 +19,21 @@ enum class Feature(val key: String, val label: String, val offMessage: String) {
 @Service
 class FeatureSwitches(private val properties: PropertyEntryRepository) {
     private val key = "feature_switches"
+    private val onKey = "feature_switches_on"
 
     /** Features that are switched off. Kept in memory so the hot paths (every game request) never touch the database. */
     @Volatile private var off: Set<String>? = null
 
-    private fun load(): Set<String> = off ?: synchronized(this) {
-        off ?: (properties.findByPropertyKey(key)?.propertyValue
-            ?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()).also { off = it }
-    }
+    private fun read(k: String) = properties.findByPropertyKey(k)?.propertyValue
+        ?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
 
-    fun enabled(feature: Feature) = feature.key !in load()
+    private fun load(): Set<String> = off ?: synchronized(this) { off ?: read(key).also { off = it } }
+
+    /** Features that are off by default and were switched on. */
+    @Volatile private var on: Set<String>? = null
+    private fun loadOn(): Set<String> = on ?: synchronized(this) { on ?: read(onKey).also { on = it } }
+
+    fun enabled(feature: Feature) = if (feature.defaultOn) feature.key !in load() else feature.key in loadOn()
 
     /** Throws 403 with the reason when the feature is switched off. */
     fun require(feature: Feature) {
@@ -38,11 +44,15 @@ class FeatureSwitches(private val properties: PropertyEntryRepository) {
 
     @Synchronized
     fun set(feature: Feature, enabled: Boolean) {
-        val next = load().toMutableSet().also { if (enabled) it.remove(feature.key) else it.add(feature.key) }
-        val entry = properties.findByPropertyKey(key) ?: PropertyEntry(key, "")
+        val k = if (feature.defaultOn) key else onKey
+        val current = if (feature.defaultOn) load() else loadOn()
+        // A default-on feature is listed when switched off; a default-off feature is listed when switched on.
+        val listed = enabled != feature.defaultOn
+        val next = current.toMutableSet().also { if (listed) it.add(feature.key) else it.remove(feature.key) }
+        val entry = properties.findByPropertyKey(k) ?: PropertyEntry(k, "")
         entry.propertyValue = next.sorted().joinToString(",")
         properties.saveAndFlush(entry)
-        off = next
+        if (feature.defaultOn) off = next else on = next
     }
 }
 
