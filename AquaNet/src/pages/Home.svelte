@@ -12,6 +12,7 @@
   import { pfp } from "../libs/ui";
   import { toast } from "../libs/toast";
   import * as acUrl from "../libs/acUrl";
+  import NameReviewPopup from "../components/NameReviewPopup.svelte";
 
   USER.ensureLoggedIn();
 
@@ -97,6 +98,8 @@
     {#if physicalCards === 0}
       <div class="alert alert-info"><Icon icon="solar:card-bold-duotone" /><p>还没有绑定实体卡。<a href="/cards">绑定一张 Aime / FeliCa 卡</a>，即可在机台上刷卡同步成绩。</p></div>
     {/if}
+
+    <NameReviewPopup />
 
     <section class="stats" aria-label="账号概览">
       <a class="stat" href="/cards">

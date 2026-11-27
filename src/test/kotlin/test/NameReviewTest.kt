@@ -49,6 +49,9 @@ private class ReviewFixture {
         `when`(requests.findByAuIdAndGameAndStatus(anyLong(), anyString(), anyString())).thenAnswer {
             store.values.filter { r -> r.auId == it.getArgument<Long>(0) && r.game == it.getArgument<String>(1) && r.status == it.getArgument<String>(2) }
         }
+        `when`(requests.findByAuIdAndNotifiedFalseAndStatusNotOrderByReviewedAtAsc(anyLong(), anyString())).thenAnswer {
+            store.values.filter { r -> r.auId == it.getArgument<Long>(0) && !r.notified && r.status != it.getArgument<String>(1) }.sortedBy { r -> r.reviewedAt }
+        }
         `when`(requests.findByStatusAndSubmittedAtLessThanEqual(anyString(), anyLong())).thenAnswer {
             store.values.filter { r -> r.status == it.getArgument<String>(0) && r.submittedAt <= it.getArgument<Long>(1) }
         }
@@ -124,5 +127,20 @@ class NameReviewTest : StringSpec({
         `when`(f.dataRepo.findByCard(f.player.ghostCard)).thenReturn(null)
         shouldThrow<ApiException> { f.service.approve(req.id, 1) }.code shouldBe 400
         req.status shouldBe NameReviewService.REJECTED
+    }
+
+    "reviewed outcomes are shown to the player once, approved or rejected, never while pending" {
+        val f = ReviewFixture()
+        val a = f.service.submit(f.player, "mai2", "旧名字", "甲")
+        f.service.unseen(f.player) shouldBe emptyList()
+        f.service.approve(a.id, 1)
+        val b = f.service.submit(f.player, "mai2", "甲", "乙")
+        f.service.unseen(f.player).map { it.id } shouldBe listOf(a.id)
+        f.service.reject(b.id, 1, "不合适")
+        f.service.unseen(f.player).map { it.id } shouldBe listOf(a.id, b.id)
+        f.service.acknowledge(f.player, listOf(a.id, 999))
+        f.service.unseen(f.player).map { it.id } shouldBe listOf(b.id)
+        f.service.acknowledge(f.player, listOf(b.id))
+        f.service.unseen(f.player) shouldBe emptyList()
     }
 })

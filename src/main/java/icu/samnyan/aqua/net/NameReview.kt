@@ -38,11 +38,14 @@ class GameNameRequest(
     /** Approved by the timer instead of an admin. Only admins ever see this. */
     var autoApproved: Boolean = false,
     var rejectReason: String = "",
+    /** The player has been shown the outcome (home page popup). */
+    var notified: Boolean = false,
 )
 
 interface GameNameRequestRepo : JpaRepository<GameNameRequest, Long> {
     fun findByAuIdAndGameAndStatus(auId: Long, game: String, status: String): List<GameNameRequest>
     fun findByAuIdOrderBySubmittedAtDesc(auId: Long): List<GameNameRequest>
+    fun findByAuIdAndNotifiedFalseAndStatusNotOrderByReviewedAtAsc(auId: Long, status: String): List<GameNameRequest>
     fun findByStatusOrderBySubmittedAtAsc(status: String): List<GameNameRequest>
     fun findByStatusAndSubmittedAtLessThanEqual(status: String, submittedAt: Long): List<GameNameRequest>
     fun findTop200ByOrderBySubmittedAtDesc(): List<GameNameRequest>
@@ -141,6 +144,15 @@ class NameReviewService(
         }
     }
 
+    /** Reviewed requests whose outcome the player has not been shown yet. */
+    fun unseen(user: AquaNetUser) = requests.findByAuIdAndNotifiedFalseAndStatusNotOrderByReviewedAtAsc(user.auId, PENDING)
+
+    /** Marks the given outcomes (only the player's own) as shown. */
+    @Transactional
+    fun acknowledge(user: AquaNetUser, ids: Collection<Long>) {
+        unseen(user).filter { it.id in ids }.forEach { it.notified = true; requests.save(it) }
+    }
+
     fun mine(user: AquaNetUser) = requests.findByAuIdOrderBySubmittedAtDesc(user.auId)
     fun pending() = requests.findByStatusOrderBySubmittedAtAsc(PENDING)
     fun recent() = requests.findTop200ByOrderBySubmittedAtDesc()
@@ -159,6 +171,22 @@ class NameReviewApi(private val jwt: JWT, private val review: NameReviewService)
                 mapOf("game" to it.game, "newName" to it.newName, "status" to it.status, "rejectReason" to it.rejectReason, "submittedAt" to it.submittedAt)
             },
         )
+    }
+
+    @API("/notices")
+    @Doc("Outcomes of reviewed name requests the player has not been shown yet.", "Name review")
+    fun notices(@RP token: Str) = jwt.auth(token) { u ->
+        review.unseen(u).map {
+            mapOf("id" to it.id, "game" to it.game, "newName" to it.newName, "approved" to (it.status == NameReviewService.APPROVED),
+                "rejectReason" to it.rejectReason, "submittedAt" to it.submittedAt)
+        }
+    }
+
+    @API("/ack")
+    @Doc("Mark outcomes as shown.", "Success message")
+    fun ack(@RP token: Str, @RP ids: Str) = jwt.auth(token) { u ->
+        review.acknowledge(u, ids.split(',').mapNotNull { it.trim().toLongOrNull() })
+        mapOf("success" to true)
     }
 }
 
