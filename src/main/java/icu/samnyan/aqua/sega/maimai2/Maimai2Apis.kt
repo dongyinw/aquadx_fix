@@ -364,39 +364,22 @@ fun Maimai2ServletController.initApis() {
             ?.mapNotNull { (it as? Number)?.toInt() }
             ?.toSet()
             ?.takeIf { it.isNotEmpty() }
-            ?: setOf(2, 3, 4)
+            ?: Mai2NationalStats.DEFAULT_LEVELS
 
-        // National rates are derived from the current best score of every user.
-        // The bundled data supplies the song/difficulty catalog, while these
-        // values are recalculated for every request so new plays appear immediately.
-        val liveByKey = db.userMusicDetail.findAll()
+        // Rates come from the current best score of every user, recalculated per request so new plays show up
+        // immediately. They are blended with the bundled real data (see Mai2NationalStats), and charts the bundle
+        // lacks (new songs) are added from the music metadata.
+        val bests = db.userMusicDetail.findAll()
             .asSequence()
             .filter { it.playCount > 0 }
-            .groupBy { it.musicId to it.level }
+            .groupBy({ it.musicId to it.level }) { Mai2NationalStats.Best(it.achievement, it.comboStatus) }
 
-        fun rate(count: Int, total: Int) =
-            if (total == 0) 0 else (count.toLong() * 1_000_000L / total).toInt()
-
-        val nationalDataList = db.gameData.mai2NationalData.mapNotNull { entry ->
-            val details = entry.nationalDataDetailList
-                .filter { it.level in requestedLevels }
-                .map { template ->
-                    val rows = liveByKey[entry.musicId.toInt() to template.level].orEmpty()
-                    val total = rows.size
-                    mapOf(
-                        "level" to template.level,
-                        "clearRateAp" to rate(rows.count { it.comboStatus >= 3 }, total),
-                        "clearRateS" to rate(rows.count { it.achievement >= 970000 }, total),
-                        "clearRateSs" to rate(rows.count { it.achievement >= 990000 }, total),
-                        "clearRateSss" to rate(rows.count { it.achievement >= 1000000 }, total),
-                        "clearRateSssPlus" to rate(rows.count { it.achievement >= 1005000 }, total)
-                    )
-                }
-            if (details.isEmpty()) null else mapOf(
-                "musicId" to entry.musicId,
-                "nationalDataDetailList" to details
-            )
-        }
+        val nationalDataList = Mai2NationalStats.build(
+            db.gameData.mai2NationalData,
+            net.musicMapping.mapValues { it.value.notes.size },
+            bests,
+            requestedLevels
+        )
 
         mapOf("nextIndex" to 0, "nationalDataList" to nationalDataList)
     }
