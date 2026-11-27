@@ -43,6 +43,7 @@ jobs:
             --tests test.ImportTransactionTest \
             --tests test.ImportExportParityTest \
             --tests test.AdminAccountManagementTest \
+            --tests test.NameReviewTest \
             --tests test.WaccaDataExportTest --no-daemon
 
       - name: Set up pnpm

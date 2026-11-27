@@ -13,10 +13,11 @@ import org.mockito.Mockito.`when`
 import org.mockito.Mockito.verify
 
 class FeatureSwitchesTest : StringSpec({
-    "every feature is on when nothing was switched off" {
+    "every feature is on when nothing was switched off, except those that are off by default" {
         val switches = testSwitches()
-        Feature.entries.forEach { switches.enabled(it) shouldBe true }
-        switches.all().values.all { it } shouldBe true
+        Feature.entries.forEach { switches.enabled(it) shouldBe it.defaultOn }
+        switches.all()["nameReview"] shouldBe false
+        switches.all().filterKeys { it != "nameReview" }.values.all { it } shouldBe true
     }
 
     "a switched off feature is off and the others stay on" {
